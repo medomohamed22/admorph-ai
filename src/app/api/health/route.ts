@@ -1,1 +1,1 @@
-export function GET(){return Response.json({status:'ok',app:'AdMorph AI',milestone:3,mode:'local-brand-workspace',liveGeneration:false})}
+export function GET(){return Response.json({status:'ok',app:'AdMorph AI',milestone:4,mode:'local-campaign-workspace',planning:'gemini-byok',imageGeneration:false,liveGeneration:false})}

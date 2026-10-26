@@ -3,12 +3,12 @@
 **Event:** Meta Global AI Developer Hackathon 2026  
 **Recorded project baseline:** 26 October 2026  
 **Planned working period:** 26 October–4 November 2026  
-**Current feature milestone:** 3  
-**Snapshot:** 0.3.0, work in progress
+**Current feature update:** Campaign creation, planning and concept approval  
+**Snapshot:** 0.4.0, work in progress
 
 ## Statement for judges
 
-> AdMorph AI is an AI-assisted creative studio being developed for the Meta Global AI Developer Hackathon. The first working baseline documented in this project was prepared on 26 October 2026, and development is planned to continue through 4 November 2026. This baseline includes a responsive English/Arabic demo, provider catalog configuration, and browser-local Brand Kits with export/import. Further campaign generation, Critic/repair workflows and authenticated Meta integration are planned next. Meaningful implementation changes, verification results and deployments will be recorded as they happen in the repository history and build log.
+> AdMorph AI is an AI-assisted creative studio being developed for the Meta Global AI Developer Hackathon. The first working baseline documented in this project was prepared on 26 October 2026, and development is planned to continue through 4 November 2026. The current implementation includes a responsive English/Arabic demo, provider catalogs, local Brand Kits, campaign product uploads and editable approval of three creative concepts. Gemini planning requires the user's key and explicit image-sharing consent; the no-key mode uses local templates. Image generation, Critic/repair workflows and authenticated Meta integration are planned next. Meaningful changes, verification results and deployments will be recorded as they happen in the repository history and build log.
 
 The labels “Day 1”, “Day 2” and “Day 3” in the technical plan refer to implementation milestones. All three were completed in this working session on **26 October 2026**; they are not three separate calendar-day claims. The original plan is retained as a planning document, and actual progress is recorded in [BUILD_LOG.md](BUILD_LOG.md).
 
@@ -20,6 +20,7 @@ The labels “Day 1”, “Day 2” and “Day 3” in the technical plan refer 
 - A real public OpenRouter catalog was checked without a key. Provider fixtures are explicitly identified in tests.
 - The Meta catalog adapter exists; **authenticated Meta requests and image generation are not verified in this snapshot**. Meta model usage will be demonstrated and documented once implemented with authorised credentials.
 - The source is prepared for the owner to upload to GitHub and deploy through Vercel. No remote repository or live deployment is claimed by this package alone.
+- Campaign workflow validation: `CAMPAIGN_UPDATE_VALIDATION.md`. Gemini request handling is verified with synthetic fixtures, not a paid authenticated live call. The campaign update was implemented on 26 October as another real update on the same date.
 
 ## How subsequent work will be recorded
 
