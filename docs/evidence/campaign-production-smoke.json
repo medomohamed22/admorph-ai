@@ -1,0 +1,18 @@
+{
+  "checkedAtUTC": "2026-10-26T12:19:52.189Z",
+  "base": "http://localhost:3101",
+  "mode": "local-production-build",
+  "passed": [
+    "home",
+    "hackathon-en-ar",
+    "mobile-overflow",
+    "brand-save-reload",
+    "campaign-sample-edit-approve-reload-en-ar",
+    "health",
+    "missing-key",
+    "custom-proxy-rejection"
+  ],
+  "browserErrors": [],
+  "paidApiCalls": false,
+  "remoteDeploymentVerified": false
+}

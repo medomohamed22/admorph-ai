@@ -89,7 +89,7 @@
   },
   "footer": {
     "notice": "Demo uses sample data — live generation requires a provider.",
-    "milestone": "DAY 03 / LOCAL BRAND WORKSPACE"
+    "milestone": "CREATIVE WORKSPACE · IN PROGRESS"
   },
   "settings": {
     "eyebrow": "YOUR WORKSPACE, YOUR WAY",
@@ -125,9 +125,9 @@
     "export": "Export backup",
     "import": "Import backup",
     "protection": "Generation Protection",
-    "protectionNote": "Only model catalogs and credential checks are enabled. Paid generation and server-owned credentials remain disabled.",
+    "protectionNote": "Gemini text planning runs only after explicit consent with your own key. Image generation remains unavailable. No server-owned credentials.",
     "about": "About",
-    "aboutNote": "AdMorph AI · Day 3 local Brand Kits. Next.js, React, TypeScript and Dexie. Locally bundled Inter/Cairo fonts. No paid generation.",
+    "aboutNote": "AdMorph AI · Local Brand Kits, campaign briefs and editable concept approval. Next.js, React, TypeScript and Dexie. Gemini planning uses your own key.",
     "show": "Show key",
     "hide": "Hide key",
     "clear": "Clear key",
@@ -210,7 +210,15 @@
       "manual_id": "Enter a valid model ID using letters, numbers, dot, dash, underscore, colon or slash. OpenRouter IDs must include provider/model.",
       "manual_ack": "Acknowledge the limitations before assigning an unverified model.",
       "incomplete_roles": "Select models for Planner, Critic and Edit command before saving. Image maker is optional.",
-      "storage_error": "Could not update local storage. No plaintext key was stored."
+      "storage_error": "Could not update local storage. No plaintext key was stored.",
+      "campaign_input": "Check the image, brief and selected model, then confirm consent before trying again.",
+      "product_image": "Choose a valid PNG, JPEG or WebP image.",
+      "product_size": "The product image must be 2 MB or smaller.",
+      "product_dimensions": "Each image side must be 4096 pixels or smaller.",
+      "unsupported_planner": "This model or request is not supported. Choose a Gemini model with image input and structured output.",
+      "plan_invalid": "The planner returned an incomplete or invalid plan. Your previous concepts have been kept.",
+      "plan_blocked": "Gemini declined this request. Review the image and brief before trying again.",
+      "plan_truncated": "The response reached its output limit. Your previous concepts have been kept; try a shorter brief or another model."
     },
     "connectionFailed": "Action needs attention — see message below",
     "lastSuccess": "Last successful catalog · not a fresh access check",
@@ -362,7 +370,7 @@
     "snapshotLabel": "First recorded working baseline",
     "snapshotDate": "26 October 2026",
     "statusLabel": "Current snapshot",
-    "status": "Milestone 3 · Work in progress",
+    "status": "Campaign planning · Work in progress",
     "recordTitle": "Development record",
     "statement": "The first working baseline documented here was prepared on 26 October 2026. Development is planned to continue through 4 November 2026, with meaningful changes recorded in GitHub commits and verification runs as they happen.",
     "milestoneNote": "The labels Day 1, Day 2 and Day 3 describe feature milestones completed on 26 October. They are not separate calendar-day claims. Future work remains planned until implemented and verified.",
@@ -371,11 +379,11 @@
       "Responsive English/Arabic interface and interactive sample campaign.",
       "Provider catalog adapters, model search and role selection.",
       "Browser-local Brand Kits, logo storage, theme preview and JSON export/import.",
-      "Optional encrypted key storage, unit tests and browser checks."
+      "Optional encrypted key storage, unit tests and browser checks.",
+      "Product uploads, persisted campaign briefs, Gemini planning and editable approval of three concepts. Local sample mode requires no AI request."
     ],
     "plannedTitle": "Planned next, within the build window",
     "planned": [
-      "Campaign planning and concept approval.",
       "Background generation, editable composition and PNG export.",
       "Critic review, user-approved fixes, undo and comparison.",
       "Authenticated Meta integration, final demo and submission evidence."
@@ -387,5 +395,92 @@
     "official": "Official event page",
     "demo": "Explore the current demo",
     "footerLink": "Hackathon build log · 26 Oct–4 Nov 2026"
+  },
+  "campaign": {
+    "eyebrow": "CAMPAIGN WORKSPACE",
+    "title": "Your next campaign starts here.",
+    "description": "Bring your product, shape the brief and choose three creative directions worth exploring.",
+    "loading": "Opening your local campaigns…",
+    "newCampaign": "New campaign",
+    "savedCampaigns": "Your campaigns",
+    "draft": "Draft",
+    "saveNow": "Save now",
+    "save": {
+      "draft": "Start editing to save a draft",
+      "saved": "Saved in this browser",
+      "saving": "Saving…",
+      "error": "Session only — local storage unavailable"
+    },
+    "setup": "PRODUCT & BRIEF",
+    "fillSample": "Use sample product",
+    "brand": "Brand Kit",
+    "sampleBrand": "Sora · sample brand",
+    "brandSnapshot": "saved brand snapshot",
+    "createBrand": "Create a Brand Kit",
+    "snapshotHelp": "This campaign keeps a snapshot of your chosen brand.",
+    "product": "Product image",
+    "productAlt": "Campaign product preview",
+    "productHelp": "PNG, JPEG or WebP · up to 2 MB · maximum 4096 px per side. Stored locally until you explicitly send it.",
+    "brief": "Campaign brief",
+    "briefPlaceholder": "What are you promoting, who is it for, and what should people do?",
+    "briefHelp": "Add at least 8 characters. Use verified product facts.",
+    "sampleBrief": "Introduce Sora ceremonial matcha to people who enjoy a calm daily ritual. Invite them to discover the product. Do not invent discounts or health benefits.",
+    "goal": "Primary goal",
+    "goals": {
+      "awareness": "Build awareness",
+      "consideration": "Encourage consideration",
+      "conversion": "Encourage a purchase"
+    },
+    "language": "Creative language",
+    "english": "English",
+    "arabic": "Arabic",
+    "format": "Portrait format",
+    "planner": "YOUR PLANNER",
+    "plannerTitle": "From brief to possibilities.",
+    "noPlanner": "No saved planner",
+    "chooseModel": "Choose and save a model in Settings",
+    "modelHelp": "Uses your saved Planner role. The selected model must support image input and structured text output; catalog metadata may be incomplete.",
+    "openSettings": "Open provider settings",
+    "geminiOnly": "Planning currently supports Gemini. Choose a Gemini Planner in Settings, or try the local sample.",
+    "keyHelp": "Enter or unlock your Gemini key in Settings. Keys are kept in memory unless you explicitly encrypt them.",
+    "consent": "I agree to send this product image, Brand Kit fields and campaign brief through this app’s server to Gemini, using my key, for a potentially billable planning request.",
+    "billingHelp": "One request per click; no automatic paid retries. Cancellation stops waiting, but a provider may already have processed the request.",
+    "generate": "Plan with Gemini",
+    "planning": "Preparing concepts…",
+    "cancel": "Cancel request",
+    "localTitle": "Explore without an API key",
+    "localHelp": "Three local copy templates using your brand name and chosen language. They do not analyze your image or brief and never contact an AI provider.",
+    "localButton": "Create local sample concepts",
+    "required": "Add a product image and a brief of at least 8 characters to continue.",
+    "review": "EDIT & APPROVE",
+    "conceptsTitle": "Three directions. Your decision.",
+    "sources": {
+      "draft": "Awaiting concepts",
+      "sample": "Local sample · no AI request",
+      "gemini": "Gemini plan · editable"
+    },
+    "stale": "The campaign inputs changed. Your previous concepts remain here, but create a new plan before approving them.",
+    "empty": "Your concepts will appear here. Start with the local sample or use your saved Gemini Planner.",
+    "editHelp": "Edit every field before approval. Editing an approved concept reopens it for review.",
+    "angles": {
+      "offer": "Discovery / offer",
+      "benefit": "Product benefit",
+      "lifestyle": "Lifestyle"
+    },
+    "fields": {
+      "title": "Concept title",
+      "audienceAngle": "Audience angle",
+      "headline": "Headline",
+      "caption": "Caption",
+      "visualDirection": "Visual direction"
+    },
+    "approved": "Approved",
+    "pending": "Needs review",
+    "approve": "Approve concept",
+    "reopen": "Reopen concept",
+    "approvalCount": "concepts approved",
+    "readyNext": "All concepts are approved and saved for the next stage.",
+    "nextHelp": "Review and approve all three concepts before moving to the next stage.",
+    "imageLater": "Image generation · coming later"
   }
 }

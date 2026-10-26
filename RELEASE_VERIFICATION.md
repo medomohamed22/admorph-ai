@@ -28,6 +28,6 @@ Generated `releases` folders are excluded from Git, TypeScript scanning and ESLi
 - GitHub Actions are configured, but have not run remotely before the owner uploads.
 - No Vercel deployment or public Production URL was created. The local production smoke is not a cloud-deployment claim.
 - Vercel instructions use the documented native Next.js preset, Node 24.x, `npm ci`, `npm run build` and automatic output directory. No environment variables are required by this baseline.
-- Authenticated Meta/Gemini/provider calls and paid generation remain unverified/unimplemented as described in `HACKATHON.md` and the milestone reports.
+- This report records the historical 0.3.0 release. The current campaign update adds a Gemini BYOK text planner; see `CAMPAIGN_UPDATE_VALIDATION.md`. Authenticated live Meta/Gemini requests remain unverified without user-supplied credentials, and image generation remains planned.
 
 After manual deployment, verify the Production URL from a fresh browser and record the actual Vercel deployment link in BUILD_LOG.md. GitHub commit/CI timestamps and Vercel deployment records will then provide independently visible records of subsequent work.

@@ -1,7 +1,9 @@
 export const errorCodes = ['missing_key', 'consent', 'invalid_request', 'custom_server', 'origin',
   'invalid_url', 'unauthorized', 'forbidden', 'rate_limit', 'quota', 'invalid_model',
   'timeout', 'network', 'cors', 'invalid_response', 'upstream', 'catalog_limit', 'cancelled',
-  'storage_error', 'role_capability', 'manual_id', 'manual_ack', 'incomplete_roles'] as const;
+  'storage_error', 'role_capability', 'manual_id', 'manual_ack', 'incomplete_roles',
+  'campaign_input', 'product_image', 'product_size', 'product_dimensions', 'unsupported_planner',
+  'plan_invalid', 'plan_blocked', 'plan_truncated'] as const;
 export type ErrorCode = typeof errorCodes[number];
 export class ProviderError extends Error {
   constructor(public code: ErrorCode, public status = 400) { super(code); }

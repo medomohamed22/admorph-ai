@@ -1,6 +1,20 @@
-# AdMorph AI — Hackathon baseline (Milestone 3)
+# AdMorph AI — Creative campaign workspace
 
-Responsive English/Arabic Next.js creative playground with local Brand Kits, provider settings and portable brand export/import. **Day 3 is complete; Day 4 campaign planning has not started.**
+Responsive English/Arabic Next.js creative playground with local Brand Kits, provider settings, product uploads, persisted campaign briefs and three editable concepts to approve. Gemini text planning uses the user's own key and explicit image-sharing consent. A clearly labelled local template mode works without any AI request. Image generation and the full composition editor remain planned.
+
+## Campaign workflow
+
+Open `/campaigns/new`, select a Brand Kit (or the Sora sample), upload a PNG/JPEG/WebP product photo up to 2 MB and 4096 px per side, and enter a brief of at least eight characters. Choose the campaign goal and English/Arabic creative language. The initial format is 1080 × 1350.
+
+For a no-key walkthrough, click **Use sample product**, then **Create local sample concepts**. These are deterministic templates using the brand name and chosen language; they do not analyze your image or brief.
+
+For actual planning, save a Gemini model as the **Planner** in Settings, enter/unlock your key, return through the app navigation and explicitly consent to sharing the image, Brand Kit fields and brief. **Plan with Gemini** makes one potentially billable request. The saved model must support image input and structured text output; an unavailable/incompatible model produces an actionable error. No model ID is silently substituted. No paid POST is automatically retried. Other providers retain catalog support; their campaign-planning adapters remain future work.
+
+Review three distinct discovery/offer, benefit and lifestyle concepts. Edit the title, audience angle, headline, caption and visual direction, then approve each concept. Editing reopens that concept; changing campaign inputs invalidates approvals while preserving previous work. Failed/cancelled planning keeps existing concepts. Image generation stays disabled in this update.
+
+Campaigns, approvals and product Blobs auto-save in this browser and can be reopened from **Your campaigns**. **Save now** flushes pending edits. Provider keys and sharing consent are never stored in campaign records. IndexedDB schema version 2 adds campaigns without clearing existing Brand Kits, settings, logos or encrypted credentials. Storage failures retain session data and display an honest warning. Brand export/import does not include campaigns; full campaign backup is future work.
+
+Validation and live-provider limitations: [CAMPAIGN_UPDATE_VALIDATION.md](CAMPAIGN_UPDATE_VALIDATION.md). The Gemini request/response integration is fixture-tested; no authenticated paid Gemini call is claimed without a user-supplied key.
 
 ## GitHub / Vercel handoff
 
@@ -40,7 +54,8 @@ Dexie manages IndexedDB database `admorph-local-v1`:
 
 - `settings`: language, active brand ID and explicitly saved non-secret provider settings/roles.
 - `brands`: editable name, description, three colors and asset references.
-- `assets`: logo `Blob`s stored separately from brand metadata.
+- `assets`: logo and product `Blob`s stored separately from metadata.
+- `campaigns`: brand snapshots, product references, briefs, model metadata, editable concepts and approvals; no credentials.
 - `modelCatalogCache`: provider, normalized model metadata and original fetch time; no credential-validity proof is persisted.
 - `encryptedCredentials`: only opt-in AES-GCM ciphertext, randomized salt/IV, version, PBKDF2 iteration count and provider/endpoint binding. No plaintext key or passphrase.
 
@@ -60,7 +75,7 @@ Local data belongs to the same browser/profile/device/origin. It is not cloud sy
 - Custom: HTTPS browser-direct calls with explicit endpoint consent, no credentials in the URL and no redirects. CORS is required. The server rejects arbitrary upstream forwarding. Public catalog reachability is not shown as key validity.
 - Search, capability/availability filters, quick text roles, mixed-provider roles, manual unverified text IDs, cancellation and actionable safe errors remain available. Image maker cannot use a text-only or unverified manual model.
 
-No paid generation API has been implemented or called. No owner-managed server keys are used.
+The Gemini campaign planner can perform a user-triggered, potentially billable text-planning request after explicit consent. No paid request was executed in automated verification. No owner-managed server keys are used, and image generation remains unavailable.
 
 ## Verification commands
 
@@ -86,9 +101,9 @@ Next.js native compilation/Chrome needed approved execution outside this managed
 
 ## Milestone boundary
 
-See `DAY3_VALIDATION.md` for current results and local screenshots. The homepage still provides the three-concept interactive sample, editable headline/colors, deterministic contrast fix/undo and reset. `/campaigns/new` and the full studio remain labelled later-milestone shells. `/api/health` returns milestone 3 and `liveGeneration: false`.
+See `CAMPAIGN_UPDATE_VALIDATION.md` for current results and production screenshots; earlier milestone reports remain historical evidence. The homepage retains its interactive sample and contrast fix/undo. `/campaigns/new` now provides the working campaign/planning/approval flow. The full composition editor remains planned. `/api/health` reports campaign workspace metadata, Gemini BYOK planning and image generation disabled.
 
-No Day 4 campaign planner, paid brand suggestions, image generation, full Konva editor, cloud synchronization, GitHub push or deployment was implemented. Phone QA uses Chrome emulation; physical iPhone Safari/Android testing has not been performed. Authenticated Gemini/Meta/provider account access remains unverified because no real credentials were supplied.
+Paid brand suggestions, image generation, the full Konva editor and cloud synchronization remain planned. GitHub push and deployment are owner-operated and were not executed here. Phone QA uses Chrome emulation; physical iPhone Safari/Android testing has not been performed. Authenticated Gemini/Meta/provider account access remains unverified because no real credentials were supplied.
 
 ## Implementation references and licenses
 

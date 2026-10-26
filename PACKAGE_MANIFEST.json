@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "name": "admorph-ai",
-  "version": "0.3.0",
-  "preparedAtUTC": "2026-10-26T11:44:05.150Z",
+  "version": "0.4.0",
+  "preparedAtUTC": "2026-10-26T12:22:12.965Z",
   "timezone": "Africa/Cairo",
   "node": "24.x",
   "files": [
@@ -38,13 +38,18 @@
     },
     {
       "path": "AGENTS.md",
-      "bytes": 1980,
-      "sha256": "91649eb48ca0ddd8bc4fab139f83f539c16195319d3eeda36ce4563e45ffa170"
+      "bytes": 2011,
+      "sha256": "7edecbcc9ebbc7d2713b858e46c4f2a599611e30f0a5514242493223cbea4ff7"
     },
     {
       "path": "BUILD_LOG.md",
-      "bytes": 2834,
-      "sha256": "c3d68bd6a8f7342b26e50500958d89232a4e33fc28c6f0cebee39cd7a3432342"
+      "bytes": 3742,
+      "sha256": "3081256dc022a05a01bc26ba04b6195a696274b530cf303ae875368268e67180"
+    },
+    {
+      "path": "CAMPAIGN_UPDATE_VALIDATION.md",
+      "bytes": 4539,
+      "sha256": "63877be3362495a0fa9d4cc8aa5fe26a191da031a86dbae5ae45749ad8e5a91c"
     },
     {
       "path": "DAY1_VALIDATION.md",
@@ -68,18 +73,33 @@
     },
     {
       "path": "HACKATHON.md",
-      "bytes": 4168,
-      "sha256": "96702e74ba5a16150b65c3215a32830083e0a2d5fd78486a931c810a6d51bd96"
+      "bytes": 4597,
+      "sha256": "bfe82510ebf8b73ecd2d1b7128f294de5233528c1c3b0b88a94f85ba2d79cc70"
     },
     {
       "path": "README.md",
-      "bytes": 9865,
-      "sha256": "9060192e6ed84d6444cec3a58a7bf962b68800e7e2cb2b14392bf4fb8cf7615b"
+      "bytes": 12668,
+      "sha256": "faa1ec60dcf63d81429dd1884250c94d091630b71b47df6c348dd101dc313f21"
     },
     {
       "path": "RELEASE_VERIFICATION.md",
-      "bytes": 3168,
-      "sha256": "6d5c9c38c84e01d922e0150de98c0daf63007b4269ff228930aa7b5cd7d7fe4c"
+      "bytes": 3296,
+      "sha256": "902e1801b814cee9235b8e8dd78b8e8b917b15f9460147469562c477cbe84795"
+    },
+    {
+      "path": "docs/evidence/campaign-production-ar.png",
+      "bytes": 264261,
+      "sha256": "bd41e931c87183ed39c5ec5442647807541dbe8188ea2464b9f464cfc4ba5017"
+    },
+    {
+      "path": "docs/evidence/campaign-production-en.png",
+      "bytes": 337077,
+      "sha256": "bfa0e6fc8ad6ac227f3a8db069db65316bee885dd8b0be14db9ea0e72796c28c"
+    },
+    {
+      "path": "docs/evidence/campaign-production-smoke.json",
+      "bytes": 417,
+      "sha256": "3ffa3bb7c5c9d11d125ffd16330f2e900e7c7f0d7e5bcc12f174cb944cae0dca"
     },
     {
       "path": "docs/evidence/hackathon-mobile-ar.png",
@@ -104,17 +124,22 @@
     {
       "path": "package-lock.json",
       "bytes": 270855,
-      "sha256": "28bd42eeec6caf38a57089cc9530f595622bac45960c55b890f465f409d973c9"
+      "sha256": "18781d6b0c58aede59730ff68a56dd2c637c85ea6a5af0df52e13a58cd032d55"
     },
     {
       "path": "package.json",
       "bytes": 1007,
-      "sha256": "6edf155c0e6a6eae3dcbb49150e470995b05ed00c6224beecdddaa0735976301"
+      "sha256": "1baaf2dea01fc2dddb538438dc523e86d411cf7ad40659e25afa408071961168"
     },
     {
       "path": "playwright.config.ts",
       "bytes": 599,
       "sha256": "76cd52d379325e382bb749637eb1661a3e77b36e982e08419e4e962c6c9f8b09"
+    },
+    {
+      "path": "public/demo/sora-product.png",
+      "bytes": 25022,
+      "sha256": "3be5af0e4b53844d1141a40cdc354a93ef3668bce1b52fde87550e9fae0768d8"
     },
     {
       "path": "public/demo/sora-tin.svg",
@@ -167,14 +192,19 @@
       "sha256": "644768c4aaeb4767bce293344eeb0c125fb804a94d801440424072202d85e3a1"
     },
     {
+      "path": "scripts/package-update.mjs",
+      "bytes": 5842,
+      "sha256": "1513c98d20451dab4ef283c68075a6cd37cd8e5852fe6551e08a6bd353afd9ca"
+    },
+    {
       "path": "scripts/package-upload.mjs",
-      "bytes": 4654,
-      "sha256": "c5c4ab9d280e3004acf374ba8119c45eb2d373828d678f5b8fcc10d667b561e6"
+      "bytes": 4687,
+      "sha256": "c46234da46f9ec754bbb9c769fe5c264b01862482860fb82915383e4bbde92af"
     },
     {
       "path": "scripts/production-smoke.mjs",
-      "bytes": 3015,
-      "sha256": "121e9bbe4f0fbed9274dcc4c9253684310279f261b8cc20c0dff396635bba19c"
+      "bytes": 4983,
+      "sha256": "d7edb7ac63e8f4c5224109610b726b4cfc8981b2ec6f6135276c9b21f388a6dd"
     },
     {
       "path": "scripts/verify-public-catalog.mjs",
@@ -182,9 +212,14 @@
       "sha256": "efc16c8398cdbfe82e0c6f50c41f1b76b199c6f58f9e6702b4ed83737b0ee714"
     },
     {
+      "path": "src/app/api/ai/plan/route.ts",
+      "bytes": 146,
+      "sha256": "9f1448976aa0f240d70e6f5c152ff186985c9efa1984bf4e3b13b4c02cb51dac"
+    },
+    {
       "path": "src/app/api/health/route.ts",
-      "bytes": 138,
-      "sha256": "ea71dae2e3dfd33402cdee1b0c85a160d3b4612ae829626c994ed5c8fb31b2bb"
+      "bytes": 186,
+      "sha256": "403283dd7286f1c7ac898a3ab025aa5942aef9ae468569332b7b08244e43efec"
     },
     {
       "path": "src/app/api/providers/models/route.ts",
@@ -208,8 +243,8 @@
     },
     {
       "path": "src/app/campaigns/new/page.tsx",
-      "bytes": 105,
-      "sha256": "44f643dd682ba84b04ca1173eb71c5682b1332976868af6cf2bd566a056c249d"
+      "bytes": 123,
+      "sha256": "23809bcda91b3c8c72be3dd29ade3da1a722d64bc59dcb638f507f9fa0a23c07"
     },
     {
       "path": "src/app/favicon.ico",
@@ -218,8 +253,8 @@
     },
     {
       "path": "src/app/globals.css",
-      "bytes": 23120,
-      "sha256": "84205db3e5921adfb0489555d1398dca23dbf8e0d3b15b7e75ed87beec20c914"
+      "bytes": 27730,
+      "sha256": "ebc338590d4e802714b41229745454e51285cfafc383c157401734b517dab826"
     },
     {
       "path": "src/app/hackathon/page.tsx",
@@ -228,8 +263,8 @@
     },
     {
       "path": "src/app/layout.tsx",
-      "bytes": 726,
-      "sha256": "a272af48a4b663d71cea530a1770bc360220216d64be006cbeef8948606dbd0c"
+      "bytes": 826,
+      "sha256": "6c7e9dd38b1015fd49a802eff1bc7ead35dc76933e5b461108671106c5852732"
     },
     {
       "path": "src/app/not-found.tsx",
@@ -255,6 +290,16 @@
       "path": "src/components/brand-kit.tsx",
       "bytes": 12216,
       "sha256": "39b10c2ce3977b75307e9ba4f793a8bcdd7e98a149e0c3d339f5074d0ed81ec1"
+    },
+    {
+      "path": "src/components/campaign-session.tsx",
+      "bytes": 4044,
+      "sha256": "9a41c382024e41e92164159a3d1fa92a04d098b26c4ba9c6177a7b8e7e5ac646"
+    },
+    {
+      "path": "src/components/campaign.tsx",
+      "bytes": 12892,
+      "sha256": "f515c9d6307e40da7921b65b40825aa946591e7af54fa9a03b1193056dd81c71"
     },
     {
       "path": "src/components/credential-vault.tsx",
@@ -318,13 +363,23 @@
     },
     {
       "path": "src/lib/ai/errors.ts",
-      "bytes": 955,
-      "sha256": "d76ce9e2f68919bbb9fc9c932237a77cf8e935d59fb41424fd14ae7c3c426539"
+      "bytes": 1105,
+      "sha256": "7011d76a2b2d022707ee820fda8ee1289f554338255b3514f701e28ff61d6c6c"
+    },
+    {
+      "path": "src/lib/ai/planning-server.ts",
+      "bytes": 2180,
+      "sha256": "63578d5bf36a4e7204e7616ad5d42542db96d9c90039c193a37a5420c00638b2"
     },
     {
       "path": "src/lib/ai/providers/custom.ts",
       "bytes": 842,
       "sha256": "96dfdc3d493a62c0f51c2c0bdb4bd35cfb37f8a9fa61184df6302748bca1372d"
+    },
+    {
+      "path": "src/lib/ai/providers/gemini-planner.ts",
+      "bytes": 4856,
+      "sha256": "f693b15ea19a9399e0f7db4aa1abf39ebc4330d397725c075bac74295ad4ecce"
     },
     {
       "path": "src/lib/ai/providers/gemini.ts",
@@ -377,9 +432,29 @@
       "sha256": "cf64bbd0c3098866f7adcdfc6c04b33f4166456479f0429b097c759c4efe9fb8"
     },
     {
+      "path": "src/lib/campaign/client.ts",
+      "bytes": 1883,
+      "sha256": "9e00c9ed4dd9bb7f6e8c54ebfa5c8d85eb97ee57013c9fb32c2137e8b2ed3821"
+    },
+    {
+      "path": "src/lib/campaign/repository.ts",
+      "bytes": 1344,
+      "sha256": "400cdc91a85752b0f0336e553a58dc30dfafb9b6c790e19b4b4fd34027268d38"
+    },
+    {
+      "path": "src/lib/campaign/sample.ts",
+      "bytes": 3166,
+      "sha256": "10a017bf29833373008502e003a2f45850fc89fea3a7fc88a8a6ce6ecd7210ad"
+    },
+    {
+      "path": "src/lib/campaign/schema.ts",
+      "bytes": 4519,
+      "sha256": "b46a6c66eb8401a014ff99f0db896d6ac74551a15ac4c0b87cb5551ac8072c49"
+    },
+    {
       "path": "src/lib/db/dexie.ts",
-      "bytes": 891,
-      "sha256": "18e986c6e6ff43e827ab73eda068e1c7c604d653a82efec32ee3220a465e604f"
+      "bytes": 1051,
+      "sha256": "7853ba4d1e94cbb63c9080026ea535ba2eacfc7c1f65215f5d33e195f83c7b1d"
     },
     {
       "path": "src/lib/db/repository.ts",
@@ -388,8 +463,8 @@
     },
     {
       "path": "src/lib/db/schema.ts",
-      "bytes": 2031,
-      "sha256": "c09df5a5e145a336beeb96bcfcc2a121db7ec1d17f89ff1eba41d9df9f29807d"
+      "bytes": 2043,
+      "sha256": "bd0cca1fe36519ea41f1c8a851e16fa832423a71ae24a657f32861500aaa9617"
     },
     {
       "path": "src/lib/editor/checks.ts",
@@ -398,8 +473,8 @@
     },
     {
       "path": "src/lib/i18n.ts",
-      "bytes": 246,
-      "sha256": "528c1726ad3b01e22a74b6cddf87b0769329e81f98261ecc9b36a21043d9899e"
+      "bytes": 225,
+      "sha256": "a3ef965e54ca5d959f3a4bf901caf6370968370943f1c38fb6b03f864f740040"
     },
     {
       "path": "src/lib/security/credentials.ts",
@@ -408,18 +483,23 @@
     },
     {
       "path": "src/messages/ar.json",
-      "bytes": 30654,
-      "sha256": "6f3a7a38b8d69d30b5349cebed24725cdf6ee765c0067a205eec88587b9257d2"
+      "bytes": 37916,
+      "sha256": "dfc4fea4732640795e74e7a0f2da15afec2c8d0c9a59ebf11f7b229db018e577"
     },
     {
       "path": "src/messages/en.json",
-      "bytes": 22296,
-      "sha256": "7de1a13eb49800b5bd8f2809ef33d08601734ea9f5948f4e5b18f8e658e568b0"
+      "bytes": 27767,
+      "sha256": "cb1d1a82f39dc8c1ee233e0abc69d966b36b0986ea68905978141ab489cee43c"
+    },
+    {
+      "path": "tests/e2e/campaign.spec.ts",
+      "bytes": 10605,
+      "sha256": "db87106310779cce17a47491e043a9962d7fd6f9fe590c706807fc1192084172"
     },
     {
       "path": "tests/e2e/day-one.spec.ts",
       "bytes": 3654,
-      "sha256": "826966eee330564d0ed57bdee3b20736c39ce9ad44f81a26dc7db4357db50dc4"
+      "sha256": "7ef419b3c76c72c4052f2b5e658ae706bb17de9ac210339e00066493cb2c7fb0"
     },
     {
       "path": "tests/e2e/day-three.spec.ts",
@@ -435,6 +515,11 @@
       "path": "tests/e2e/hackathon.spec.ts",
       "bytes": 1378,
       "sha256": "094e3f3d020d2cf118b83e94bd5440f545962b751585f9d741c1fe724b56c745"
+    },
+    {
+      "path": "tests/unit/campaign.test.ts",
+      "bytes": 8879,
+      "sha256": "7e9376194a30ab7804361d03f1152753fa7377a83568b858e80d045f1bf1c874"
     },
     {
       "path": "tests/unit/checks.test.ts",

@@ -8,7 +8,7 @@ const releases = path.join(root, 'releases');
 const rootFiles = ['package.json', 'package-lock.json', 'next.config.ts', 'tsconfig.json', 'eslint.config.mjs',
   'vitest.config.mts', 'playwright.config.ts', '.gitignore', '.gitattributes', '.vercelignore', '.env.example',
   'vercel.json', 'README.md', 'AGENTS.md', 'ADMORPH_BUILD_PLAN.md', 'DAY1_VALIDATION.md', 'DAY2_VALIDATION.md',
-  'DAY3_VALIDATION.md', 'HACKATHON.md', 'BUILD_LOG.md', 'DEPLOY_GITHUB_VERCEL_AR.md', 'RELEASE_VERIFICATION.md'];
+  'DAY3_VALIDATION.md', 'HACKATHON.md', 'BUILD_LOG.md', 'DEPLOY_GITHUB_VERCEL_AR.md', 'RELEASE_VERIFICATION.md', 'CAMPAIGN_UPDATE_VALIDATION.md'];
 const directories = ['src', 'public', 'scripts', 'tests', '.github', 'docs'];
 const blocked = new Set(['node_modules', '.next', '.git', '.vercel', 'test-results', 'playwright-report', 'coverage', 'releases']);
 const forbidden = relative => relative.split('/').some(part => blocked.has(part)) ||

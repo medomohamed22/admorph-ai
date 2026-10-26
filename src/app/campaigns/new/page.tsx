@@ -1,2 +1,2 @@
-import {Shell} from '@/components/shell';
-export default function Page(){return <Shell kind="campaign"/>}
+import { CampaignWorkspace } from '@/components/campaign';
+export default function Page() { return <CampaignWorkspace/>; }

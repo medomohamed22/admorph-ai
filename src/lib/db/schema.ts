@@ -13,7 +13,7 @@ export const brandSchema = brandInputSchema.extend({
   createdAt: z.string().datetime(), updatedAt: z.string().datetime(),
 }).strict();
 export type Brand = z.infer<typeof brandSchema>;
-export type Asset = { id: string; kind: 'logo'; blob: Blob; createdAt: string };
+export type Asset = { id: string; kind: 'logo' | 'product'; blob: Blob; createdAt: string };
 export const selectionSchema = z.object({ provider: providerIdSchema, modelId: z.string().min(1).max(240), manual: z.boolean().optional() }).strict();
 export const rolesSchema = z.object({ planner: selectionSchema.nullable(), image: selectionSchema.nullable(), critic: selectionSchema.nullable(), edit: selectionSchema.nullable() }).strict();
 export const savedSettingsSchema = z.object({

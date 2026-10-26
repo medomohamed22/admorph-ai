@@ -10,8 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## AdMorph working agreement
 - Read ADMORPH_BUILD_PLAN.md before changes; implement one authorized milestone at a time.
-- Current scope: Day 3 IndexedDB storage, English/Arabic switching, Brand Kit creation/theme/export/import and optional encrypted credential storage. Stop before Day 4 campaign planning.
-- Release preparation is authorized: create a source-only GitHub/Vercel folder and dated hackathon evidence. The user will upload/deploy manually. Do not publish or start Day 4 features in this task.
+- Current scope: campaign form, product image, Gemini planning and editable approval of three concepts; preserve existing storage and bilingual UI. Stop before background/image generation and the full editor.
+- Prepare a manual GitHub update packet against releases/AdMorph-GitHub-Vercel. Use feature-based commit/PR wording with no numbered-day references. The user uploads/deploys manually; do not publish remotely.
 - Never call paid APIs without explicit approval or a visible user-triggered action.
 - Never store/log plaintext keys; no secrets in commits, fixtures, exports, or NEXT_PUBLIC_ variables.
 - English is default. Keep full English/Arabic translations in parity for all app screens and messages.
