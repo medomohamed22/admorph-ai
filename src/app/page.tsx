@@ -1,0 +1,5 @@
+'use client';
+import {Demo} from '@/components/demo';
+import {useMessages} from '@/components/workspace';
+import Link from 'next/link';
+export default function Home(){const m=useMessages();return <><section className="hero"><div className="eyebrow"><span className="dot"/> {m.hero.eyebrow}</div><h1>{m.hero.title}<br/><em>{m.hero.accent}</em></h1><p>{m.hero.description}</p><div className="hero-actions"><Link className="button primary" href="/brands/new">{m.nav.create} ↗</Link><a className="button secondary" href="#demo">{m.nav.explore} ↓</a></div><div className="hero-note">{m.hero.note}</div><div className="orbit orbit-one" aria-hidden="true">✳</div><div className="orbit orbit-two" aria-hidden="true">✧</div></section><Demo/><section className="steps"><div><span className="eyebrow">{m.steps.eyebrow}</span><h2>{m.steps.title}</h2></div>{m.steps.items.map((item,i)=><article key={item.title}><span className="step-number">0{i+1}</span><h3>{item.title}</h3><p>{item.description}</p></article>)}</section></>}
