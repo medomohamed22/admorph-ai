@@ -1,9 +1,10 @@
 'use client';
 import { useRef, useState } from 'react';
 import { useMessages } from './workspace';
+import { useProviderSession } from './provider-session';
 import { validateProduct } from '@/lib/campaign/client';
 import { ProviderError } from '@/lib/ai/errors';
-import { cutoutImage, type CutoutResult } from '@/lib/cutout/provider';
+import { cutoutImage, type CutoutProviderId, type CutoutResult } from '@/lib/cutout/provider';
 import { getDatabase } from '@/lib/db/dexie';
 
 const checkerboard = {
@@ -13,17 +14,26 @@ const checkerboard = {
 
 /**
  * Standalone cutout tool (unlinked route, not the landing default).
- * Local-only: no image leaves the browser, no Meta call is made.
+ * Local runs entirely in the browser; SAM sends the product photo to Meta
+ * through the app's own /api/ai/segment route (BYOK, explicit provider
+ * choice) and never touches product pixels. SAM failure never falls back
+ * silently: the error stays visible with an explicit local-fallback button.
  */
 export function CutoutTool() {
   const m = useMessages();
   const t = m.cutout;
+  const provider = useProviderSession();
   const [original, setOriginal] = useState<{ blob: Blob; url: string } | null>(null);
   const [cutout, setCutout] = useState<{ result: CutoutResult; url: string } | null>(null);
   const [status, setStatus] = useState<'idle' | 'cutting' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [cutoutProvider, setCutoutProvider] = useState<CutoutProviderId>('local');
+  const [samFailed, setSamFailed] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const key = provider.configs.meta.apiKey.trim();
+  const segmentModel = provider.taskModel('segment')?.modelId ?? '';
+  const samReady = !!key && !!segmentModel;
 
   async function upload(file: File) {
     abort.current?.abort();
@@ -42,19 +52,27 @@ export function CutoutTool() {
     setOriginal({ blob: file, url: URL.createObjectURL(file) });
   }
 
-  async function run() {
+  async function run(useProvider: CutoutProviderId = cutoutProvider) {
     if (!original || status === 'cutting') return;
     setStatus('cutting');
     setError('');
     setSaved(false);
+    setSamFailed(false);
     try {
-      const result = await cutoutImage(original.blob, 'local');
+      const result = useProvider === 'meta-sam'
+        ? await cutoutImage(original.blob, 'meta-sam', { apiKey: key, modelId: segmentModel, prompt: 'product' })
+        : await cutoutImage(original.blob, 'local');
       if (cutout) URL.revokeObjectURL(cutout.url);
       setCutout({ result, url: URL.createObjectURL(result.cutoutBlob) });
       setStatus('done');
-    } catch {
+    } catch (cause) {
       setStatus('error');
-      setError(t.cutoutFailed);
+      if (useProvider === 'meta-sam') {
+        setSamFailed(true);
+        setError(cause instanceof Error && cause.message === 'segment_empty' ? t.samEmpty : t.samFailed);
+      } else {
+        setError(t.cutoutFailed);
+      }
     }
   }
 
@@ -67,7 +85,7 @@ export function CutoutTool() {
         blob: cutout.result.cutoutBlob,
         createdAt: new Date().toISOString(),
         meta: {
-          provider: 'local',
+          provider: cutout.result.provider,
           sourceWidth: cutout.result.sourceWidth,
           sourceHeight: cutout.result.sourceHeight,
           reliable: cutout.result.reliable,
@@ -82,9 +100,13 @@ export function CutoutTool() {
   return (
     <section className="feature-card" data-testid="cutout-tool">
       <h2>{t.title}</h2>
-      <p>{t.description}</p>
-      <p>{t.providerLocal}</p>
-      <p>{t.providerUnavailable}</p>
+      <p>{cutoutProvider === 'meta-sam' ? t.descriptionSam : t.description}</p>
+      <fieldset>
+        <label><input type="radio" name="cutout-provider" checked={cutoutProvider === 'local'} onChange={() => setCutoutProvider('local')} />{t.providerLocal}</label>
+        <label><input type="radio" name="cutout-provider" checked={cutoutProvider === 'meta-sam'} disabled={!samReady} onChange={() => setCutoutProvider('meta-sam')} />{t.providerSam}</label>
+      </fieldset>
+      {cutoutProvider === 'meta-sam' && !samReady && <p role="status">{t.providerUnavailable}</p>}
+      {samFailed && <p><button type="button" className="button secondary" disabled={!original || status === 'cutting'} onClick={() => void run('local')}>{t.useLocalInstead}</button></p>}
       <input
         aria-label={t.upload}
         type="file"

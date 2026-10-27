@@ -32,6 +32,7 @@ export const campaignSchema = z.object({
   concepts: z.array(editableConceptSchema).max(3), source: z.enum(['draft', 'sample', 'gemini', 'meta']),
   inputRevision: z.number().int().nonnegative(), planRevision: z.number().int().nonnegative().nullable(),
   originalProductAssetId: z.string().uuid().optional(), activeVariantId: z.string().uuid().nullable().optional(), planner: selectionSchema.nullable(), createdAt: z.string().datetime(), updatedAt: z.string().datetime(),
+  autoCutout: z.enum(['off','sam','local']).optional(),
 }).strict().superRefine((campaign, ctx) => {
   if (campaign.concepts.length !== 0 && (campaign.concepts.length !== 3 || new Set(campaign.concepts.map(item => item.angle)).size !== 3)) ctx.addIssue({ code: 'custom', message: 'three_angles_required' });
   if (campaign.concepts.some(item => item.approved && (!canApprove(item) || campaign.planRevision !== campaign.inputRevision))) ctx.addIssue({ code: 'custom', message: 'invalid_approval' });
@@ -52,7 +53,7 @@ export function newCampaign(): Campaign {
   const now = new Date().toISOString();
   return { id: crypto.randomUUID(), brandId: null, brandSnapshot: structuredClone(SAMPLE_BRAND), productAssetId: null,
     brief: '', goal: 'awareness', creativeLanguage: 'en', format: '1080x1350', concepts: [], source: 'draft',
-    inputRevision: 0, planRevision: null, planner: null, createdAt: now, updatedAt: now };
+    inputRevision: 0, planRevision: null, planner: null, autoCutout: 'off', createdAt: now, updatedAt: now };
 }
 export function canApprove(concept: EditableConcept): boolean {
   return conceptFieldsSchema.safeParse(({ angle: concept.angle, title: concept.title, audienceAngle: concept.audienceAngle,

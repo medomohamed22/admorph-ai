@@ -89,6 +89,14 @@ function useStudioState() {
     const asset: Asset = { id: crypto.randomUUID(), kind: 'background', blob, createdAt: new Date().toISOString() };
     update({ ...creative, source, model, layers: creative.layers.map(layer => layer.kind === 'background' ? { ...layer, assetId: asset.id } : layer) }, [...assets, asset]);
   }
+  /** Swap the product layer to a cutout asset (original stays in assets). */
+  function replaceProductLayer(asset: Asset) {
+    if (!creative) return false;
+    const layer = creative.layers.find(item => item.kind === 'product');
+    if (!layer || layer.assetId === asset.id) return false;
+    update({ ...creative, layers: creative.layers.map(item => item.kind === 'product' ? { ...item, assetId: asset.id } : item) }, [...assets, asset]);
+    return true;
+  }
   function undo() { const last = history.at(-1); if (!creative || !last) return; setHistory(history.slice(0, -1)); setFuture([creative, ...future]); update(last, assets, false); }
   function redo() { const next = future[0]; if (!creative || !next) return; setHistory([...history, creative]); setFuture(future.slice(1)); update(next, assets, false); }
   async function applyRepair(record: RepairReceipt) {
@@ -106,7 +114,7 @@ function useStudioState() {
     if (!current || fingerprint(current.creative) !== expected) return false;
     update(snapshot, current.assets); return true;
   }
-  return { creative, assets, saveState, open, patch, update, background, undo, redo, canUndo: !!history.length, canRedo: !!future.length,
+  return { creative, assets, saveState, open, patch, update, background, replaceProductLayer, undo, redo, canUndo: !!history.length, canRedo: !!future.length,
     applyRepair, restoreRepair, listSet, restoreSet, prepareSet, flush: () => creative ? persist(creative, assets, version.current) : Promise.resolve(false) };
 }
 const StudioContext = createContext<ReturnType<typeof useStudioState> | null>(null);
