@@ -71,7 +71,7 @@ describe('repair persistence', () => {
     const name = `repair-upgrade-${crypto.randomUUID()}`, old = new Dexie(name), record = receipt();
     old.version(4).stores({ settings:'key', brands:'id, updatedAt', assets:'id, kind, createdAt', modelCatalogCache:'providerId, fetchedAt', encryptedCredentials:'providerId', campaigns:'id, brandId, updatedAt', creatives:'id, campaignId, conceptId, updatedAt', creativeReviews:'id, creativeId, reviewedAt' });
     await old.table('creatives').put(record.before); await old.table('settings').put({ key:'locale', value:'ar' }); old.close();
-    const db = new AdMorphDB(name); try { await db.open(); expect(db.verno).toBe(6); expect((await db.settings.get('locale'))?.value).toBe('ar'); await expect(persistRepair(record, [], db)).rejects.toThrow('missing_asset'); expect(await db.repairHistory.count()).toBe(0); expect(await db.creatives.get(record.creativeId)).toEqual(record.before); } finally { await db.delete(); }
+    const db = new AdMorphDB(name); try { await db.open(); expect(db.verno).toBe(7); expect((await db.settings.get('locale'))?.value).toBe('ar'); await expect(persistRepair(record, [], db)).rejects.toThrow('missing_asset'); expect(await db.repairHistory.count()).toBe(0); expect(await db.creatives.get(record.creativeId)).toEqual(record.before); } finally { await db.delete(); }
   });
 });
 let testKey='';beforeEach(()=>{testKey=crypto.randomUUID();});

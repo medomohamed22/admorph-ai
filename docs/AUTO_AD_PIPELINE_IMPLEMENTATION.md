@@ -180,5 +180,30 @@ mocked tests alone can miss stale server modules.
   awaits `document.fonts.ready` before exporting, instead of relying
   only on the mount-time font gate.
 
+## 10. PR4 notes (single-run orchestrator, no-key mode)
+
+- `src/lib/auto-run/runner.ts` is the pure state machine: six steps
+  (cutout, analysis, backgrounds, composition, copy, review), sync
+  preflight (brand name + three HEX colors; the product file is
+  validated async by the component), step marking, finish, and
+  retry-from-the-failed-step with earlier outputs kept. The record is
+  validated by Zod on load; invalid rows are skipped, never rendered.
+- `src/lib/auto-run/compose.ts` builds the hero: product layer box is
+  the brief's reserved product zone (canvas contain-fit does the rest),
+  brand/headline transparent, CTA capsule below the product zone or in
+  the last 110px when the zone runs deep, font from the tagline script
+  (Arabic text gets Cairo, else Inter). Copy is a local template from
+  the user's own brand words — no model call, no invented claims.
+- The component (`src/components/auto-run-tool.tsx`, page
+  `/auto-ads`) runs the steps in order with real states, a cancel that
+  marks the run cancelled, per-step retry that reuses Dexie assets and
+  the stored brief, and a hero preview rendered by the existing canvas
+  with a PNG download. Runs persist in a new Dexie `autoRuns` table
+  (schema version 7, additive only — no existing table is touched).
+- No-key mode only: backgrounds are the local brand gradient, review
+  is the local critic, and the single combined consent enumerates six
+  local steps with zero cost. Meta background generation stays a manual
+  studio action; no network request is made by the orchestrator.
+
 
 
