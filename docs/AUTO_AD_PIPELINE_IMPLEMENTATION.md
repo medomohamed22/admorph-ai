@@ -155,4 +155,30 @@ mocked tests alone can miss stale server modules.
   (second-to-third gradient plus a first-color disc); PR2 tests that
   behavior instead of pretending it was broken.
 
+## 9. PR3 notes (compositor correctness)
+
+- Layer `fill` is now `hex | 'transparent'`. New compositions set brand
+  and headline fills to `transparent`, so text renders with no background
+  box; the CTA keeps its hex capsule. Legacy hex records still parse.
+- The editor fill control gains a transparency checkbox (color picker
+  disabled while transparent; unchecking restores the brand's second
+  color). Konva accepts `transparent` as a fill, so canvas and export
+  agree.
+- Transparent text contrast is honestly `contrast_unavailable`, not a
+  pass: the contrast helper throws on non-hex, and the critic already
+  catches that. The repair engine only fixes `contrast` issues, which
+  are never emitted for transparent fills, so it needs no change.
+- Product/logo placement: the canvas rasterizer already contain-fits
+  (no distortion, centered); its math moved verbatim into
+  `src/lib/editor/fit.ts` (`fitContain`) and is now unit tested, so the
+  PR4 compositor can reuse the same primitive. Logo placement from the
+  brand kit (`logoBox`, aspect-preserving) was already wired in
+  `compose` and is now covered by a composition test.
+- Fonts: composition now reads `recommendedFontEn`/`recommendedFontAr`
+  from the brand snapshot (falling back to Inter/Cairo). PNG export
+  still normalizes to exactly 1080x1350, and the studio download now
+  awaits `document.fonts.ready` before exporting, instead of relying
+  only on the mount-time font gate.
+
+
 

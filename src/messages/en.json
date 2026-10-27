@@ -553,6 +553,7 @@
     "fontSize": "Font size",
     "textColor": "Text color",
     "fill": "Layer background color",
+    "transparent": "Transparent background",
     "positions": {
       "x": "Horizontal position",
       "y": "Vertical position",
