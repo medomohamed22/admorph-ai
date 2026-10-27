@@ -588,7 +588,13 @@
     "imageModelId": "Meta image model ID",
     "imageAck": "I checked that this model supports image output. I understand access is not verified and a generation request may fail or incur a charge.",
     "confirmImage": "Assign confirmed image model",
-    "saveImageHelp": "After assigning, use Save Settings in Model Roles. Known text-only or unavailable metadata cannot be overridden."
+    "saveImageHelp": "After assigning, use Save Settings in Model Roles. Known text-only or unavailable metadata cannot be overridden.",
+    "visionTitle": "Vision-first background",
+    "visionHelp": "Analyze the product photo with the vision model before generating: it proposes 3 scenes that fit the product and brand identity, and the background is generated from your chosen scene with a large centered product zone.",
+    "visionAnalyze": "Analyze product with vision",
+    "visionAnalyzing": "Analyzing product…",
+    "visionUnavailable": "Choose a vision model in Settings and enter the key first.",
+    "visionProductFound": "The generated background still contains a product even after regeneration; try another scene or use the local gradient."
   },
   "critic": {
     "open": "Review design",
