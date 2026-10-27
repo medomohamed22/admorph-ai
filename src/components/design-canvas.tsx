@@ -3,6 +3,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Text, Image as KonvaImage, Group, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { clampLayer, type EditableLayer } from '@/lib/editor/schema';
+import { fitContain } from '@/lib/editor/fit';
 import type { Asset } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
 import {safeZones} from '@/lib/editor/safe-zones';
@@ -17,8 +18,12 @@ function Raster({ blob, id, width, height, cover = false, onReady }: { blob: Blo
     return () => { alive = false; };
   }, [url, onReady, id]);
   if (!image) return null;
-  const ratio = cover ? Math.max(width / image.width, height / image.height) : Math.min(width / image.width, height / image.height);
-  return <KonvaImage image={image} x={(width - image.width * ratio) / 2} y={(height - image.height * ratio) / 2} width={image.width * ratio} height={image.height * ratio} listening={false}/>;
+  if (cover) {
+    const ratio = Math.max(width / image.width, height / image.height);
+    return <KonvaImage image={image} x={(width - image.width * ratio) / 2} y={(height - image.height * ratio) / 2} width={image.width * ratio} height={image.height * ratio} listening={false}/>;
+  }
+  const fitted = fitContain({ width, height }, image.width, image.height);
+  return <KonvaImage image={image} x={fitted.x} y={fitted.y} width={fitted.width} height={fitted.height} listening={false}/>;
 }
 export type CanvasHandle = { exportPng: () => string; measureText: (candidate?: EditableLayer[]) => TextMetrics; renderLayers: (candidate: EditableLayer[]) => string };
 export default function DesignCanvas({ layers, assets, selected, select, patch, zoom, handle, ready, onReady, label, disabled, placement = 'off', findings = [], onIssue }: {

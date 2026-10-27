@@ -24,13 +24,18 @@ function request(body: unknown, origin = 'https://app.test') { return new Reques
 
 describe('local design rules', () => {
   it('reports a known good layout without changing its data or inventing a score', () => {
-    const { creative, metrics, assets } = fixture(), before = JSON.stringify(creative);
+    const { creative, metrics, assets } = fixture();
+    // This fixture defines a good layout with opaque text backdrops, so
+    // contrast is computable. Default compositions use transparent text
+    // fills, whose contrast is honestly reported as unavailable.
+    creative.layers.forEach(layer => { if (['brand', 'headline'].includes(layer.kind)) layer.fill = '#ffffff'; });
+    const before = JSON.stringify(creative);
     const result = checkCreative(creative, metrics, assets); expect(result.issues).toEqual([]); expect(result.checks.every(check => check.status === 'pass')).toBe(true);
     expect(JSON.stringify(creative)).toBe(before); expect(result).not.toHaveProperty('score');
   });
   it('detects measured clipping, low contrast and missing copy independently', () => {
     const { creative, metrics, assets } = fixture(), headline = creative.layers.find(layer => layer.kind === 'headline')!;
-    headline.color = headline.fill; metrics[headline.id].neededHeight = headline.height + 20;
+    headline.fill = '#ffffff'; headline.color = headline.fill; metrics[headline.id].neededHeight = headline.height + 20;
     creative.layers.find(layer => layer.kind === 'cta')!.text = ' ';
     expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).toEqual(expect.arrayContaining(['contrast', 'text_clipped', 'copy_missing']));
   });
