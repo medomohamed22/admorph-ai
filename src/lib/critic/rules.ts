@@ -31,7 +31,7 @@ export function checkCreative(creative: Creative, measurements: TextMetrics, ass
     }
   }
   for (const kind of ['headline', 'brand', 'cta'] as const) if (!visible.some(layer => layer.kind === kind && layer.text.trim())) add('copy_missing', 'error', creative.layers.filter(layer => layer.kind === kind).map(layer => layer.id), { kind });
-  if (!visible.some(layer => layer.kind === 'product' && layer.assetId)) add('asset_missing', 'error', creative.layers.filter(layer => layer.kind === 'product').map(layer => layer.id), { kind: 'product' });
+  if (!creative.layers.some(layer => layer.kind === 'product' && layer.assetId)) add('asset_missing', 'error', creative.layers.filter(layer => layer.kind === 'product').map(layer => layer.id), { kind: 'product' });
   for (const logo of visible.filter(layer => layer.kind === 'logo')) for (const headline of visible.filter(layer => layer.kind === 'headline')) if (intersects(logo, headline)) add('logo_overlap', 'warning', [logo.id, headline.id]);
   if (dimensions.width !== 1080 || dimensions.height !== 1350) add('dimensions', 'error', [], dimensions);
   const groups: Record<RuleResult['checks'][number]['key'], Finding['code'][]> = { bounds: ['bounds'], text: ['text_clipped', 'measurement_unavailable'], copy: ['copy_missing'], contrast: ['contrast', 'contrast_unavailable'], overlap: ['logo_overlap'], assets: ['asset_missing'], dimensions: ['dimensions'] };

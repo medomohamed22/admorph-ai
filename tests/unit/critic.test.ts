@@ -52,6 +52,13 @@ describe('local design rules', () => {
     creative.layers.forEach(layer => { if (['headline', 'brand', 'cta'].includes(layer.kind)) layer.visible = false; });
     expect(fingerprint(creative)).not.toBe(original); expect(checkCreative(creative, {}, assets).checks.find(check => check.key === 'text')?.status).toBe('partial');
   });
+  it('does not report a deliberately hidden product as a missing image, but still flags a design with no product layer', () => {
+    const { creative, metrics, assets } = fixture(), product = creative.layers.find(layer => layer.kind === 'product')!;
+    product.visible = false;
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).not.toContain('asset_missing');
+    const removed = { ...creative, layers: creative.layers.filter(layer => layer.kind !== 'product') };
+    expect(checkCreative(removed, metrics, assets).issues.map(issue => issue.code)).toContain('asset_missing');
+  });
 });
 describe('Meta Critic boundaries', () => {
   it('uses the selected model and preview with a key header, without exposing credentials in prompts/results', async () => {
