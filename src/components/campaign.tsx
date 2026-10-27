@@ -110,7 +110,7 @@ export function CampaignWorkspace() {
       <p>{c.modelHelp}</p><Link href="/settings">{c.openSettings} ↗</Link>
       {selection && !modelReady && <p className="campaign-notice">{c.geminiOnly}</p>}
       {modelReady && !key && <p className="campaign-notice">{c.keyHelp}</p>}
-      <label className="campaign-consent"><input type="checkbox" checked={consent} disabled={busy || !modelReady || !key || !validInput} onChange={event => setConsent(event.target.checked)}/><span>{c.consent}</span></label>
+      <label className="campaign-consent"><input type="checkbox" checked={consent} disabled={busy || !modelReady || !key || !validInput} onChange={event => setConsent(event.target.checked)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{c.consent}</p></details>
       <p className="field-help">{c.billingHelp}</p>
       <button className="button primary" disabled={busy || !validInput || !modelReady || !key || !consent} onClick={() => void generate()}>{busy ? c.planning : c.generate} ↗</button>
       {requesting && <button className="button secondary" onClick={cancel}>{c.cancel}</button>}

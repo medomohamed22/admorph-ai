@@ -274,7 +274,9 @@
     "storageError": "Could not save locally. Your current data remains in this tab; export a copy.",
     "notFound": "Page not found",
     "notFoundNote": "This page does not exist. Return to your creative playground.",
-    "backHome": "Back to home"
+    "backHome": "Back to home",
+    "consentShort": "I agree to the Meta request",
+    "consentDetails": "What is sent"
   },
   "brands": {
     "eyebrow": "THE START OF SOMETHING YOURS",
@@ -767,6 +769,7 @@
     "title": "One campaign. Three creative directions.",
     "help": "Approve all three concepts, then build three editable local designs. No key, upload to a provider or paid request is needed.",
     "create": "Build three local designs",
+    "approveAllCreate": "Approve all & create designs",
     "creating": "Building local designs…",
     "approvalRequired": "Approve all three concepts to prepare the complete set. Each approved concept can also open its own editor.",
     "preserve": "Existing saved designs and edits are reused, never replaced. New templates follow each concept’s angle. Open the editor to change retained copy or request one AI background at a time.",

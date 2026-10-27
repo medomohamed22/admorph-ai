@@ -88,7 +88,7 @@ export function RepairPanel({ creative, creativeLanguage, assets, handleRef, rea
   return <section className="repair-panel" aria-labelledby="repair-heading"><h3 id="repair-heading">{r.title}</h3><p>{r.intro}</p>
     <button className="button secondary" disabled={!ready || busy || applying || limited} onClick={local}>{r.local}</button>
     <details><summary>{r.aiTitle}</summary><p>{r.aiHelp}</p><strong>{selected ? `${selected.provider} / ${selected.modelId}` : r.noModel}</strong><p><Link href="/settings">{m.campaign.openSettings} ↗</Link></p>
-      <label className="studio-consent"><input type="checkbox" checked={consent === scope} disabled={!ready || !compatible || !key || busy || limited} onChange={event => setConsent(event.target.checked ? scope : null)}/><span>{r.consent}</span></label><p>{m.studio.billing}</p>
+      <label className="studio-consent"><input type="checkbox" checked={consent === scope} disabled={!ready || !compatible || !key || busy || limited} onChange={event => setConsent(event.target.checked ? scope : null)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{r.consent}</p></details><p>{m.studio.billing}</p>
       <button className="button secondary" disabled={!ready || !compatible || !key || consent !== scope || busy || applying || limited} onClick={() => void ai()}>{busy ? r.planning : r.aiButton}</button>
       {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); token.current++; setPending(null); setError('cancelled'); }}>{m.campaign.cancel}</button>}
     </details>
