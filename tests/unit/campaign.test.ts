@@ -74,7 +74,7 @@ describe('campaign storage', () => {
     await old.table('settings').put({ key: 'locale', value: 'ar' }); await old.table('brands').put({ id: 'brand', name: 'Existing' });
     await old.table('assets').put({ id: 'logo', kind: 'logo', blob: new Blob(['logo']) }); await old.table('encryptedCredentials').put({ providerId: 'meta', ciphertext: [1] }); old.close();
     const db = new AdMorphDB(name);
-    try { await db.open(); expect(db.verno).toBe(6); expect((await db.settings.get('locale'))?.value).toBe('ar'); expect(await db.brands.count()).toBe(1); expect(await db.assets.count()).toBe(1); expect(await db.encryptedCredentials.count()).toBe(1); expect(await db.campaigns.count()).toBe(0); }
+    try { await db.open(); expect(db.verno).toBe(7); expect((await db.settings.get('locale'))?.value).toBe('ar'); expect(await db.brands.count()).toBe(1); expect(await db.assets.count()).toBe(1); expect(await db.encryptedCredentials.count()).toBe(1); expect(await db.campaigns.count()).toBe(0); }
     finally { await db.delete(); }
   });
   it('persists campaign edits and approvals, preserves original products and immutable variant inputs, and contains no key field', async () => {

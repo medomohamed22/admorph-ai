@@ -765,6 +765,67 @@
     "limits": "This verifies only the completed request and model, not every provider feature or account permission. No automatic retry. Evidence exports contain no key or image bytes.",
     "download": "Download smoke evidence"
   },
+  "autoRun": {
+    "title": "Auto run",
+    "description": "Upload a product photo and a brand name, and the tool builds one complete ad locally, with no key.",
+    "brandName": "Brand name",
+    "brandDescription": "Brand description (optional)",
+    "colors": "Three brand colors",
+    "category": "Product category",
+    "type": "Product type",
+    "types": {
+      "can": "Can",
+      "bottle": "Bottle",
+      "box": "Cardboard box",
+      "cup": "Cup",
+      "other": "Other"
+    },
+    "upload": "Product photo",
+    "style": "Scene style",
+    "styles": {
+      "hero": "Hero",
+      "dynamic": "Dynamic",
+      "minimal": "Minimal"
+    },
+    "consentTitle": "One consent for the run",
+    "consentText": "All six steps run fully locally: cutout, analysis, background, composition, copy and review. No image or key is sent to any service, and there is no cost.",
+    "consentLabel": "I agree to run the local steps",
+    "run": "Build the ad",
+    "cancel": "Cancel",
+    "retry": "Retry from the failed step",
+    "download": "Download PNG",
+    "hero": "Hero ad",
+    "pastRuns": "Past runs",
+    "emptyRuns": "No runs yet.",
+    "steps": {
+      "cutout": "Product cutout",
+      "analysis": "Product analysis",
+      "backgrounds": "Backgrounds",
+      "composition": "Composition",
+      "copy": "Tagline & caption",
+      "review": "Quality review"
+    },
+    "status": {
+      "pending": "Pending",
+      "running": "Running",
+      "done": "Done",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "ctaDefault": "Discover more",
+    "dominantColors": "Dominant colors",
+    "reviewCount": "Review findings",
+    "preflight": {
+      "brandName": "Enter a brand name.",
+      "colors": "Pick three HEX colors.",
+      "product": "Upload a valid product photo."
+    },
+    "errors": {
+      "cancelled": "The run was cancelled.",
+      "failed": "The run failed.",
+      "storage": "Could not save the run locally."
+    }
+  },
   "cutout": {
     "title": "Cut out a product",
     "description": "Upload a product photo and isolate it from its background without changing its pixels. Cutting runs locally in your browser and sends no image to Meta.",

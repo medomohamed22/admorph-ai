@@ -4,6 +4,7 @@ import type { Creative } from '../editor/schema';
 import type { ReviewRecord } from '../critic/schema';
 import type { RepairReceipt } from '../repair/schema';
 import type { Brand, Asset, Setting, CatalogCache, EncryptedCredential } from './schema';
+import type { AutoRunRecord } from '../auto-run/runner';
 import type {TaskSupport} from '../ai/task-support';
 import type {ProductVariant,DesignVersion} from '../editor/enhancements-schema';
 
@@ -21,6 +22,7 @@ export class AdMorphDB extends Dexie {
   taskSupport!:Table<TaskSupport,string>;
   productVariants!:Table<ProductVariant,string>;
   designVersions!:Table<DesignVersion,string>;
+  autoRuns!: Table<AutoRunRecord, string>;
   constructor(name = DATABASE_NAME) {
     super(name);
     this.version(1).stores({ settings: 'key', brands: 'id, updatedAt', assets: 'id, kind, createdAt',
@@ -30,6 +32,7 @@ export class AdMorphDB extends Dexie {
     this.version(4).stores({ creativeReviews: 'id, creativeId, reviewedAt' });
     this.version(5).stores({ repairHistory: 'id, creativeId, appliedAt' });
     this.version(6).stores({taskSupport:'id, account, modelId, task',productVariants:'id, campaignId, assetId',designVersions:'id, creativeId, createdAt'});
+    this.version(7).stores({ autoRuns: 'id, createdAt' });
   }
 }
 let database: AdMorphDB | undefined;
