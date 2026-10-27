@@ -116,3 +116,21 @@ mocked tests alone can miss stale server modules.
   scores are built in this program.
 - Hackathon submission is never performed as part of this program; it needs
   a separate explicit owner instruction.
+
+## 7. PR1 notes (cutout)
+
+- Cutout provider contract lives in `src/lib/cutout/provider.ts`; the pure
+  segmentation algorithm lives in `src/lib/cutout/segment.ts` (DOM-free, unit
+  tested). The browser adapter decodes with `createImageBitmap` + canvas and
+  encodes transparent PNGs; it never sends an image anywhere.
+- Only the local provider is implemented. Meta SAM is skipped, not simulated:
+  the task catalog still has no `segment` task, so no `/api/ai/cutout` route
+  exists and the UI labels Meta cutout as unavailable.
+- Asset kinds gain `cutout` plus optional provenance `meta` (provider,
+  source dimensions, reliability). No Dexie store is dropped; old records
+  without `meta` stay valid.
+- The standalone tool at `/auto-ads/cutout` is unlinked from navigation. It
+  previews original vs cutout on a checkerboard, reports reliability and
+  warnings honestly, and can save the cutout to the local library or
+  download it as PNG. It makes no Meta call.
+
