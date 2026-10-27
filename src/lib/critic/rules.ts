@@ -1,5 +1,6 @@
 import type { Creative } from '../editor/schema';
 import { contrastRatio } from '../editor/checks';
+import { hasMixedScripts } from '../editor/direction';
 import type { Finding, RuleResult, TextMetrics } from './schema';
 import {placementFindings} from '../editor/safe-zones';
 function canonical(value: unknown): unknown {
@@ -29,12 +30,15 @@ export function checkCreative(creative: Creative, measurements: TextMetrics, ass
       try { const ratio = contrastRatio(layer.color, layer.fill); if (ratio < 4.5) add('contrast', 'warning', [layer.id], { ratio: ratio.toFixed(2), target: '4.5' }); }
       catch { add('contrast_unavailable', 'info', [layer.id]); }
     }
+    // One language per text layer: a Latin brand name must stay in its own
+    // layer, never mixed with Arabic text in the same layer.
+    if (hasMixedScripts(layer.text)) add('mixed_scripts', 'warning', [layer.id]);
   }
   for (const kind of ['headline', 'brand', 'cta'] as const) if (!visible.some(layer => layer.kind === kind && layer.text.trim())) add('copy_missing', 'error', creative.layers.filter(layer => layer.kind === kind).map(layer => layer.id), { kind });
   if (!creative.layers.some(layer => layer.kind === 'product' && layer.assetId)) add('asset_missing', 'error', creative.layers.filter(layer => layer.kind === 'product').map(layer => layer.id), { kind: 'product' });
   for (const logo of visible.filter(layer => layer.kind === 'logo')) for (const headline of visible.filter(layer => layer.kind === 'headline')) if (intersects(logo, headline)) add('logo_overlap', 'warning', [logo.id, headline.id]);
   if (dimensions.width !== 1080 || dimensions.height !== 1350) add('dimensions', 'error', [], dimensions);
-  const groups: Record<RuleResult['checks'][number]['key'], Finding['code'][]> = { bounds: ['bounds'], text: ['text_clipped', 'measurement_unavailable'], copy: ['copy_missing'], contrast: ['contrast', 'contrast_unavailable'], overlap: ['logo_overlap'], assets: ['asset_missing'], dimensions: ['dimensions'] };
+  const groups: Record<RuleResult['checks'][number]['key'], Finding['code'][]> = { bounds: ['bounds'], text: ['text_clipped', 'measurement_unavailable'], copy: ['copy_missing', 'mixed_scripts'], contrast: ['contrast', 'contrast_unavailable'], overlap: ['logo_overlap'], assets: ['asset_missing'], dimensions: ['dimensions'] };
   issues.push(...placementFindings(creative));
   for(const logo of visible.filter(layer=>layer.kind==='logo'))for(const product of visible.filter(layer=>layer.kind==='product'))if(intersects(logo,product))add('logo_product_overlap','warning',[logo.id,product.id]);
   return { issues, checks: Object.entries(groups).map(([key, codes]) => {
