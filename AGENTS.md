@@ -10,8 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## AdMorph working agreement
 - Read ADMORPH_BUILD_PLAN.md before changes; implement one authorized milestone at a time.
-- Current scope: Meta-only master-plan stages M0–M12, preserving all existing records/credentials. Implement the ordered features without per-stage approval; run the comprehensive acceptance suite after integration. Do not publish or call paid APIs during implementation.
-- The owner previously chose manual GitHub upload and Vercel publication. Prepare the complete reviewable release locally. Do not publish, create remote repositories/PRs or submit the competition entry unless the owner changes that preference explicitly. Report remote publication/live-provider verification separately.
+- Current scope: Meta-only master-plan stages M0–M12, preserving all existing records/credentials. Implement the ordered features without per-stage approval; run the comprehensive acceptance suite after integration. Do not call paid APIs during implementation without separate explicit consent.
+- Updated 2026-10-27 (owner changed this preference explicitly): the assistant may create GitHub pull requests, merge passing PRs into main, and deploy merged changes to the existing Vercel production project, in the PR order the owner approves in chat. Publication still excludes submitting the competition entry, changing billing, rotating/deleting credentials, migrating hosts, or changing domain ownership. Never call paid APIs without separate explicit consent, and never claim a live provider verification that did not happen. Report remote publication/live-provider verification separately.
 - Never call paid APIs without explicit approval or a visible user-triggered action.
 - Never store/log plaintext keys; no secrets in commits, fixtures, exports, or NEXT_PUBLIC_ variables.
 - English is default. Keep full English/Arabic translations in parity for all app screens and messages.
