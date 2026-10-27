@@ -6,6 +6,7 @@
     "explore": "استكشف العرض",
     "brands": "هويات العلامات",
     "campaigns": "الحملات",
+    "autoAds": "إعلانات تلقائية",
     "settings": "الإعدادات",
     "create": "أنشئ علامتك التجارية",
     "switchLanguage": "التبديل إلى الإنجليزية"
@@ -833,7 +834,21 @@
     "downloadZip": "تنزيل المجموعة (ZIP)",
     "applyCaptionToAll": "تطبيق هذا الوصف على الكل",
     "caption": "الوصف",
-    "zipSkipped": "تخطينا بعض الصور في ملف ZIP."
+    "zipSkipped": "تخطينا بعض الصور في ملف ZIP.",
+    "downloadCaption": "تنزيل الوصف TXT",
+    "quality": "جودة النتيجة",
+    "qualityLabels": {
+      "verified": "موثّقة",
+      "warning": "تحذير",
+      "notChecked": "لم تُفحص",
+      "modified": "معدّلة"
+    },
+    "qualityChecks": {
+      "productPixels": "بكسلات المنتج محفوظة",
+      "provenance": "المصدر والتركيب",
+      "text": "نص بلا صندوق",
+      "caption": "الوصف"
+    }
   },
   "cutout": {
     "title": "قصّ المنتج",

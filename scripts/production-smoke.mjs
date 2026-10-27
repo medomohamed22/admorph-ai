@@ -111,8 +111,42 @@ try {
     expect((await page.request.post(`${base}${path}`, { headers: { Origin: base }, data: {} })).status()).toBe(400);
   }
   expect(errors).toEqual([]);
+  // Auto-ads: one full no-key run in the browser, then a ZIP download.
+  const sharp = (await import('sharp')).default;
+  const smokeProduct = await sharp({
+    create: { width: 400, height: 400, channels: 3, background: { r: 255, g: 255, b: 255 } },
+  })
+    .composite([
+      {
+        input: await sharp({
+          create: { width: 200, height: 200, channels: 3, background: { r: 22, g: 16, b: 12 } },
+        })
+          .png()
+          .toBuffer(),
+        top: 100,
+        left: 100,
+      },
+    ])
+    .png()
+    .toBuffer();
+  await page.goto(`${base}/auto-ads`);
+  await page.getByLabel('Brand name', { exact: true }).fill('Smoke auto brand');
+  await page.getByLabel('Product category', { exact: true }).fill('canned cold brew');
+  await page
+    .getByLabel('Product photo', { exact: true })
+    .setInputFiles({ name: 'smoke-product.png', buffer: smokeProduct, mimeType: 'image/png' });
+  await page.getByLabel('I agree to run the local steps', { exact: true }).check();
+  await page.getByRole('button', { name: 'Build the ad', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Results', exact: true })).toBeVisible();
+  await expect(page.locator('h4')).toContainText('Verified');
+  const zipEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download set (ZIP)', exact: true }).click();
+  const zipBytes = await readFile((await (await zipEvent).path()));
+  expect(zipBytes.subarray(0, 2).toString('ascii')).toBe('PK');
+  expect(zipBytes.includes(Buffer.from('ad-1.png', 'ascii'))).toBe(true);
+  await page.screenshot({ path: 'test-results/production-auto-ads.png', fullPage: true });
   const result = { checkedAtUTC: new Date().toISOString(), base, mode: 'local-production-build',
-    passed: ['home', 'hackathon-en-ar', 'mobile-overflow', 'brand-save-reload', 'campaign-sample-edit-approve-reload-en-ar', 'studio-layers-background-edit-reload-ar-png-1080x1350', 'automatic-critic-real-text-clipping-contrast-ar', 'approved-repair-real-before-after-1080x1350', 'repair-reload-undo-redo', 'health', 'missing-key', 'custom-proxy-rejection', 'image-origin-and-consent-guards', 'critic-origin-and-consent-guards', 'repair-and-meta-origin-consent-guards'],
+    passed: ['home', 'hackathon-en-ar', 'mobile-overflow', 'brand-save-reload', 'campaign-sample-edit-approve-reload-en-ar', 'studio-layers-background-edit-reload-ar-png-1080x1350', 'automatic-critic-real-text-clipping-contrast-ar', 'approved-repair-real-before-after-1080x1350', 'repair-reload-undo-redo', 'health', 'missing-key', 'custom-proxy-rejection', 'image-origin-and-consent-guards', 'critic-origin-and-consent-guards', 'repair-and-meta-origin-consent-guards', 'auto-ads-no-key-run-verified-zip'],
     browserErrors: errors, paidApiCalls: false, remoteDeploymentVerified: false };
   await writeFile('test-results/production-smoke.json', JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
 } finally { await browser.close(); }

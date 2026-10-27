@@ -6,6 +6,7 @@
     "explore": "Explore demo",
     "brands": "Brand kits",
     "campaigns": "Campaigns",
+    "autoAds": "Auto ads",
     "settings": "Settings",
     "create": "Create your Brand",
     "switchLanguage": "Switch to Arabic"
@@ -833,7 +834,21 @@
     "downloadZip": "Download set (ZIP)",
     "applyCaptionToAll": "Apply this caption to all",
     "caption": "Caption",
-    "zipSkipped": "Some images were skipped in the ZIP."
+    "zipSkipped": "Some images were skipped in the ZIP.",
+    "downloadCaption": "Download caption TXT",
+    "quality": "Result quality",
+    "qualityLabels": {
+      "verified": "Verified",
+      "warning": "Warning",
+      "notChecked": "Not checked",
+      "modified": "Modified"
+    },
+    "qualityChecks": {
+      "productPixels": "Product pixels preserved",
+      "provenance": "Provenance & structure",
+      "text": "Text without a box",
+      "caption": "Caption"
+    }
   },
   "cutout": {
     "title": "Cut out a product",
