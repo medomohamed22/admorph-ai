@@ -764,6 +764,36 @@
     "limits": "This verifies only the completed request and model, not every provider feature or account permission. No automatic retry. Evidence exports contain no key or image bytes.",
     "download": "Download smoke evidence"
   },
+  "cutout": {
+    "title": "Cut out a product",
+    "description": "Upload a product photo and isolate it from its background without changing its pixels. Cutting runs locally in your browser and sends no image to Meta.",
+    "upload": "Choose a product photo",
+    "cutting": "Cutting out the product…",
+    "cut": "Cut out product",
+    "retry": "Retry cutout",
+    "save": "Save cutout to library",
+    "saved": "Cutout saved to the library.",
+    "download": "Download cutout PNG",
+    "useOriginal": "Use the original photo",
+    "providerLocal": "Local browser cutout",
+    "providerUnavailable": "Meta cutout (SAM) unavailable: task support is not verified yet.",
+    "reliable": "Reliable cutout",
+    "unreliable": "Unreliable cutout — try a photo with a simpler background or use the original.",
+    "noImage": "Choose a photo first.",
+    "tooLarge": "The photo is too large or exceeds the allowed dimensions.",
+    "invalidFile": "Choose a valid image file.",
+    "decodeFailed": "Could not read the photo. Try another file.",
+    "cutoutFailed": "Could not cut out the photo. Try another photo or use the original.",
+    "saveFailed": "Could not save the cutout. Try again.",
+    "originalLabel": "Original",
+    "cutoutLabel": "Cutout",
+    "warnings": {
+      "empty_foreground": "No clear product was found in the photo.",
+      "background_not_removed": "The background was not removed — the photo is almost one solid color.",
+      "foreground_small": "The visible product is very small.",
+      "foreground_large": "The product fills almost the whole photo."
+    }
+  },
   "creativeSet": {
     "eyebrow": "YOUR THREE DESIGNS",
     "title": "One campaign. Three creative directions.",
