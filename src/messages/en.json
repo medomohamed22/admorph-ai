@@ -594,7 +594,11 @@
     "visionAnalyze": "Analyze product with vision",
     "visionAnalyzing": "Analyzing product…",
     "visionUnavailable": "Choose a vision model in Settings and enter the key first.",
-    "visionProductFound": "The generated background still contains a product even after regeneration; try another scene or use the local gradient."
+    "visionProductFound": "The generated background still contains a product even after regeneration; try another scene or use the local gradient.",
+    "direction": "Text direction",
+    "directionAuto": "Auto by content",
+    "directionLtr": "Left to right",
+    "directionRtl": "Right to left"
   },
   "critic": {
     "open": "Review design",
@@ -672,6 +676,10 @@
       "logo_product_overlap": {
         "title": "Logo / product boxes overlap",
         "explanation": "Geometric logo and product boxes intersect. Transparent padding may reduce actual overlap."
+      },
+      "mixed_scripts": {
+        "title": "Layer mixes two languages",
+        "explanation": "This layer mixes Arabic-script and Latin letters. Each text layer must be in exactly one language; a Latin brand name stays in its own brand layer."
       }
     },
     "aiTitle": "Optional Meta Critic",

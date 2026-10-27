@@ -3,6 +3,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Text, Image as KonvaImage, Group, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { clampLayer, type EditableLayer } from '@/lib/editor/schema';
+import { resolveLayerDirection } from '@/lib/editor/direction';
 import { fitContain } from '@/lib/editor/fit';
 import type { Asset } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
@@ -97,7 +98,7 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
         onTransformEnd={event => { const node = event.target; const safe = clampLayer(layer, { x: node.x(), y: node.y(), width: layer.width * node.scaleX(), height: layer.height * node.scaleY() }); node.setAttrs({ x: safe.x, y: safe.y, width: safe.width, height: safe.height, scaleX: 1, scaleY: 1 }); patch(layer.id, safe); }}>
         <Rect width={layer.width} height={layer.height} fill={['background', 'cta', 'headline', 'brand'].includes(layer.kind) ? layer.fill : 'rgba(0,0,0,0)'} cornerRadius={layer.kind === 'cta' ? 24 : 0} preventDefault={layer.kind !== 'background'}/>
         {asset ? <Raster blob={asset.blob} id={asset.id} width={layer.width} height={layer.height} cover={layer.kind === 'background'} onReady={onReady}/> : null}
-        {['headline', 'brand', 'cta'].includes(layer.kind) && <Text text={layer.text} width={layer.width} height={layer.height} padding={layer.kind === 'cta' ? 15 : 8} fill={layer.color} fontFamily={layer.fontFamily} fontSize={layer.fontSize} lineHeight={1.2} align={layer.kind === 'cta' ? 'center' : layer.fontFamily === 'Cairo' ? 'right' : 'left'} verticalAlign="middle" wrap="word" direction={layer.fontFamily === 'Cairo' ? 'rtl' : 'ltr'}/>}
+        {['headline', 'brand', 'cta'].includes(layer.kind) && <Text text={layer.text} width={layer.width} height={layer.height} padding={layer.kind === 'cta' ? 15 : 8} fill={layer.color} fontFamily={layer.fontFamily} fontSize={layer.fontSize} lineHeight={1.2} align={layer.kind === 'cta' ? 'center' : resolveLayerDirection(layer) === 'rtl' ? 'right' : 'left'} verticalAlign="middle" wrap="word" direction={resolveLayerDirection(layer)}/>}
       </Group>;
     })}<Transformer ref={transformer} rotateEnabled={false} flipEnabled={false} enabledAnchors={!disabled && selected && layers.find(layer => layer.id === selected)?.kind !== 'background' ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : []} boundBoxFunc={(old, next) => Math.abs(next.width) < 24 * scale || Math.abs(next.height) < 24 * scale ? old : next}/></Layer>
     <Layer name="editor-overlay">{safeZones(placement).map((zone,index)=><Rect key={index} {...zone} fill="#bb33333b" listening={false}/>)}{findings.flatMap((issue,index)=>issue.layerIds.slice(0,1).map(id=>{const item=layers.find(layer=>layer.id===id);return item && item.visible?<Group key={issue.id} onClick={()=>onIssue?.(issue)} onTap={()=>onIssue?.(issue)}><Rect x={item.x} y={item.y} width={item.width} height={item.height} stroke={issue.severity==="error"?"#c93333":"#c76c12"} dash={[14,8]} strokeWidth={5}/><Circle x={item.x+22} y={item.y+22} radius={22} fill={issue.severity==="error"?"#c93333":"#ac5a11"}/><Text x={item.x} y={item.y} width={44} height={44} align="center" text={String(index+1)} fontSize={30} fill="#fff" padding={6}/></Group>:null;}))}</Layer>

@@ -5,6 +5,7 @@ export const layerSchema = z.object({
   x: z.number().min(0).max(1080), y: z.number().min(0).max(1350), width: z.number().min(24).max(1080), height: z.number().min(24).max(1350),
   text: z.string().max(500), color: z.string().regex(/^#[\da-f]{6}$/i), fill: z.union([z.string().regex(/^#[\da-f]{6}$/i), z.literal('transparent')]),
   fontFamily: z.enum(['Inter', 'Cairo']), fontSize: z.number().min(12).max(160),
+  dir: z.enum(['auto', 'ltr', 'rtl']).optional(),
   opacity: z.number().min(0).max(1).optional(), visible: z.boolean(), assetId: z.string().uuid().nullable(),
 }).strict().refine(layer => layer.x + layer.width <= 1080.01 && layer.y + layer.height <= 1350.01, 'layer_bounds');
 export type EditableLayer = z.infer<typeof layerSchema>;
