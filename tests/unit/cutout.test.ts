@@ -4,7 +4,8 @@ import {
   segmentImageData,
   trimBounds,
 } from '../../src/lib/cutout/segment';
-import { metaSamAvailable } from '../../src/lib/cutout/provider';
+import { cutoutImage } from '../../src/lib/cutout/provider';
+import { taskSchema } from '../../src/lib/ai/task-support';
 import type { Asset } from '../../src/lib/db/schema';
 
 function makeImage(
@@ -127,7 +128,8 @@ describe('cutout storage compatibility', () => {
     expect(cutout.meta?.provider).toBe('local');
   });
 
-  it('Meta SAM stays unavailable until its task is verified', () => {
-    expect(metaSamAvailable).toBe(false);
+  it('Meta SAM is wired through the segment task and refuses to run without config', async () => {
+    expect(taskSchema.options).toContain('segment');
+    await expect(cutoutImage(new Blob(), 'meta-sam')).rejects.toThrow('meta_sam_missing_config');
   });
 });

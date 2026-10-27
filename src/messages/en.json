@@ -503,7 +503,12 @@
     "approvalCount": "concepts approved",
     "readyNext": "All concepts are approved and saved for the next stage.",
     "nextHelp": "Review and approve all three concepts before moving to the next stage.",
-    "imageLater": "Image generation · coming later"
+    "imageLater": "Image generation · coming later",
+    "autoCutout": "Auto cutout product",
+    "autoCutoutOff": "Off",
+    "autoCutoutSam": "With Meta (SAM)",
+    "autoCutoutLocal": "Local in browser",
+    "autoCutoutHelp": "When a new design is created, the product is cut out automatically. Choosing SAM sends the product photo to Meta."
   },
   "studio": {
     "open": "Open design editor",
@@ -862,7 +867,7 @@
     "download": "Download cutout PNG",
     "useOriginal": "Use the original photo",
     "providerLocal": "Local browser cutout",
-    "providerUnavailable": "Meta cutout (SAM) unavailable: task support is not verified yet.",
+    "providerUnavailable": "Meta (SAM) cutout unavailable: enter a Meta key and choose a segmentation model in Settings.",
     "reliable": "Reliable cutout",
     "unreliable": "Unreliable cutout — try a photo with a simpler background or use the original.",
     "noImage": "Choose a photo first.",
@@ -878,7 +883,13 @@
       "background_not_removed": "The background was not removed — the photo is almost one solid color.",
       "foreground_small": "The visible product is very small.",
       "foreground_large": "The product fills almost the whole photo."
-    }
+    },
+    "providerSam": "Meta (SAM) cutout",
+    "samEmpty": "SAM found no product in the photo. Try a clearer photo or use the local cutout.",
+    "samFailed": "SAM cutout failed. You can retry or use the local cutout.",
+    "samFallbackNote": "SAM cutout failed, so the local cutout was used instead.",
+    "useLocalInstead": "Use the local cutout instead",
+    "descriptionSam": "Upload a product photo and isolate it with Meta SAM. The product photo is sent to Meta when this provider is chosen; product pixels never change."
   },
   "creativeSet": {
     "eyebrow": "YOUR THREE DESIGNS",
@@ -1015,7 +1026,8 @@
       "edit": "Repair planning",
       "vision": "Brand vision",
       "image_edit": "Image editing",
-      "copy": "Copy shift"
+      "copy": "Copy shift",
+      "segment": "Product segmentation"
     },
     "positions": [
       "Top left",

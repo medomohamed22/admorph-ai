@@ -1,5 +1,5 @@
 import { z } from 'zod';
-export const taskSchema=z.enum(['planner','image','critic','edit','vision','image_edit','copy']);
+export const taskSchema=z.enum(['planner','image','critic','edit','vision','image_edit','copy','segment']);
 export type MetaTask=z.infer<typeof taskSchema>;
 export const supportSchema=z.object({id:z.string(),account:z.string(),modelId:z.string(),task:taskSchema,status:z.enum(['verified_supported','unverified','verified_unsupported']),reason:z.string().max(180),checkedAt:z.string().datetime(),expiresAt:z.string().datetime(),proof:z.string().max(1500).optional()}).strict();
 export type TaskSupport=z.infer<typeof supportSchema>;

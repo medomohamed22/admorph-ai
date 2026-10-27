@@ -8,7 +8,7 @@ export async function validateRaster(image:z.infer<typeof inputImage>){
  const valid=inputImage.parse(image),bytes=Buffer.from(valid.data,'base64');if(bytes.length>2*1024*1024)throw new ProviderError('product_size',413);
  const {default:sharp}=await import('sharp');try{const parsed=sharp(bytes,{limitInputPixels:4096*4096}),meta=await parsed.metadata();if(!meta.width||!meta.height||meta.width>4096||meta.height>4096||`image/${meta.format}`!==valid.mimeType||(meta.pages??1)>1)throw new Error();await parsed.stats();}catch{throw new ProviderError('product_image');}return bytes;
 }
-export async function metaCall(path:'chat/completions'|'images/generations'|'images/edits',body:unknown,key:string,signal:AbortSignal,options:TransportOptions={}){
+export async function metaCall(path:'chat/completions'|'images/generations'|'images/edits'|'responses',body:unknown,key:string,signal:AbortSignal,options:TransportOptions={}){
  if(signal.aborted)throw new ProviderError('timeout',504);
  try{const response=await(options.fetcher??fetch)(`https://api.meta.ai/v1/${path}`,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify(body),signal,redirect:'error',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
  if(!response.ok){const error=await readJsonLimited(response,32768).catch(()=>null),code=z.object({error:z.object({code:z.string().optional(),param:z.string().nullable().optional()})}).safeParse(error);const value=code.success?code.data.error.code:'';
@@ -32,6 +32,28 @@ export async function metaImage(model:string,key:string,prompt:string,signal:Abo
  const json=await metaCall(image?'images/edits':'images/generations',{model,prompt,n:1,response_format:'b64_json',output_format:'png',...(image?{images:[{image_url:`data:${image.mimeType};base64,${image.data}`}]}:{})},key,signal,options);
  const parsed=z.object({data:z.array(z.object({b64_json:z.string().max(4*1024*1024).regex(/^[A-Za-z0-9+/]+={0,2}$/)})).length(1)}).safeParse(json);if(!parsed.success)throw new ProviderError('image_response',502);const bytes=Buffer.from(parsed.data.data[0].b64_json,'base64');if(bytes.length>3*1024*1024)throw new ProviderError('image_response',502);
  const {default:sharp}=await import('sharp');try{const raster=sharp(bytes,{limitInputPixels:4096*4096}),meta=await raster.metadata();if(!meta.width||!meta.height||meta.width>4096||meta.height>4096||!['png','jpeg','webp'].includes(meta.format??'')||(meta.pages??1)>1)throw new Error();await raster.stats();return {bytes,mimeType:`image/${meta.format}`};}catch{throw new ProviderError('image_response',502);}
+}
+/**
+ * SAM 3.1 segmentation through Meta's OpenAI-compatible Responses endpoint.
+ * The request shape follows that convention (model + input parts); the
+ * response's output_text lane is parsed by @meta-sam/parser on the server.
+ * Any upstream error surfaces verbatim through metaCall's mapping, so an
+ * unverified shape fails loudly instead of pretending to work.
+ */
+export async function metaSegment(model:string,key:string,image:z.infer<typeof inputImage>,prompt:string,signal:AbortSignal,options:TransportOptions={}):Promise<string>{
+ await validateRaster(image);
+ const json=await metaCall('responses',{model,input:[{role:'user',content:[{type:'input_text',text:prompt},{type:'input_image',image_url:`data:${image.mimeType};base64,${image.data}`}]}]},key,signal,options);
+ if(typeof (json as {output_text?:unknown})?.output_text==='string')return (json as {output_text:string}).output_text;
+ const output=(json as {output?:unknown})?.output;
+ if(Array.isArray(output)){
+  const texts:string[]=[];
+  for(const item of output){
+   const content=(item as {content?:unknown})?.content;
+   if(Array.isArray(content))for(const part of content){if((part as {type?:unknown})?.type==='output_text'&&typeof (part as {text?:unknown})?.text==='string')texts.push((part as {text:string}).text);}
+  }
+  if(texts.length)return texts.join('\n');
+ }
+ throw new ProviderError('invalid_response',502);
 }
 const proofGlobal=globalThis as typeof globalThis&{__admorphTaskProofSecret?:string};
 // A shared server-only secret is needed across serverless instances; local receipts
