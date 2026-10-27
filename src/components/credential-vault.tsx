@@ -13,6 +13,7 @@ export function CredentialVault() {
   const [result, setResult] = useState<keyof typeof s | null>(null);
   const record = vault[provider];
   async function act(action: 'store' | 'unlock' | 'forget') {
+    const epoch = session.currentKeyEpoch();
     setBusy(true); setResult(null);
     try {
       if (action === 'forget') {
@@ -22,6 +23,7 @@ export function CredentialVault() {
         if (!configs[provider].apiKey.trim()) { setResult('noKey'); return; }
         const base = provider === 'custom' ? validateCustomBase(configs.custom.baseUrl) : '';
         const encrypted = await encryptCredential(provider, configs[provider].apiKey, passphrase, base);
+        if (epoch !== session.currentKeyEpoch()) return;
         if (!await session.storeEncrypted(encrypted)) throw new Error('storage');
         setResult('stored');
       } else if (record) {
@@ -31,6 +33,7 @@ export function CredentialVault() {
           if (currentBase !== record.baseUrl) { setResult('endpointChanged'); return; }
         }
         const apiKey = await decryptCredential(record, passphrase);
+        if (epoch !== session.currentKeyEpoch()) return;
         session.setConfigs(previous => ({ ...previous, [provider]: { ...previous[provider], apiKey, consent: false } }));
         setResult('unlocked');
       }

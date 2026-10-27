@@ -1,9 +1,6 @@
 import { ProviderError } from './errors';
-import { providers } from './registry';
 import { catalogSchema, providerRequestSchema, redactCatalog, type Catalog } from './schemas';
-import { geminiCatalog } from './providers/gemini';
 import { metaCatalog } from './providers/meta';
-import { openRouterCatalog, testOpenRouterKey } from './providers/openrouter';
 import { readJsonLimited, type TransportOptions } from './transport';
 
 export async function providerRequest(request: Request, action: 'models' | 'test', options: TransportOptions = {}): Promise<Catalog> {
@@ -21,22 +18,13 @@ export async function providerRequest(request: Request, action: 'models' | 'test
   const body = providerRequestSchema.safeParse(json);
   if (!body.success) throw new ProviderError('invalid_request');
   const { providerId, apiKey } = body.data;
-  if (providerId === 'custom') throw new ProviderError('custom_server');
-  if ((providers[providerId].requiresKey || action === 'test') && !apiKey) throw new ProviderError('missing_key');
-  const deadline = AbortSignal.timeout(30000);
-  const transport = { ...options, signal: AbortSignal.any([request.signal, deadline]) };
-  let models;
-  try {
-    if (providerId === 'openrouter' && action === 'test') await testOpenRouterKey(apiKey, transport);
-    models = providerId === 'gemini' ? await geminiCatalog(apiKey, transport) :
-      providerId === 'meta' ? await metaCatalog(apiKey, transport) : await openRouterCatalog(apiKey, transport);
-  } catch (error) {
-    if (deadline.aborted) throw new ProviderError('timeout', 504);
-    throw error;
-  }
+  if (providerId !== 'meta') throw new ProviderError('meta_only');
+  if(!apiKey)throw new ProviderError('missing_key');
+  const deadline=AbortSignal.timeout(60000),transport={...options,timeoutMs:options.timeoutMs??30000,signal:AbortSignal.any([request.signal,options.signal??new AbortController().signal,deadline])};
+  const models=await metaCatalog(apiKey,transport);
   const deduped = Array.from(new Map(models.map(model => [model.id, model])).values());
   const result = catalogSchema.parse({ models: deduped, fetchedAt: new Date().toISOString(),
-    credentialStatus: action === 'test' || providerId !== 'openrouter' ? 'accepted' : 'not_tested' });
+    credentialStatus: 'accepted' });
   // Catalogs are metadata, but never let an upstream echo a supplied credential back to the browser.
   return redactCatalog(result, apiKey);
 }

@@ -1,0 +1,44 @@
+import {z} from 'zod';
+import {planRequestSchema,planSchema} from '../campaign/schema';
+import {creativeSchema} from '../editor/schema';
+import {aiReviewSchema} from '../critic/schema';
+import {repairResponseSchema} from '../repair/schema';
+import {applyActions} from '../repair/engine';
+import {brandInputSchema} from '../db/schema';
+import {readJsonLimited,type TransportOptions} from './transport';
+import {metaBase,inputImage,shiftRequest,shiftedSchema,extractRequest,extractedSchema,taskTestRequest} from './meta-contracts';
+import {metaJson,metaImage,issueProof,validateRaster} from './meta-transport';
+import {acquireBudget} from '../security/ai-budget';
+import {ProviderError} from './errors';
+import {spatialInstruction} from '../editor/spatial';
+import {validationFields} from './diagnostics';
+export const metaReviewRequest=metaBase.extend({imageConsent:z.literal(true),language:z.enum(['en','ar']),creative:creativeSchema,preview:inputImage}).strict();
+export const metaBackgroundRequest=metaBase.extend({approved:z.literal(true),brand:brandInputSchema,concept:z.object({angle:z.string(),title:z.string(),audienceAngle:z.string(),headline:z.string(),caption:z.string(),visualDirection:z.string(),spatialPreset:z.string().optional(),negativeSpaceInstruction:z.string().max(600).optional()}).strict()}).strict();
+export const makeoverRequest=metaBase.extend({imageConsent:z.literal(true),image:inputImage,mode:z.enum(['enhance','recreate']),preset:z.enum(['clean','luxury','lifestyle','minimal']),prompt:z.string().max(1000),proof:z.string().max(1500).optional()}).strict();
+type Operation='planner'|'image'|'critic'|'edit'|'vision'|'copy'|'makeover'|'test';
+export async function handleMetaRoute(request:Request,operation:Operation,options:TransportOptions={}){
+ const requestId=crypto.randomUUID(),headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','X-AdMorph-Request-Id':requestId};let release:(()=>void)|undefined;
+ try{
+ if(request.headers.get('origin')!==new URL(request.url).origin||request.headers.get('sec-fetch-site')==='cross-site')throw new ProviderError('origin',403);
+ if(request.headers.get('content-type')?.split(';')[0].trim()!=='application/json')throw new ProviderError('invalid_request',415);
+ const raw=await readJsonLimited(request,3*1024*1024);if(z.object({providerId:z.string()}).safeParse(raw).success&&(raw as {providerId:string}).providerId!=='meta')throw new ProviderError('meta_only',400);
+ const base=metaBase.parse(raw);release=acquireBudget(base.apiKey);const signal=AbortSignal.any([request.signal,AbortSignal.timeout(options.timeoutMs??45000)]),language=(raw as {language?:string}).language??'en';
+ const successHeaders=()=>({...headers,...(operation!=='test'?{'X-AdMorph-Task-Proof':issueProof(base.apiKey,base.modelId,operation==='makeover'?'image_edit':operation)}:{})});
+ const json=(value:unknown)=>Response.json(value,{headers:successHeaders()});
+ const imageResponse=(image:{bytes:Buffer;mimeType:string})=>new Response(new Uint8Array(image.bytes),{headers:{...successHeaders(),'Content-Type':image.mimeType}});
+ if(operation==='planner'){const input=planRequestSchema.parse(raw);return json(await metaJson(base.modelId,base.apiKey,`Plan exactly three distinct offer/benefit/lifestyle concepts. Preserve facts. Copy language ${input.creativeLanguage}. Use spatialPreset and negativeSpaceInstruction. Brand/brief: ${JSON.stringify({brand:input.brand,brief:input.brief,goal:input.goal})}`,planSchema,input.product,signal,options));}
+ if(operation==='image'){const input=metaBackgroundRequest.parse(raw);return imageResponse(await metaImage(base.modelId,base.apiKey,`Create one advertising background only, no text, logos, product, package or watermark. ${spatialInstruction(input.concept.spatialPreset)} Reference data: ${JSON.stringify({colors:input.brand.colors,direction:input.concept.visualDirection,space:input.concept.negativeSpaceInstruction})}`,signal,options));}
+ if(operation==='critic'||operation==='edit'){const input=(operation==='edit'?metaReviewRequest.extend({creativeLanguage:z.enum(['en','ar'])}):metaReviewRequest).parse(raw);await validateRaster(input.preview);
+ if(operation==='critic'){const review=await metaJson(base.modelId,base.apiKey,`Give cautious subjective visual observations in ${language}. No measured evidence or scores. Metadata: ${JSON.stringify(input.creative)}`,aiReviewSchema,input.preview,signal,options);if(review.issues.some(issue=>issue.layerId&&!input.creative.layers.some(layer=>layer.id===issue.layerId)))throw new ProviderError('review_invalid',502);return json(review);}
+ const plan=await metaJson(base.modelId,base.apiKey,`Propose conservative allowed actions only; do not replace images or execute code. Text-layer-only color/font/text/fill/show actions; move/resize existing non-background layers only. Up to sixteen actions, language ${language}. Metadata: ${JSON.stringify(input.creative)}`,repairResponseSchema,input.preview,signal,options);applyActions(input.creative,plan.actions);return json(plan);}
+ if(operation==='vision'){const input=extractRequest.parse(raw);return json(await metaJson(base.modelId,base.apiKey,'Suggest editable brand identity from this image: name, three HEX colors, tone, English/Arabic descriptions, Inter/Cairo fonts and a tentative rationale. Do not invent facts.',extractedSchema,input.image,signal,options));}
+ if(operation==='copy'){const input=shiftRequest.parse(raw),result=await metaJson(base.modelId,base.apiKey,`Rewrite using locale ${input.targetLocale}, headline at most ${input.maxHeadlineChars} Unicode characters. Preserve factual claims. Do not invent offers or stereotypes. Reference: ${JSON.stringify({headline:input.currentHeadline,caption:input.currentCaption,brief:input.productBrief})}`,shiftedSchema,undefined,signal,options);if([...result.headline].length>input.maxHeadlineChars)throw new ProviderError('invalid_response',502);return json(result);}
+ if(operation==='makeover'){const input=makeoverRequest.parse(raw);return imageResponse(await metaImage(base.modelId,base.apiKey,`${input.mode} product photo, ${input.preset} preset. Preserve packaging, identity and lettering; modifications may alter them. User reference instruction (not code): ${input.prompt}`,signal,options,input.image));}
+ const test=taskTestRequest.parse(raw),imageTask=['image','image_edit'].includes(test.task),visionTask=['planner','critic','edit','vision'].includes(test.task);
+ if((imageTask||visionTask)&&!test.imageConsent)throw new ProviderError('consent');
+ const {default:sharp}=await import('sharp');const sample={mimeType:'image/png' as const,data:(await sharp({create:{width:64,height:64,channels:3,background:'#227744'}}).png().toBuffer()).toString('base64')};
+ if(imageTask)await metaImage(base.modelId,base.apiKey,'A simple green circle on cream. No words or logos.',signal,options,test.task==='image_edit'?sample:undefined);
+ else {const schemas={planner:planSchema,critic:aiReviewSchema,edit:repairResponseSchema,vision:extractedSchema,copy:shiftedSchema},instructions={planner:'Produce three distinct offer, benefit and lifestyle concepts for an abstract green shape. Do not invent offers.',critic:'Give a cautious short visual review with no known layer IDs; use null IDs.',edit:'Return a cautious repair rationale with an empty actions array; no editable layers are supplied.',vision:'Suggest tentative editable identity fields for the abstract image, not factual brand claims.',copy:'Write a short neutral English headline, CTA, caption and cultural note about an abstract green shape.'};const task=test.task as keyof typeof schemas;await metaJson<unknown>(base.modelId,base.apiKey,`Synthetic task test: ${instructions[task]}`,schemas[task] as z.ZodType<unknown>,visionTask?sample:undefined,signal,options);}
+ return json({task:test.task,modelId:base.modelId,status:'verified_supported',checkedAt:new Date().toISOString(),proof:issueProof(base.apiKey,base.modelId,test.task)});
+ }catch(error){const safe=request.signal.aborted?new ProviderError('cancelled',499):error instanceof ProviderError?error:error instanceof z.ZodError?new ProviderError('invalid_request',400,{source:'application',fields:validationFields(error)}):new ProviderError('upstream',500,{source:'internal'});const details=safe.details?{...safe.details,requestId}:undefined;if(details)console.warn('[AdMorph API]',JSON.stringify({requestId,operation,code:safe.code,source:details.source,fields:details.fields,parameter:details.parameter,upstreamStatus:details.upstreamStatus}));return Response.json({error:{code:safe.code,...(details?{details}:{})}},{status:safe.status,headers:{...headers,...(safe.status===429?{'Retry-After':'30'}:{})}});}finally{release?.();}
+}

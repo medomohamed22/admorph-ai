@@ -1,0 +1,11 @@
+import {metaModelId} from './model-id';
+import {z} from 'zod';
+import {taskSchema} from './task-support';
+export const metaBase=z.object({providerId:z.literal('meta'),apiKey:z.string().trim().min(1).max(4096).refine(value=>!/[\x00-\x1f\x7f]/.test(value)),modelId:metaModelId,consent:z.literal(true)});
+export const inputImage=z.object({mimeType:z.enum(['image/png','image/jpeg','image/webp']),data:z.string().min(4).max(4*Math.ceil(2*1024*1024/3)).regex(/^[A-Za-z0-9+/]+={0,2}$/)}).strict();
+export const dialectSchema=z.enum(['ar_msa','ar_eg','ar_gulf','ar_lev','en_direct','en_genz','en_luxury']);
+export const shiftedSchema=z.object({headline:z.string().min(1).max(90),ctaText:z.string().min(1).max(40),caption:z.string().min(1).max(1200),culturalNote:z.string().max(600)}).strict();
+export const shiftRequest=metaBase.extend({currentHeadline:z.string().max(500),currentCaption:z.string().max(1200),productBrief:z.string().max(2000),targetLocale:dialectSchema,maxHeadlineChars:z.number().int().min(15).max(90)}).strict();
+export const extractedSchema=z.object({suggestedName:z.string().min(1).max(80),primaryHex:z.string().regex(/^#[\da-f]{6}$/i),secondaryHex:z.string().regex(/^#[\da-f]{6}$/i),accentHex:z.string().regex(/^#[\da-f]{6}$/i),brandTone:z.string().max(120),shortDescriptionEn:z.string().max(500),shortDescriptionAr:z.string().max(500),recommendedFontEn:z.literal('Inter'),recommendedFontAr:z.literal('Cairo'),rationale:z.string().max(1000)}).strict();
+export const extractRequest=metaBase.extend({imageConsent:z.literal(true),image:inputImage,proof:z.string().max(1500).optional()}).strict();
+export const taskTestRequest=metaBase.extend({task:taskSchema,imageConsent:z.literal(true).optional()}).strict();

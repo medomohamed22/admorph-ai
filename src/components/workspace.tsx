@@ -95,8 +95,9 @@ export function useWorkspace() {
 export function useMessages() { return messages[useWorkspace().locale]; }
 export function WorkspaceChrome() {
   const { phase, storageError } = useWorkspace(); const m = useMessages();
-  return phase === 'loading' ? <p className="storage-banner" role="status">{m.common.loading}</p> :
-    storageError ? <p className="storage-banner warning" role="alert">{m.common.storageWarning}</p> : null;
+  const [offline,setOffline]=useState(false);
+  useEffect(()=>{const update=()=>setOffline(!navigator.onLine),timer=setTimeout(update,0);window.addEventListener('online',update);window.addEventListener('offline',update);return()=>{clearTimeout(timer);window.removeEventListener('online',update);window.removeEventListener('offline',update);};},[]);
+  return <>{offline&&<p className="storage-banner" role="status">{m.meta.offline}</p>}{phase==='loading'?<p className="storage-banner" role="status">{m.common.loading}</p>:storageError?<p className="storage-banner warning" role="alert">{m.common.storageWarning}</p>:null}</>;
 }
 export function Footer() { const m = useMessages(); return <footer><span className="wordmark">ad<span>morph</span><sup>✳</sup></span><div><p>{m.footer.notice}</p><Link className="hackathon-link" href="/hackathon">{m.hackathon.footerLink} ↗</Link></div><span>{m.footer.milestone}</span></footer>; }
 export function SkipLink() { const m = useMessages(); return <a className="skip" href="#main">{m.nav.skip}</a>; }

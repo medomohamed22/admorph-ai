@@ -1,7 +1,5 @@
 import { getDatabase, type AdMorphDB } from './dexie';
 import { brandSchema, savedSettingsSchema, cacheSchema, encryptedCredentialSchema, type Brand, type Asset, type SavedSettings, type CatalogCache } from './schema';
-import { canUseRole } from '../ai/capabilities';
-import { roles } from '../ai/schemas';
 
 export async function loadWorkspace(db: AdMorphDB = getDatabase()) {
   const [settings, rawBrands, assets] = await Promise.all([db.settings.toArray(), db.brands.toArray(), db.assets.toArray()]);
@@ -32,21 +30,15 @@ export async function removeBrand(id: string, db: AdMorphDB = getDatabase()) {
 }
 export async function loadProviderSettings(db: AdMorphDB = getDatabase()) {
   const [settings, rawCatalogs, rawVault] = await Promise.all([db.settings.get('providerSettings'), db.modelCatalogCache.toArray(), db.encryptedCredentials.toArray()]);
-  const restored = settings ? savedSettingsSchema.parse(settings.value) : null;
-  const catalogs = rawCatalogs.map(item => cacheSchema.parse(item));
-  if (restored) for (const role of roles) {
-    const selected = restored.roles[role];
-    if (!selected) continue;
-    const model = catalogs.find(cache => cache.providerId === selected.provider)?.models.find(item => item.id === selected.modelId);
-    const acknowledgedUnknown = selected.manual && role !== 'image' && model?.capabilities.length === 0 && model.availability !== 'unavailable';
-    if ((model && !canUseRole(model, role) && !acknowledgedUnknown) || (role === 'image' && selected.manual)) restored.roles[role] = null;
-  }
-  return { settings: restored, catalogs, vault: rawVault.map(item => encryptedCredentialSchema.parse(item)) };
+  const parsed=settings?savedSettingsSchema.safeParse(settings.value):null;
+  const catalogResults=rawCatalogs.map(item=>cacheSchema.safeParse(item)),vaultResults=rawVault.map(item=>encryptedCredentialSchema.safeParse(item));
+  return {settings:parsed?.success?parsed.data:null,catalogs:catalogResults.flatMap(result=>result.success?[result.data]:[]),vault:vaultResults.flatMap(result=>result.success?[result.data]:[]),invalidRecords:!!(parsed&&!parsed.success)||catalogResults.some(result=>!result.success)||vaultResults.some(result=>!result.success)};
 }
 export async function saveProviderSettings(settings: SavedSettings, caches: CatalogCache[], db: AdMorphDB = getDatabase()) {
   const value = savedSettingsSchema.parse(settings);
   const validated = caches.map(cache => cacheSchema.parse(cache));
   await db.transaction('rw', db.settings, db.modelCatalogCache, async () => {
+    const previous = await db.settings.get('providerSettings'); if(previous && !await db.settings.get('legacyProviderSettings-v1')) await db.settings.put({key:'legacyProviderSettings-v1', value:previous.value});
     await db.settings.put({ key: 'providerSettings', value });
     await db.modelCatalogCache.bulkPut(validated);
   });
