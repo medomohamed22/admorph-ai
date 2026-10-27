@@ -1,0 +1,5 @@
+import {z} from 'zod';
+import {ProviderError,errorCodes,errorCode} from './errors';
+import {errorDetailsSchema} from './diagnostics';
+export async function requireMetaSuccess(response:Response){if(response.ok)return;const parsed=z.object({error:z.object({code:z.enum(errorCodes),details:errorDetailsSchema.optional()})}).safeParse(await response.json().catch(()=>null));throw new ProviderError(parsed.success?parsed.data.error.code:'invalid_response',response.status,parsed.success?parsed.data.error.details:undefined);}
+export function metaErrorMessage(error:unknown,text:{errors:Record<string,string>;aiError:string}){const main=text.errors[error instanceof TypeError?'network':errorCode(error)]??text.aiError,detail=error instanceof ProviderError?error.details:undefined;return detail?`${main}\n${detail.source==='meta'?'Meta':detail.source==='application'?'App validation':'App internal error'}: ${detail.message??detail.fields?.join(', ')??''}${detail.parameter?` · ${detail.parameter}`:''} · ${detail.requestId??''}`:main;}

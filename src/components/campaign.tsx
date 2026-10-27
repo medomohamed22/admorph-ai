@@ -10,6 +10,12 @@ import { errorCode, type ErrorCode } from '@/lib/ai/errors';
 import { encodeProduct, requestPlan, validateProduct } from '@/lib/campaign/client';
 import { samplePlan } from '@/lib/campaign/sample';
 import { SAMPLE_BRAND, canApprove, type Campaign, type ConceptField, type Plan } from '@/lib/campaign/schema';
+import {ProductMakeover} from './product-makeover';
+import {CopyShifter} from './copy-shifter';
+import {measureCopy} from '@/lib/editor/measure-copy';
+import {compose} from '@/lib/editor/composition';
+import {spatialSchema} from '@/lib/editor/spatial';
+import { CreativeSet } from './creative-set';
 
 export function CampaignWorkspace() {
   const session = useCampaign(); const workspace = useWorkspace(); const provider = useProviderSession();
@@ -25,9 +31,10 @@ export function CampaignWorkspace() {
   const currentDraft = useRef(draft);
   useEffect(() => { currentDraft.current = draft; }, [draft]);
   useEffect(() => () => { requestId.current++; controller.current?.abort(); }, []);
-  const selection = provider.savedRoles?.planner ?? null;
-  const model = selection ? provider.catalogs[selection.provider]?.models.find(item => item.id === selection.modelId) : null;
-  const modelReady = selection?.provider === 'gemini' && model?.availability !== 'unavailable';
+  useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) { setBusy(false); setRequesting(false); setConsent(false); } }); return () => { alive = false; }; }, [provider.keyEpoch]);
+  useEffect(() => () => { requestId.current++; controller.current?.abort(); }, [provider.keyEpoch]);
+  const selection = provider.taskModel('planner');
+  const modelReady = selection?.provider === 'meta';
   const key = selection ? provider.configs[selection.provider].apiKey.trim() : '';
   const validInput = !!draft && !!asset && draft.brief.trim().length >= 8;
   const stale = !!draft?.concepts.length && draft.planRevision !== draft.inputRevision;
@@ -37,9 +44,9 @@ export function CampaignWorkspace() {
     setConsent(false); setError(null);
     session.update({ ...draft, ...patch, inputRevision: draft.inputRevision + 1, concepts: draft.concepts.map(item => ({ ...item, approved: false })) });
   }
-  function applyPlan(plan: Plan, source: 'sample' | 'gemini', snapshot: Campaign) {
+  function applyPlan(plan: Plan, source: 'sample' | 'meta', snapshot: Campaign) {
     session.update({ ...snapshot, concepts: plan.concepts.map(item => ({ ...item, id: crypto.randomUUID(), approved: false })),
-      source, planRevision: snapshot.inputRevision, planner: source === 'gemini' ? selection : null });
+      source, planRevision: snapshot.inputRevision, planner: source === 'meta' ? selection : null });
   }
   async function upload(file: Blob) {
     setError(null);
@@ -64,10 +71,10 @@ export function CampaignWorkspace() {
     try {
       const product = await encodeProduct(asset!.blob);
       if (abort.signal.aborted) return;
-      const plan = await requestPlan({ providerId: 'gemini', apiKey: key, modelId: selection.modelId.replace(/^models\//, ''),
+      const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: selection.modelId,
         consent: true, imageConsent: true, brand: snapshot.brandSnapshot, brief: snapshot.brief, goal: snapshot.goal,
         creativeLanguage: snapshot.creativeLanguage, format: snapshot.format, product }, abort.signal);
-      if (id === requestId.current && currentDraft.current?.id === snapshot.id && currentDraft.current.inputRevision === snapshot.inputRevision) applyPlan(plan, 'gemini', snapshot);
+      if (id === requestId.current && currentDraft.current?.id === snapshot.id && currentDraft.current.inputRevision === snapshot.inputRevision) applyPlan(plan, 'meta', snapshot);
     } catch (cause) { if (id === requestId.current) setError(errorCode(cause)); }
     finally { if (id === requestId.current) { setBusy(false); setRequesting(false); controller.current = null; } }
   }
@@ -87,13 +94,13 @@ export function CampaignWorkspace() {
       <div className="section-heading"><span className="eyebrow">{c.setup}</span><button className="text-button" disabled={busy} onClick={() => void fillSample()}>{c.fillSample} ↗</button></div>
       <label htmlFor="campaign-brand">{c.brand}</label><select id="campaign-brand" disabled={busy} value={draft.brandId ?? 'sample'} onChange={event => {
         const brand = workspace.brands.find(item => item.id === event.target.value);
-        updateInput({ brandId: brand?.id ?? null, brandSnapshot: brand ? { name: brand.name, description: brand.description, colors: brand.colors } : structuredClone(SAMPLE_BRAND) });
+        updateInput({ brandId: brand?.id ?? null, brandSnapshot: brand ? { name: brand.name, description: brand.description, colors: brand.colors, logoPlacement:brand.logoPlacement,logoAspectRatio:brand.logoAspectRatio } : structuredClone(SAMPLE_BRAND) });
       }}><option value="sample">{c.sampleBrand}</option>{draft.brandId && !workspace.brands.some(item => item.id === draft.brandId) && <option value={draft.brandId}>{draft.brandSnapshot.name} · {c.brandSnapshot}</option>}{workspace.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
       <p className="field-help"><Link href="/brands/new">{c.createBrand} ↗</Link> · {c.snapshotHelp}</p>
       <label htmlFor="product-image">{c.product}</label><div className="product-upload">{url ? /* eslint-disable-next-line @next/next/no-img-element */
         <img src={url} alt={c.productAlt} className="campaign-product"/> : <div className="product-placeholder" aria-hidden="true">✳</div>}
         <input id="product-image" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }}/><p className="field-help">{c.productHelp}</p></div>
-      <label htmlFor="campaign-brief">{c.brief}</label><textarea id="campaign-brief" rows={4} maxLength={2000} disabled={busy} value={draft.brief} onChange={event => updateInput({ brief: event.target.value })} placeholder={c.briefPlaceholder}/>
+      <ProductMakeover/><label htmlFor="campaign-brief">{c.brief}</label><textarea id="campaign-brief" rows={4} maxLength={2000} disabled={busy} value={draft.brief} onChange={event => updateInput({ brief: event.target.value })} placeholder={c.briefPlaceholder}/>
       <p className="field-help">{c.briefHelp} · {draft.brief.length}/2000</p>
       <div className="campaign-fields"><div><label htmlFor="campaign-goal">{c.goal}</label><select id="campaign-goal" disabled={busy} value={draft.goal} onChange={event => updateInput({ goal: event.target.value as Campaign['goal'] })}>{Object.entries(c.goals).map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></div>
         <div><label htmlFor="creative-language">{c.language}</label><select id="creative-language" disabled={busy} value={draft.creativeLanguage} onChange={event => updateInput({ creativeLanguage: event.target.value as 'en' | 'ar' })}><option value="en">{c.english}</option><option value="ar">{c.arabic}</option></select></div></div>
@@ -119,9 +126,13 @@ export function CampaignWorkspace() {
           <fieldset disabled={busy}><legend className="sr-only">{c.angles[concept.angle]}</legend>{(['title', 'audienceAngle', 'headline', 'caption', 'visualDirection'] as ConceptField[]).map(field => <div key={field}><label htmlFor={`${concept.id}-${field}`}>{c.fields[field]}</label>{field === 'caption' || field === 'visualDirection' ?
             <textarea id={`${concept.id}-${field}`} rows={4} maxLength={field === 'caption' ? 1200 : 1000} value={concept[field]} dir={draft.creativeLanguage === 'ar' ? 'rtl' : 'ltr'} onChange={event => edit(concept.id, field, event.target.value)}/> :
             <input id={`${concept.id}-${field}`} maxLength={field === 'title' ? 100 : field === 'headline' ? 120 : 240} value={concept[field]} dir={draft.creativeLanguage === 'ar' ? 'rtl' : 'ltr'} onChange={event => edit(concept.id, field, event.target.value)}/>}</div>)}</fieldset>
+          <label>{m.meta.spatial}<select aria-label={m.meta.spatial} value={concept.spatialPreset??'top_copy_center_product'} onChange={e=>session.update({...draft,concepts:draft.concepts.map(item=>item.id===concept.id?{...item,spatialPreset:e.target.value as typeof concept.spatialPreset,approved:false}:item)})}>{spatialSchema.options.map((value,index)=><option key={value} value={value}>{m.meta.spatialPresets[index]}</option>)}</select></label>
+          <CopyShifter contextKey={JSON.stringify([concept.spatialPreset,draft.creativeLanguage,draft.brandSnapshot])} headline={concept.headline} caption={concept.caption} brief={draft.brief} measure={copy=>measureCopy(compose(draft,concept,draft.productAssetId!,null),copy.headline,copy.ctaText,copy.locale)} onAccept={copy=>session.update({...draft,concepts:draft.concepts.map(item=>item.id===concept.id?{...item,headline:copy.headline,caption:copy.caption,ctaText:copy.ctaText,copyLocale:copy.locale,approved:false}:item)})}/>
           <button className={`button ${concept.approved ? 'secondary' : 'primary'}`} disabled={busy || stale || !asset || !canApprove(concept)} onClick={() => session.update({ ...draft, concepts: draft.concepts.map(item => item.id === concept.id ? { ...item, approved: !item.approved } : item) })}>{concept.approved ? c.reopen : c.approve} {concept.approved ? '↺' : '✓'}</button>
-        </article>)}</div><div className="campaign-next"><strong>{approved}/3 {c.approvalCount}</strong><p>{approved === 3 && !stale ? c.readyNext : c.nextHelp}</p><button className="button secondary" disabled>{c.imageLater}</button></div>
+          {concept.approved && !stale && <Link className="button secondary" onClick={() => void session.flush()} href={`/studio/${draft.id}?concept=${concept.id}`}>{m.studio.open} ↗</Link>}
+        </article>)}</div><div className="campaign-next"><strong>{approved}/3 {c.approvalCount}</strong><p>{approved === 3 && !stale ? c.readyNext : c.nextHelp}</p><p>{m.studio.oneAtATime}</p></div>
       </>}
     </section>
+    {!!draft.concepts.length && <CreativeSet key={draft.id} campaign={draft} product={asset}/>}
   </section>;
 }

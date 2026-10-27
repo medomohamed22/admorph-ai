@@ -1,0 +1,74 @@
+{
+  "checkedAtUTC": "2026-10-27T13:13:11.342Z",
+  "base": "http://localhost:3000",
+  "mode": "local-production-http-check",
+  "checked": [
+    {
+      "path": "/api/health",
+      "status": 200
+    },
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/campaigns/new",
+      "status": 200
+    },
+    {
+      "path": "/settings",
+      "status": 200
+    },
+    {
+      "path": "/hackathon",
+      "status": 200
+    },
+    {
+      "path": "/api/ai/plan",
+      "status": 400
+    },
+    {
+      "path": "/api/ai/background",
+      "status": 400
+    },
+    {
+      "path": "/api/ai/critic",
+      "status": 400
+    },
+    {
+      "path": "/api/ai/repairs",
+      "status": 400
+    },
+    {
+      "path": "/api/providers/meta-smoke",
+      "status": 400
+    },
+    {
+      "path": "/api/ai/brand-extract",
+      "status": 400
+    },
+    {
+      "path": "/api/ai/shift-copy",
+      "status": 400
+    },
+    {
+      "path": "/api/ai/product-makeover",
+      "status": 400
+    },
+    {
+      "path": "/api/providers/task-test",
+      "status": 400
+    },
+    {
+      "path": "/api/providers/models",
+      "status": 400
+    },
+    {
+      "path": "/api/providers/test",
+      "status": 400
+    }
+  ],
+  "paidApiCalls": false,
+  "remoteDeploymentVerified": false,
+  "limitations": "HTTP routes/guards only. Browser storage, mobile rendering and authenticated generation need separate verification."
+}

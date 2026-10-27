@@ -8,6 +8,9 @@ import { Logo } from './logo';
 import { brandInputSchema, type Brand, type BrandInput } from '@/lib/db/schema';
 import { BrandError, MAX_BACKUP_BYTES, parseBrandBackup, makeBrandBackup, downloadBrand, validateLogoDimensions, type BrandErrorCode } from '@/lib/brand/backup';
 import { themeColors } from '@/lib/brand/theme';
+import {LogoOptions} from './logo-options';
+import {defaultLogoPlacement} from '@/lib/editor/logo-placement';
+import {BrandExtraction} from './brand-extraction';
 
 export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () => void }) {
   const m = useMessages(), s = m.brands; const workspace = useWorkspace(); const router = useRouter();
@@ -16,6 +19,8 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
   const [draftBrand, setDraftBrand] = useState(previous);
   const [description, setDescription] = useState(previous?.description ?? workspace.brandDraft?.description ?? '');
   const [colors, setColors] = useState<BrandInput['colors']>(previous?.colors ?? workspace.brandDraft?.colors ?? ['#d95736', '#dce5bb', '#62547f']);
+  const [logoPlacement,setLogoPlacement]=useState(previous?.logoPlacement??workspace.brandDraft?.logoPlacement??defaultLogoPlacement),[logoAspectRatio,setLogoAspectRatio]=useState(previous?.logoAspectRatio??workspace.brandDraft?.logoAspectRatio??1);
+  const [identity,setIdentity]=useState({brandTone:previous?.brandTone??workspace.brandDraft?.brandTone??'',shortDescriptionEn:previous?.shortDescriptionEn??workspace.brandDraft?.shortDescriptionEn??'',shortDescriptionAr:previous?.shortDescriptionAr??workspace.brandDraft?.shortDescriptionAr??'',recommendedFontEn:'Inter' as const,recommendedFontAr:'Cairo' as const});
   const [logo, setLogo] = useState<Blob | null>(() => previous ? workspace.assets.find(asset => asset.id === previous.logoAssetId)?.blob ?? null : workspace.brandDraft?.logo ?? null);
   const [busy, setBusy] = useState(false); const [logoBusy, setLogoBusy] = useState(false);
   const [error, setError] = useState<BrandErrorCode | 'storageError' | null>(null);
@@ -29,7 +34,7 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
     return () => setPreviewColors(null);
   }, [colors, setPreviewColors]);
   useEffect(() => () => { logoVersion.current++; }, []);
-  useEffect(() => { if (!previous) setBrandDraft({ name, description, colors, logo }); }, [name, description, colors, logo, previous, setBrandDraft]);
+  useEffect(() => { if (!previous) setBrandDraft({ name, description, colors, logo,logoPlacement,logoAspectRatio,...identity }); }, [name, description, colors, logo,logoPlacement,logoAspectRatio,identity, previous, setBrandDraft]);
   async function chooseLogo(file: File | undefined) {
     if (!file) return;
     const version = ++logoVersion.current; setLogoBusy(true); setError(null);
@@ -38,7 +43,7 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
     finally { if (version === logoVersion.current) setLogoBusy(false); }
   }
   function values() {
-    const parsed = brandInputSchema.safeParse({ name, description, colors });
+    const parsed = brandInputSchema.safeParse({ name, description, colors, logoPlacement, logoAspectRatio, ...identity });
     if (!parsed.success) throw new BrandError('invalidBrand');
     return parsed.data;
   }
@@ -61,15 +66,17 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
   function cancel() { if (onDone) onDone(); else { setBrandDraft(null); router.push('/brands'); } }
   return <section className="brand-page"><div className="page-heading"><span className="eyebrow">{s.eyebrow}</span><h1>{previous ? s.editTitle : s.newTitle}</h1><p>{s.formNote}</p><p className="input-hint">{s.draftNote}</p></div>
     <div className="brand-builder"><form className="brand-fields settings-card" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
+      <BrandExtraction onAccept={value=>{setName(value.suggestedName);setDescription(workspace.locale==='ar'?value.shortDescriptionAr:value.shortDescriptionEn);setColors([value.primaryHex,value.secondaryHex,value.accentHex]);setIdentity({brandTone:value.brandTone,shortDescriptionEn:value.shortDescriptionEn,shortDescriptionAr:value.shortDescriptionAr,recommendedFontEn:value.recommendedFontEn,recommendedFontAr:value.recommendedFontAr});}}/>
       <label htmlFor="brand-name">{s.name}</label><input id="brand-name" value={name} maxLength={80} placeholder={s.namePlaceholder} onChange={event => setName(event.target.value)}/>
       <label htmlFor="brand-description">{s.descriptionLabel}</label><textarea id="brand-description" value={description} maxLength={500} rows={4} placeholder={s.descriptionPlaceholder} onChange={event => setDescription(event.target.value)}/>
       <label htmlFor="brand-logo">{s.logo}</label><input ref={logoInput} id="brand-logo" hidden tabIndex={-1} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void chooseLogo(event.target.files?.[0]); event.target.value = ''; }}/><button type="button" className="button secondary" onClick={() => logoInput.current?.click()}>{s.chooseLogo}</button><p className="input-hint">{s.logoHint}</p>
       {logo && <div className="logo-row"><Logo blob={logo} alt={s.logoAlt}/><button type="button" className="text-button" onClick={() => { logoVersion.current++; setLogo(null); setLogoBusy(false); }}>{s.removeLogo}</button></div>}
+      <LogoOptions value={logoPlacement} onChange={setLogoPlacement} blob={logo} onAspect={setLogoAspectRatio}/>
+      {(['brandTone','shortDescriptionEn','shortDescriptionAr'] as const).map(field=><label key={field}>{m.meta[field]}<textarea maxLength={field==='brandTone'?120:500} value={identity[field]} onChange={e=>setIdentity(current=>({...current,[field]:e.target.value}))}/></label>)}<p>{m.meta.fonts}: Inter / Cairo</p>
       <fieldset className="palette-fields"><legend>{s.palette}</legend>{(['primary', 'secondary', 'accent'] as const).map((key, index) => <div key={key}>
         <label htmlFor={`brand-color-${index}`}>{s[key]}</label><div className="palette-input"><input id={`brand-color-${index}`} type="color" value={/^#[0-9a-f]{6}$/i.test(colors[index]) ? colors[index] : '#000000'} onChange={event => setColors(current => current.map((color, i) => i === index ? event.target.value : color) as BrandInput['colors'])}/><input dir="ltr" aria-label={`${s[key]} ${s.hex}`} value={colors[index]} maxLength={7} onChange={event => setColors(current => current.map((color, i) => i === index ? event.target.value : color) as BrandInput['colors'])}/></div>
       </div>)}</fieldset>
       <div className="field-actions"><button type="submit" className="button primary" disabled={busy || logoBusy || workspace.phase === 'loading'}>{busy ? m.common.saving : previous ? s.update : s.save}</button><button type="button" className="button secondary" disabled={busy || logoBusy} onClick={() => void exportDraft()}>{s.export}</button><button type="button" className="button secondary" disabled={busy} onClick={cancel}>{m.common.cancel}</button></div>
-      <button type="button" className="text-button" disabled aria-describedby="brand-ai-note">{s.ai}</button><p id="brand-ai-note" className="input-hint">{s.aiNote}</p>
       {logoBusy && <p role="status">{m.common.loading}</p>}{error && <p className="request-error" role="alert">{error === 'storageError' ? m.common.storageError : s.errors[error]}</p>}{notice && <p className="request-status" role="status">{s[notice]}</p>}
     </form><aside className="brand-preview"><span className="eyebrow">{s.preview}</span><div className="theme-preview" style={{ '--preview-primary': theme.primary, '--preview-fg': theme.foreground, '--preview-secondary': theme.secondary, '--preview-secondary-fg': theme.secondaryForeground, '--preview-accent': theme.accent } as React.CSSProperties}>
       <div className="preview-sidebar"><Logo blob={logo} alt={s.logoAlt}/><strong>{name || s.name}</strong><span>{s.previewSide}</span><span className="preview-nav">{s.previewTab}</span></div>
@@ -99,7 +106,7 @@ export function BrandLibrary() {
   async function exportBrand(brand: Brand) {
     setError(null); setNotice(null);
     try {
-      const input = { name: brand.name, description: brand.description, colors: brand.colors };
+      const input = brandInputSchema.strip().parse(brand);
       const logo = workspace.assets.find(asset => asset.id === brand.logoAssetId)?.blob ?? null;
       downloadBrand(await makeBrandBackup(input, logo)); setNotice('exported');
     } catch (failure) { setError(failure instanceof BrandError ? failure.code : 'storageError'); }

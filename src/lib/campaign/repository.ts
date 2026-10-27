@@ -10,13 +10,13 @@ export async function loadCampaigns(db: AdMorphDB = getDatabase()) {
 export async function saveCampaign(campaign: Campaign, asset: Asset | null, db: AdMorphDB = getDatabase()) {
   const valid = campaignSchema.parse(campaign);
   await db.transaction('rw', db.campaigns, db.assets, db.settings, async () => {
-    const previous = await db.campaigns.get(valid.id);
+
     if (asset) {
       if (asset.id !== valid.productAssetId || asset.kind !== 'product') throw new Error('asset_mismatch');
       await db.assets.put(asset);
     }
     await db.campaigns.put(valid);
     await db.settings.put({ key: 'activeCampaignId', value: valid.id });
-    if (previous?.productAssetId && previous.productAssetId !== valid.productAssetId) await db.assets.delete(previous.productAssetId);
+    // Original/variant assets are immutable and may be referenced by backups or saved designs.
   });
 }

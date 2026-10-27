@@ -10,8 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## AdMorph working agreement
 - Read ADMORPH_BUILD_PLAN.md before changes; implement one authorized milestone at a time.
-- Current scope: campaign form, product image, Gemini planning and editable approval of three concepts; preserve existing storage and bilingual UI. Stop before background/image generation and the full editor.
-- Prepare a manual GitHub update packet against releases/AdMorph-GitHub-Vercel. Use feature-based commit/PR wording with no numbered-day references. The user uploads/deploys manually; do not publish remotely.
+- Current scope: Meta-only master-plan stages M0–M12, preserving all existing records/credentials. Implement the ordered features without per-stage approval; run the comprehensive acceptance suite after integration. Do not publish or call paid APIs during implementation.
+- The owner previously chose manual GitHub upload and Vercel publication. Prepare the complete reviewable release locally. Do not publish, create remote repositories/PRs or submit the competition entry unless the owner changes that preference explicitly. Report remote publication/live-provider verification separately.
 - Never call paid APIs without explicit approval or a visible user-triggered action.
 - Never store/log plaintext keys; no secrets in commits, fixtures, exports, or NEXT_PUBLIC_ variables.
 - English is default. Keep full English/Arabic translations in parity for all app screens and messages.
@@ -21,3 +21,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Include loading/error/empty states; no fake API success or unlabelled dead buttons.
 - Run lint, typecheck, available unit/browser tests, and build; report exact outcomes.
 - Avoid unrelated rewrites and backend databases. Keep changes reversible.
+
+- Latest owner override: NEVER require a preliminary model/task test or cached support approval to unlock a feature. All Meta tasks run directly with a selected model, a key and explicit request/image consent. Optional tests are diagnostic only. This supersedes the older master-plan receipt gates.
+
+- After changing AI request schemas, restart the owned development server and verify an actual HTTP request against the local validation route. Mocked provider/browser tests alone can miss stale server-side schema modules.

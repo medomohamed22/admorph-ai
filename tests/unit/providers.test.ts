@@ -4,7 +4,7 @@ import { geminiCatalog } from '../../src/lib/ai/providers/gemini';
 import { parseOpenAIList } from '../../src/lib/ai/providers/shared';
 import { customCatalog, validateCustomBase } from '../../src/lib/ai/providers/custom';
 import { getProviderJson } from '../../src/lib/ai/transport';
-import { assertRole, canUseRole, filterModels } from '../../src/lib/ai/capabilities';
+import { canUseRole, filterModels } from '../../src/lib/ai/capabilities';
 import { manualSelection } from '../../src/lib/ai/client';
 import type { ProviderId } from '../../src/lib/ai/schemas';
 
@@ -56,18 +56,18 @@ describe('Gemini adapter', () => {
 });
 
 describe('capabilities and roles', () => {
-  const models = parseOpenAIList(list, 'openrouter');
+  const models = parseOpenAIList(list, 'meta');
   it('uses modality metadata rather than names', () => {
     const unknown = parseOpenAIList({ data: [{ id: 'image-vision-text-supermodel' }] }, 'meta');
     expect(unknown[0].capabilities).toEqual([]);
     expect(models[0].capabilities).toEqual(['text']);
     expect(models[1].capabilities).toEqual(['vision', 'image_output']);
   });
-  it('rejects text-only and unavailable models for image output', () => {
-    expect(() => assertRole(models[0], 'image')).toThrow('role_capability');
+  it('allows missing task metadata while rejecting explicitly unavailable models', () => {
+    expect(canUseRole(models[0], 'image')).toBe(true);
     expect(canUseRole(models[1], 'image')).toBe(true);
     expect(canUseRole({ ...models[1], availability: 'unavailable' }, 'image')).toBe(false);
-    expect(() => assertRole(models[1], 'planner')).toThrow('role_capability');
+    expect(canUseRole(models[1], 'planner')).toBe(true);
   });
   it('filters search, modalities, and only provider-reported availability', () => {
     expect(filterModels(models, 'FIXTURE/TEXT', 'text', false)).toEqual([models[0]]);
@@ -84,7 +84,7 @@ describe('capabilities and roles', () => {
     expect(() => manualSelection('custom', 'planner', 'bad?key=secret', true, [])).toThrow('manual_id');
     const unknown = parseOpenAIList({ data: [{ id: 'metadata-omitted' }] }, 'meta');
     expect(manualSelection('meta', 'planner', 'metadata-omitted', true, unknown)).toMatchObject({ manual: true });
-    expect(() => manualSelection('meta', 'image', 'metadata-omitted', true, unknown)).toThrow('role_capability');
+    expect(manualSelection('meta', 'image', 'metadata-omitted', true, unknown)).toMatchObject({provider:'meta',manual:true});
   });
 });
 
@@ -92,7 +92,7 @@ describe('official provider handlers', () => {
   it.each(['meta', 'gemini'] as const)('refuses %s without a key and never contacts upstream', async provider => {
     const fetcher = vi.fn<typeof fetch>();
     const result = await handleProviderRequest(request(input(provider, '')), 'models', { fetcher });
-    expect(result.status).toBe(400); expect(await result.json()).toEqual({ error: { code: 'missing_key' } });
+    expect(result.status).toBe(400); expect(await result.json()).toEqual({ error: { code: provider==='meta'?'missing_key':'meta_only' } });
     expect(fetcher).not.toHaveBeenCalled();
   });
   it.each([
@@ -129,33 +129,13 @@ describe('official provider handlers', () => {
     expect(body.credentialStatus).toBe('accepted');
     expect(fetcher.mock.calls[0][0]).toBe('https://api.meta.ai/v1/models');
   });
-  it('does not report public OpenRouter catalog success as key validation', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response(list));
-    const result = await handleProviderRequest(request(input('openrouter', '')), 'models', { fetcher });
-    expect((await result.json()).credentialStatus).toBe('not_tested');
-    expect(fetcher.mock.calls[0][1]?.headers).toEqual({});
-  });
-  it('tests OpenRouter credentials on /key before listing and never generates', async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ data: { label: 'Fixture' } })).mockResolvedValueOnce(response(list));
-    const result = await handleProviderRequest(request(input('openrouter')), 'test', { fetcher });
-    expect((await result.json()).credentialStatus).toBe('accepted');
-    expect(fetcher.mock.calls.map(([url]) => url)).toEqual(['https://openrouter.ai/api/v1/key', 'https://openrouter.ai/api/v1/models']);
-    expect(fetcher.mock.calls.every(([, options]) => options?.method === 'GET')).toBe(true);
-  });
-  it.each([[401, 'unauthorized', 1], [403, 'forbidden', 1], [404, 'invalid_model', 1], [429, 'rate_limit', 3], [503, 'upstream', 3]] as const)('maps HTTP %i to %s and retries only transient errors', async (status, code, calls) => {
+  it.each(['models','test'] as const)('rejects inactive OpenRouter on %s before upstream',async action=>{const fetcher=vi.fn<typeof fetch>();const result=await handleProviderRequest(request(input('openrouter')),action,{fetcher});expect(await result.json()).toEqual({error:{code:'meta_only'}});expect(fetcher).not.toHaveBeenCalled();});  it.each([[401, 'unauthorized', 1], [403, 'forbidden', 1], [404, 'invalid_model', 1], [429, 'rate_limit', 3], [503, 'upstream', 3]] as const)('maps HTTP %i to %s and retries only transient errors', async (status, code, calls) => {
     const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => response({ error: { message: dummyKey } }, status));
     const result = await handleProviderRequest(request(input('meta')), 'models', { fetcher });
     expect(await result.json()).toEqual({ error: { code } });
     expect(fetcher).toHaveBeenCalledTimes(calls);
   });
-  it('maps Gemini key and quota reasons to actionable safe codes', async () => {
-    for (const [upstreamCode, expected] of [['API_KEY_INVALID', 'unauthorized'], ['RESOURCE_EXHAUSTED', 'quota']]) {
-      const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => response({ error: { message: `${dummyKey} ${upstreamCode}` } }, 400));
-      const result = await handleProviderRequest(request(input('gemini')), 'test', { fetcher });
-      expect(await result.json()).toEqual({ error: { code: expected } });
-    }
-  });
-  it('rejects malformed upstream data without leaking keys or parser details', async () => {
+  it('rejects inactive Gemini even when a credential is supplied',async()=>{const fetcher=vi.fn<typeof fetch>();const result=await handleProviderRequest(request(input('gemini')),'models',{fetcher});expect(await result.json()).toEqual({error:{code:'meta_only'}});expect(fetcher).not.toHaveBeenCalled();});  it('rejects malformed upstream data without leaking keys or parser details', async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(response({ data: dummyKey }));
     const result = await handleProviderRequest(request(input('meta')), 'models', { fetcher });
     expect(result.status).toBe(502);

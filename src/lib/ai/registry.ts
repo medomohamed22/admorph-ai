@@ -6,4 +6,4 @@ export const providers = {
   openrouter: { name: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', requiresKey: false },
   custom: { name: 'Custom', baseUrl: '', requiresKey: false },
 } satisfies Record<ProviderId, { name: string; baseUrl: string; requiresKey: boolean }>;
-export const providerIds = Object.keys(providers) as ProviderId[];
+export const providerIds: ProviderId[] = ['meta'];

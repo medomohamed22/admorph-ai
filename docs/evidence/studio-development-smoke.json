@@ -1,0 +1,8 @@
+{
+  "checkedAtUTC": "2026-10-27T07:08:58.470Z",
+  "mode": "development",
+  "base": "http://localhost:3000",
+  "reloadsAfterInput": 0,
+  "editsPreserved": true,
+  "paidApiCalls": false
+}

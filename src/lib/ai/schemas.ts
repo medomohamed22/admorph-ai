@@ -30,7 +30,7 @@ export function redactCatalog(catalog: Catalog, key: string): Catalog {
 }
 export type ModelRole = 'planner' | 'image' | 'critic' | 'edit';
 export const roles: ModelRole[] = ['planner', 'image', 'critic', 'edit'];
-export type ModelSelection = { provider: ProviderId; modelId: string; manual?: boolean };
+export type ModelSelection = { provider: ProviderId; modelId: string; manual?: boolean; imageCapabilityConfirmed?: boolean };
 export type RoleSelection = Record<ModelRole, ModelSelection | null>;
 export const emptyRoles = (): RoleSelection => ({ planner: null, image: null, critic: null, edit: null });
 
@@ -43,18 +43,18 @@ export const providerRequestSchema = z.object({
 // Accept standard OpenAI-like fields without treating model names as capability evidence.
 export const rawModelSchema = z.object({
   id: z.string().min(1).max(240),
-  name: z.string().max(300).optional(),
+  name: z.string().max(300).nullish(),
   description: z.string().max(4000).nullish(),
   context_length: z.number().nonnegative().nullish(),
-  input_modalities: z.array(z.string()).optional(),
-  output_modalities: z.array(z.string()).optional(),
+  input_modalities: z.array(z.string()).nullish(),
+  output_modalities: z.array(z.string()).nullish(),
   architecture: z.object({
-    input_modalities: z.array(z.string()).optional(),
-    output_modalities: z.array(z.string()).optional(),
+    input_modalities: z.array(z.string()).nullish(),
+    output_modalities: z.array(z.string()).nullish(),
   }).optional(),
   supported_parameters: z.array(z.string()).optional(),
-  capabilities: z.array(z.string()).optional(),
-  available: z.boolean().optional(),
+  capabilities: z.array(z.string()).nullish(),
+  available: z.boolean().nullish(),
 });
 export type RawModel = z.infer<typeof rawModelSchema>;
 export const openAIListSchema = z.object({ data: z.array(rawModelSchema).max(5000) });

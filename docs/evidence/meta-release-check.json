@@ -1,0 +1,15 @@
+{
+  "checkedAtUTC": "2026-10-27T13:26:08.5409755Z",
+  "version": "1.0.0",
+  "sourceFolder": "releases/AdMorph-1.0.0-GitHub-Vercel",
+  "manifestFiles": 241,
+  "archive": "releases/AdMorph-1.0.0-GitHub-Vercel.zip",
+  "archiveSha256": "e513f9b0ad5412febb4efe2721cd307ccad978d85ce34e106f79b5d048f62894",
+  "archiveFilesVerified": 242,
+  "generatedFoldersIncluded": false,
+  "independentInstall": "npm ci --offline --no-audit --no-fund",
+  "installPackages": 395,
+  "buildVerification": "passed: independent clean-source production build on Windows",
+  "remoteDeploymentVerified": false,
+  "paidApiCalls": 0
+}

@@ -1,0 +1,6 @@
+'use client';
+/* Local Blob/data previews must bypass the Next remote image optimizer. */
+/* eslint-disable @next/next/no-img-element */
+import {useState} from 'react';
+import {useMessages} from './workspace';
+export function ImageComparison({before,after,beforeLabel,afterLabel,beforeAlt,afterAlt}:{before:string|null;after:string|null;beforeLabel:string;afterLabel:string;beforeAlt?:string;afterAlt?:string}){const [view,setView]=useState<'before'|'after'>('before'),t=useMessages().meta;return <div className="image-comparison" data-view={view}><div className="comparison-switch" role="group" aria-label={t.comparison}><button type="button" className="button secondary" aria-pressed={view==='before'} onClick={()=>setView('before')}>{beforeLabel}</button><button type="button" className="button secondary" aria-pressed={view==='after'} onClick={()=>setView('after')}>{afterLabel}</button></div><div className="makeover-images"><figure className="comparison-before"><figcaption>{beforeLabel}</figcaption>{before&&<img src={before} alt={beforeAlt??beforeLabel}/>}</figure><figure className="comparison-after"><figcaption>{afterLabel}</figcaption>{after&&<img src={after} alt={afterAlt??afterLabel}/>}</figure></div></div>;}

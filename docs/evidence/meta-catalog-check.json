@@ -1,0 +1,9 @@
+{
+  "checkedAtUTC": "2026-10-27T13:10:31.847Z",
+  "provider": "meta",
+  "operation": "catalog",
+  "status": "skipped",
+  "reason": "Pass --allow-catalog and explicitly provide ADMORPH_CATALOG_TEST_KEY. No request was made.",
+  "taskAccessVerified": false,
+  "paidGenerationCalls": 0
+}

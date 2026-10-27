@@ -1,0 +1,25 @@
+{
+  "checkedAtUTC": "2026-10-27T13:13:22.060Z",
+  "base": "http://localhost:3000",
+  "mode": "local-production-build",
+  "passed": [
+    "home",
+    "hackathon-en-ar",
+    "mobile-overflow",
+    "brand-save-reload",
+    "campaign-sample-edit-approve-reload-en-ar",
+    "studio-layers-background-edit-reload-ar-png-1080x1350",
+    "automatic-critic-real-text-clipping-contrast-ar",
+    "approved-repair-real-before-after-1080x1350",
+    "repair-reload-undo-redo",
+    "health",
+    "missing-key",
+    "custom-proxy-rejection",
+    "image-origin-and-consent-guards",
+    "critic-origin-and-consent-guards",
+    "repair-and-meta-origin-consent-guards"
+  ],
+  "browserErrors": [],
+  "paidApiCalls": false,
+  "remoteDeploymentVerified": false
+}

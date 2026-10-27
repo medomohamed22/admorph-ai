@@ -1,0 +1,30 @@
+{
+  "checkedAtUTC": "2026-10-27T09:26:22.607Z",
+  "base": "http://localhost:3000",
+  "mode": "local-development-build",
+  "version": "0.8.0",
+  "milestone": 8,
+  "results": [
+    {
+      "language": "en",
+      "width": 1440,
+      "exports": 3,
+      "captionDownloaded": true,
+      "editsRetained": true,
+      "unexpectedNavigations": 0,
+      "browserErrors": [],
+      "paidApiCalls": 0
+    },
+    {
+      "language": "ar",
+      "width": 320,
+      "exports": 3,
+      "captionDownloaded": true,
+      "editsRetained": true,
+      "unexpectedNavigations": 0,
+      "browserErrors": [],
+      "paidApiCalls": 0
+    }
+  ],
+  "remoteDeploymentVerified": false
+}

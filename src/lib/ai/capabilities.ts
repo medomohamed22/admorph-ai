@@ -1,5 +1,8 @@
 import { ProviderError } from './errors';
-import type { ModelCapability, ModelInfo, ModelRole, RawModel } from './schemas';
+import type { ModelCapability, ModelInfo, ModelRole, RawModel, ModelSelection } from './schemas';
+export function confirmedImage(selection: ModelSelection, model?: ModelInfo | null): boolean {
+  return !!(selection.provider === 'meta' && selection.manual && selection.imageCapabilityConfirmed && model?.availability !== 'unavailable' && (model?.capabilityEvidence !== 'metadata' || model.capabilities.includes('image_output')));
+}
 
 export function metadataCapabilities(raw: RawModel): ModelCapability[] {
   const input = raw.architecture?.input_modalities ?? raw.input_modalities ?? [];
@@ -16,7 +19,7 @@ export function metadataCapabilities(raw: RawModel): ModelCapability[] {
 }
 
 export function canUseRole(model: ModelInfo, role: ModelRole): boolean {
-  return model.availability !== 'unavailable' && model.capabilities.includes(role === 'image' ? 'image_output' : 'text');
+  return model.provider === 'meta' && model.availability !== 'unavailable' && (role === 'image' || ['planner','critic','edit'].includes(role));
 }
 export function assertRole(model: ModelInfo, role: ModelRole): void {
   if (!canUseRole(model, role)) throw new ProviderError('role_capability');

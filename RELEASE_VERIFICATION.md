@@ -1,3 +1,5 @@
+> Historical 0.9 baseline. Current 1.0.0 results are in [META_ONLY_VERIFICATION.md](META_ONLY_VERIFICATION.md).
+
 # GitHub / Vercel source-package verification
 
 Snapshot: **AdMorph AI 0.3.0 — milestone 3**. Prepared on **26 October 2026**. The owner requested a local folder for manual GitHub upload and Vercel deployment.

@@ -1,0 +1,55 @@
+1
+00:00:00,427 --> 00:00:05,928
+AdMorph AI — editable bilingual campaigns. This recording uses local templates; no paid AI request.
+
+2
+00:00:05,928 --> 00:00:09,939
+Create a browser-local Brand Kit: identity, colors and optional logo.
+
+3
+00:00:09,939 --> 00:00:13,513
+Use a local sample product and Arabic creative copy. Planning with a provider is optional and separately consented.
+
+4
+00:00:13,513 --> 00:00:19,042
+Review three distinct concepts before approval: discovery, product benefit and lifestyle.
+
+5
+00:00:19,042 --> 00:00:25,993
+Three real editable layouts. Each has its own 1080 × 1350 PNG and caption export. No generated-image claim.
+
+6
+00:00:25,993 --> 00:00:29,897
+The product, text and background remain separate editable layers. Saved designs retain your changes.
+
+7
+00:00:29,897 --> 00:00:35,327
+Intentionally broken Arabic headline: actual font measurements detect clipping and low solid-fill contrast.
+
+8
+00:00:35,327 --> 00:00:42,457
+Preview the real before/after images first. The original stays unchanged until you approve the proposal.
+
+9
+00:00:42,457 --> 00:00:46,755
+Approve the measured fix. Clipping and contrast warnings clear; repair history is stored locally.
+
+10
+00:00:46,755 --> 00:00:50,290
+Undo restores the original problem. You remain in control.
+
+11
+00:00:50,290 --> 00:00:54,070
+Export is a real full-resolution 1080 × 1350 PNG, with no selection handles.
+
+12
+00:00:54,070 --> 00:00:59,194
+Bring your own key and explicitly consent to paid requests. No shared owner-funded generation key.
+
+13
+00:00:59,194 --> 00:01:03,178
+The interface supports Arabic and RTL. Local editing and export work without entering any key.
+
+14
+00:01:03,178 --> 00:01:08,960
+Local workflow verified. Live Meta/Gemini access, remote deployment and organiser submission remain owner steps.

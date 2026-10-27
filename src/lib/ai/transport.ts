@@ -40,7 +40,9 @@ export async function getProviderJson(url: string, headers: HeadersInit, options
       if (!response.ok) {
         if ((response.status === 429 || response.status >= 500) && attempt < 2) {
           await response.body?.cancel();
-          await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+          const retry=response.headers.get('retry-after'),seconds=retry&&/^\d+$/.test(retry)?Number(retry):retry?(Date.parse(retry)-Date.now())/1000:0;
+          const delay=Math.max(250*2**attempt+Math.floor(Math.random()*100),Math.min(5000,Math.max(0,Number.isFinite(seconds)?seconds*1000:0)));
+          await new Promise<void>((resolve,reject)=>{const abort=()=>{clearTimeout(timer);reject(new ProviderError('cancelled',499));},timer=setTimeout(()=>{options.signal?.removeEventListener('abort',abort);resolve();},delay);if(options.signal?.aborted)abort();else options.signal?.addEventListener('abort',abort,{once:true});});
           continue;
         }
         // Never forward upstream error bodies: they can echo credentials or request details.
@@ -60,7 +62,7 @@ export async function getProviderJson(url: string, headers: HeadersInit, options
       if (options.signal?.aborted) throw new ProviderError('cancelled', 499);
       if (deadline.aborted) throw new ProviderError('timeout', 504);
       if (error instanceof ProviderError) throw error;
-      if (attempt < 2) { await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1))); continue; }
+      if (attempt < 2) { await new Promise(resolve => setTimeout(resolve, 250 * 2 ** attempt + Math.floor(Math.random() * 100))); continue; }
       throw new ProviderError(options.browserDirect ? 'cors' : 'network', 502);
     }
   }

@@ -1,3 +1,4 @@
+import {metaFetch} from '@/lib/ai/meta-fetch';
 import { z } from 'zod';
 import { planSchema, type PlanRequest } from './schema';
 import { errorCodes, ProviderError } from '../ai/errors';
@@ -16,7 +17,7 @@ export async function encodeProduct(blob: Blob) {
 export async function requestPlan(input: PlanRequest, signal: AbortSignal) {
   const deadline = AbortSignal.timeout(45000);
   try {
-    const response = await fetch('/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    const response = await metaFetch('planner','/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input), signal: AbortSignal.any([signal, deadline]), cache: 'no-store' });
     const body = await readJsonLimited(response, 200000);
     if (!response.ok) {
