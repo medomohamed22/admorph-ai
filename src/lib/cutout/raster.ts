@@ -50,3 +50,14 @@ export async function encodePng(data: Uint8ClampedArray, width: number, height: 
   if (!blob) throw new Error('encode_failed');
   return blob;
 }
+
+/** Blob to base64 (chunked btoa, no call-stack blowup on 2MB photos). */
+export async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}

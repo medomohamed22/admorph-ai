@@ -10,6 +10,8 @@ import { useStudio } from './studio-session';
 import { useWorkspace, useMessages } from './workspace';
 import { cutoutImage } from '@/lib/cutout/provider';
 import { findCutoutAsset } from '@/lib/cutout/provenance';
+import { blobToBase64 } from '@/lib/cutout/raster';
+import { buildVisionBrief, withStrictNegatives, visionBackgroundAnalysisSchema, checkBackgroundSchema, type VisionBackgroundAnalysis, type CheckBackgroundResult } from '@/lib/background/brief';
 import { getDatabase } from '@/lib/db/dexie';
 import type { Asset } from '@/lib/db/schema';
 import { useProviderSession } from './provider-session';
@@ -45,6 +47,12 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const [cutoutState, setCutoutState] = useState<'idle' | 'cutting' | 'done' | 'sam-fallback' | 'error'>('idle');
   const [cutoutNote, setCutoutNote] = useState('');
   const cutoutAttempted = useRef<string | null>(null);
+  const visionModel = provider.taskModel('vision');
+  const visionKey = visionModel ? provider.configs[visionModel.provider].apiKey.trim() : '';
+  const [visionAnalysis, setVisionAnalysis] = useState<VisionBackgroundAnalysis | null>(null);
+  const [selectedScene, setSelectedScene] = useState(0);
+  const [visionBusy, setVisionBusy] = useState(false);
+  const [visionNote, setVisionNote] = useState('');
   async function runCutout(mode: 'sam' | 'local') {
     if (!creative || !product || cutoutState === 'cutting') return;
     setCutoutState('cutting');
@@ -119,24 +127,75 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const layer = creative?.layers.find(item => item.id === selected) ?? creative?.layers.find(item => item.kind === 'headline');
   const ready = fontsReady && !!creative && creative.layers.filter(item => item.visible && item.assetId).every(item => loaded.scope === canvasScope && loaded.ids.has(item.assetId!));
   useEffect(()=>{let alive=true;Promise.resolve().then(()=>{if(alive&&ready&&creative&&handle.current)setIssues(checkCreative(creative,handle.current.measureText(),new Set(studio.assets.map(asset=>asset.id))).issues);});return()=>{alive=false;};},[creative,ready,studio.assets]);
-  async function generate() {
-    if (!creative || !campaign || !concept || !approved || !imageReady || !imageModel || !key || !consent || busy) return;
-    const id = ++requestId.current; const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null);
+  /** Vision-first step: analyze the product photo into scene ideas. */
+  async function analyzeProduct() {
+    if (!product || !visionModel || !visionKey || !consent || visionBusy) return;
+    setVisionBusy(true); setVisionNote(''); setError(null);
     try {
-      const response = await metaFetch('image','/api/ai/background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, approved: true,
-          brand: campaign.brandSnapshot, concept: conceptFieldsSchema.parse({ angle: concept.angle, title: concept.title, audienceAngle: concept.audienceAngle, headline: concept.headline, caption: concept.caption, visualDirection: concept.visualDirection,spatialPreset:concept.spatialPreset,negativeSpaceInstruction:concept.negativeSpaceInstruction }) }),
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(55000)]), cache: 'no-store' });
+      const data = await blobToBase64(product.blob);
+      const response = await metaFetch('vision', '/api/ai/vision-background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: product.blob.type, data } }),
+        signal: AbortSignal.timeout(55000), cache: 'no-store' });
       if (!response.ok) {
         const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
         throw new ProviderError(body.error?.code && body.error.code in m.settings.errors ? body.error.code : 'image_response', response.status);
       }
-      const blob = await response.blob();
-      if (!['image/png', 'image/jpeg', 'image/webp'].includes(blob.type) || blob.size > 3 * 1024 * 1024) throw new ProviderError('image_response');
-      const url = URL.createObjectURL(blob);
-      try { const image = new Image(); image.src = url; await image.decode(); if (image.width > 4096 || image.height > 4096) throw new ProviderError('image_response'); }
-      finally { URL.revokeObjectURL(url); }
-      if (requestId.current === id && !controller.signal.aborted) { studio.background(blob, 'meta', imageModel); setConsent(false); }
+      setVisionAnalysis(visionBackgroundAnalysisSchema.parse(await response.json()));
+      setSelectedScene(0);
+    } catch (cause) { setError(errorCode(cause)); }
+    finally { setVisionBusy(false); }
+  }
+  /**
+   * Product-presence check on a generated background. A failed check (network
+   * or upstream error) returns null and never blocks generation; a positive
+   * check blocks the background and triggers one strict regeneration.
+   */
+  async function checkBackground(blob: Blob): Promise<CheckBackgroundResult | null> {
+    if (!visionModel || !visionKey) return null;
+    try {
+      const data = await blobToBase64(blob);
+      const response = await metaFetch('vision', '/api/ai/check-background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: blob.type, data } }),
+        signal: AbortSignal.timeout(55000), cache: 'no-store' });
+      if (!response.ok) return null;
+      return checkBackgroundSchema.parse(await response.json());
+    } catch { return null; }
+  }
+  async function generate() {
+    if (!creative || !campaign || !concept || !approved || !imageReady || !imageModel || !key || !consent || busy) return;
+    const id = ++requestId.current; const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null); setVisionNote('');
+    try {
+      const brief = visionAnalysis ? buildVisionBrief(visionAnalysis, selectedScene, campaign.brandSnapshot.colors) : undefined;
+      let blob: Blob | null = null;
+      let blocked = false;
+      for (let attempt = 0; attempt < 2 && !blob && !blocked; attempt++) {
+        const attemptBrief = attempt === 0 ? brief : brief ? withStrictNegatives(brief) : undefined;
+        const response = await metaFetch('image', '/api/ai/background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, approved: true,
+            brand: campaign.brandSnapshot, concept: conceptFieldsSchema.parse({ angle: concept.angle, title: concept.title, audienceAngle: concept.audienceAngle, headline: concept.headline, caption: concept.caption, visualDirection: concept.visualDirection, spatialPreset: concept.spatialPreset, negativeSpaceInstruction: concept.negativeSpaceInstruction }),
+            backgroundBrief: attemptBrief }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(55000)]), cache: 'no-store' });
+        if (!response.ok) {
+          const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
+          throw new ProviderError(body.error?.code && body.error.code in m.settings.errors ? body.error.code : 'image_response', response.status);
+        }
+        const candidate = await response.blob();
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(candidate.type) || candidate.size > 3 * 1024 * 1024) throw new ProviderError('image_response');
+        const url = URL.createObjectURL(candidate);
+        try { const image = new Image(); image.src = url; await image.decode(); if (image.width > 4096 || image.height > 4096) throw new ProviderError('image_response'); }
+        finally { URL.revokeObjectURL(url); }
+        const check = await checkBackground(candidate);
+        if (check?.hasProduct) {
+          // Vision path: one strict regeneration. Legacy path (no brief):
+          // no stronger prompt exists, so block and let the user pick a scene.
+          if (attempt === 0 && brief) continue;
+          blocked = true;
+        } else {
+          blob = candidate;
+        }
+      }
+      if (blocked) { setVisionNote(s.visionProductFound); return; }
+      if (requestId.current === id && !controller.signal.aborted && blob) { studio.background(blob, 'meta', imageModel); setConsent(false); }
     } catch (cause) { if (requestId.current === id) setError(controller.signal.aborted ? 'cancelled' : errorCode(cause)); }
     finally { if (requestId.current === id) { setBusy(false); abort.current = null; } }
   }
@@ -179,6 +238,13 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           <div className="studio-actions"><button disabled={creative.layers.indexOf(layer) <= 1 || layer.kind === 'background'} onClick={() => { const layers = [...creative.layers], at = layers.findIndex(item => item.id === layer.id); [layers[at - 1], layers[at]] = [layers[at], layers[at - 1]]; studio.update({ ...creative, layers }); }}>{s.backward}</button><button disabled={creative.layers.indexOf(layer) === creative.layers.length - 1 || layer.kind === 'background'} onClick={() => { const layers = [...creative.layers], at = layers.findIndex(item => item.id === layer.id); [layers[at + 1], layers[at]] = [layers[at], layers[at + 1]]; studio.update({ ...creative, layers }); }}>{s.forward}</button></div>
         </fieldset>}</section>
         <section className={`studio-panel ${tab === 'generate' ? 'active' : ''}`} data-panel="generate"><h2>{s.backgroundTitle}</h2><p>{s.backgroundHelp}</p><strong>{imageModel ? `${imageModel.provider} / ${imageModel.modelId}` : s.noImageModel}</strong><p>{imageModel?.imageCapabilityConfirmed ? s.userConfirmed : s.modelHelp}</p><Link href="/settings">{m.campaign.openSettings} ↗</Link>
+          <div className="vision-first"><h3>{s.visionTitle}</h3><p>{s.visionHelp}</p>
+          <button className="button secondary" disabled={visionBusy || !visionModel || !visionKey || !consent || !approved} onClick={() => void analyzeProduct()}>{visionBusy ? s.visionAnalyzing : s.visionAnalyze}</button>
+          {!visionModel && <p className="field-help">{s.visionUnavailable}</p>}
+          {visionAnalysis && <fieldset><legend>{visionAnalysis.productCategory} · {visionAnalysis.material} · {visionAnalysis.mood}</legend>
+            {visionAnalysis.sceneIdeas.map((idea, index) => <label key={index}><input type="radio" name="vision-scene" checked={selectedScene === index} onChange={() => setSelectedScene(index)} /><strong>{idea.scene}</strong> — {idea.setting}<br /><small>{idea.reason}</small></label>)}
+          </fieldset>}
+          {visionNote && <p role="status">{visionNote}</p>}</div>
           <label className="studio-consent"><input type="checkbox" checked={consent} disabled={busy || !approved || !imageReady || !key} onChange={event => setConsent(event.target.checked)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{s.consent}</p></details><p>{s.billing}</p><button className="button primary" disabled={busy || !approved || !imageReady || !key || !consent} onClick={() => void generate()}>{busy ? s.generating : s.generate}</button>
           {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); requestId.current++; setBusy(false); setError('cancelled'); }}>{m.campaign.cancel}</button>}
           <ProductMakeover/><div className="local-plan"><h3>{s.localTitle}</h3><p>{s.localHelp}</p><button className="button secondary" disabled={busy} onClick={localBackground}>{s.localButton}</button></div>

@@ -5,7 +5,7 @@
 // so callers can offer the local fallback explicitly.
 
 import { ProviderError } from '../ai/errors';
-import { decodeToImageData, encodePng } from './raster';
+import { decodeToImageData, encodePng, blobToBase64 } from './raster';
 import { applySamAlpha, maskToAlpha, pickLargestMask, type SamMask } from './sam';
 import type { CutoutResult } from './provider';
 
@@ -14,16 +14,6 @@ export interface SamCutoutOptions {
   modelId: string;
   prompt: string;
   signal?: AbortSignal;
-}
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
 }
 
 function base64ToBytes(data: string): Uint8Array {

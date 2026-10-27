@@ -33,6 +33,10 @@ export const backgroundBriefSchema = z
     reservedTextRects: z.array(rectSchema).max(4),
     stylePreset: backgroundStyleSchema,
     negativeConstraints: z.array(z.string().trim().min(1).max(40)).min(1),
+    /** Vision-first scene description (PR-B). Text only, never pixels. */
+    scene: z.string().trim().max(200).optional(),
+    sceneReason: z.string().trim().max(200).optional(),
+    productScale: z.enum(['large-center', 'medium-left', 'medium-right']).optional(),
   })
   .strict();
 
@@ -46,6 +50,102 @@ export const BACKGROUND_NEGATIVE_CONSTRAINTS = [
   'no watermark',
   'no people',
 ] as const;
+
+/** Retry set: everything above, plus explicit container/object bans. */
+export const BACKGROUND_NEGATIVE_CONSTRAINTS_STRICT = [
+  ...BACKGROUND_NEGATIVE_CONSTRAINTS,
+  'no cans',
+  'no bottles',
+  'no containers',
+  'no objects',
+] as const;
+
+/**
+ * Vision-first product analysis: what the vision model saw in the product
+ * photo, as TEXT only. No pixels leave this object; the background prompt
+ * receives the scene description and the scale, never the photo.
+ */
+export const visionBackgroundAnalysisSchema = z
+  .object({
+    productCategory: z.string().trim().min(1).max(80),
+    material: z.string().trim().max(120),
+    mood: z.string().trim().max(120),
+    lighting: z.string().trim().max(120),
+    productScale: z.enum(['large-center', 'medium-left', 'medium-right']),
+    sceneIdeas: z.array(z.object({
+      scene: z.string().trim().min(1).max(200),
+      setting: z.string().trim().min(1).max(80),
+      reason: z.string().trim().min(1).max(200),
+    }).strict()).length(3),
+  })
+  .strict();
+export type VisionBackgroundAnalysis = z.infer<typeof visionBackgroundAnalysisSchema>;
+
+/** Product-presence check on a generated background image. */
+export const checkBackgroundSchema = z
+  .object({
+    hasProduct: z.boolean(),
+    found: z.string().trim().max(120),
+  })
+  .strict();
+export type CheckBackgroundResult = z.infer<typeof checkBackgroundSchema>;
+
+/**
+ * Reserved zones per product scale, on the 1080x1350 canvas. The large-center
+ * rect is big and centered (the final product sits large in the middle);
+ * text zones never overlap the product zone, and a gap stays below it for
+ * the CTA. Deterministic: vision proposes the scale, never pixel rects.
+ */
+export const SCALE_GEOMETRY: Record<
+  VisionBackgroundAnalysis['productScale'],
+  { productRect: z.infer<typeof rectSchema>; textRects: z.infer<typeof rectSchema>[] }
+> = {
+  'large-center': {
+    productRect: { x: 190, y: 360, width: 700, height: 780 },
+    textRects: [{ x: 90, y: 110, width: 900, height: 220 }],
+  },
+  'medium-left': {
+    productRect: { x: 90, y: 380, width: 520, height: 760 },
+    textRects: [{ x: 660, y: 110, width: 330, height: 420 }],
+  },
+  'medium-right': {
+    productRect: { x: 470, y: 380, width: 520, height: 760 },
+    textRects: [{ x: 90, y: 110, width: 330, height: 420 }],
+  },
+};
+
+/** Build a vision-first brief from an analysis + the user's chosen scene. */
+export function buildVisionBrief(
+  analysis: VisionBackgroundAnalysis,
+  sceneIndex: number,
+  brandPalette: [string, string, string],
+): BackgroundBrief {
+  const scene = analysis.sceneIdeas[sceneIndex] ?? analysis.sceneIdeas[0];
+  const geometry = SCALE_GEOMETRY[analysis.productScale];
+  return backgroundBriefSchema.parse({
+    productCategory: analysis.productCategory,
+    material: analysis.material,
+    brandPalette,
+    sceneMood: analysis.mood,
+    lighting: analysis.lighting,
+    cameraAngle: 'eye level',
+    reservedProductRect: geometry.productRect,
+    reservedTextRects: geometry.textRects,
+    stylePreset: analysis.productScale === 'large-center' ? 'hero' : 'dynamic',
+    negativeConstraints: [...BACKGROUND_NEGATIVE_CONSTRAINTS],
+    scene: scene.scene,
+    sceneReason: scene.reason,
+    productScale: analysis.productScale,
+  });
+}
+
+/** Same brief with the strict retry negatives (second attempt only). */
+export function withStrictNegatives(brief: BackgroundBrief): BackgroundBrief {
+  return backgroundBriefSchema.parse({
+    ...brief,
+    negativeConstraints: [...BACKGROUND_NEGATIVE_CONSTRAINTS_STRICT],
+  });
+}
 
 /** Reserved zones on the 1080x1350 canvas, per style. Text zones never
  *  overlap the product zone, and margins stay at or above ~8% where practical. */
@@ -137,12 +237,23 @@ export function buildBackgroundPrompt(brief: BackgroundBrief): string {
   const texts = brief.reservedTextRects
     .map((r) => `x ${r.x}–${r.x + r.width}, y ${r.y}–${r.y + r.height}`)
     .join('; ');
+  const scaleNote =
+    brief.productScale === 'large-center'
+      ? 'The product zone is large and centered; the final product will be placed big in the middle of this zone.'
+      : brief.productScale === 'medium-left'
+        ? 'The product zone is on the left side of the canvas.'
+        : brief.productScale === 'medium-right'
+          ? 'The product zone is on the right side of the canvas.'
+          : '';
   return (
     `Create one advertising background only, no text, logos, product, package or watermark. ` +
     `Style: ${brief.stylePreset}. ` +
     `Product context (metadata only, do not render it): ${brief.productCategory}, ${brief.material}. ` +
     `Mood: ${brief.sceneMood}. Lighting: ${brief.lighting}. Camera: ${brief.cameraAngle}. ` +
     `Palette: ${brief.brandPalette.join(', ')}. ` +
+    (brief.scene ? `Scene: ${brief.scene}. ` : '') +
+    (brief.sceneReason ? `Why this scene fits: ${brief.sceneReason}. ` : '') +
+    (scaleNote ? `${scaleNote} ` : '') +
     `Keep this product zone empty and calm: x ${product.x}–${product.x + product.width}, ` +
     `y ${product.y}–${product.y + product.height}. ` +
     `Keep these text zones empty: ${texts}. ` +
