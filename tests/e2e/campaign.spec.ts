@@ -17,8 +17,8 @@ async function configure(page: Page) {
     const request = indexedDB.open('admorph-local-v1'); request.onerror = () => reject(new Error('open'));
     request.onsuccess = () => {
       const db = request.result; const tx = db.transaction(['settings', 'modelCatalogCache'], 'readwrite');
-      tx.objectStore('settings').put({ key: 'providerSettings', value: { provider: 'gemini', customBaseUrl: '', roles: { planner: { provider: 'gemini', modelId: 'test-selected-planner' }, image: null, critic: null, edit: null } } });
-      tx.objectStore('modelCatalogCache').put({ providerId: 'gemini', fetchedAt: new Date().toISOString(), models: [{ id: 'test-selected-planner', name: 'Test selected planner', provider: 'gemini', capabilities: ['text', 'vision', 'structured_output'], availability: 'available' }] });
+      tx.objectStore('settings').put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'test-selected-planner' }, image: null, critic: null, edit: null } } });
+      tx.objectStore('modelCatalogCache').put({ providerId: 'meta', fetchedAt: new Date().toISOString(), models: [{ id: 'test-selected-planner', name: 'Test selected planner', provider: 'meta', capabilities: ['text', 'vision', 'structured_output'], availability: 'available' }] });
       tx.oncomplete = () => { db.close(); resolve(); };
     };
   }));
@@ -71,7 +71,7 @@ test('draft survives provider navigation and approvals wait for all valid concep
   await expect(page.getByTestId('concept-card')).toHaveCount(3);
   for (const card of await page.getByTestId('concept-card').all()) await card.getByRole('button', { name: 'Approve concept', exact: false }).click();
   await expect(page.getByText('All concepts are approved and saved for the next stage.', { exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Image generation', exact: false })).toBeDisabled();
+  await expect(page.getByRole('link', { name: 'Open design editor', exact: false })).toHaveCount(3);
   await page.getByTestId('concept-card').first().getByLabel('Caption', { exact: true }).fill('');
   await expect(page.getByTestId('concept-card').first().getByRole('button', { name: 'Approve concept', exact: false })).toBeDisabled();
 });
@@ -83,35 +83,35 @@ test('campaign remains usable when browser storage is denied without claiming a 
   await expect(page.getByTestId('campaign-save')).toContainText('Session only');
   await expect(page.getByTestId('concept-card').first().getByLabel('Headline', { exact: true })).toHaveValue('A session-only campaign');
 });
-test('saved Gemini model, explicit file consent and one validated response are respected', async ({ page }) => {
+test('saved Meta model, explicit file consent and one validated response are respected', async ({ page }) => {
   await configure(page); let calls = 0;
   await page.route('**/api/ai/plan', async route => {
     calls++; const body = route.request().postDataJSON(); expect(body.modelId).toBe('test-selected-planner');
     expect(body.imageConsent).toBe(true); expect(body.apiKey).toBe('fixture-key-never-real'); expect(body.product.data.length).toBeGreaterThan(10);
     await route.fulfill({ json: samplePlan(newCampaign()) });
   });
-  await sample(page); const plan = page.getByRole('button', { name: 'Plan with Gemini', exact: false });
+  await sample(page); const plan = page.getByRole('button', { name: 'Plan with Meta', exact: false });
   await expect(plan).toBeDisabled(); expect(calls).toBe(0);
   await page.getByRole('checkbox', { name: 'I agree to send this product image', exact: false }).check();
-  await plan.click(); await expect(page.getByText('Gemini plan · editable', { exact: true })).toBeVisible(); expect(calls).toBe(1);
+  await plan.click(); await expect(page.getByText('Meta plan', { exact: true })).toBeVisible(); expect(calls).toBe(1);
   await page.getByRole('button', { name: 'Save now', exact: true }).click(); await expect(page.getByTestId('campaign-save')).toHaveText('Saved in this browser');
   const values = await page.evaluate(() => new Promise<unknown[]>((resolve) => { const open = indexedDB.open('admorph-local-v1'); open.onsuccess = () => { const db = open.result; const tx = db.transaction('campaigns'); const get = tx.objectStore('campaigns').getAll(); get.onsuccess = () => resolve(get.result); tx.oncomplete = () => db.close(); }; }));
   expect(JSON.stringify(values)).not.toContain('fixture-key-never-real');
   await page.reload(); await expect(page.getByRole('checkbox', { name: 'I agree to send this product image', exact: false })).not.toBeChecked();
-  await expect(page.getByRole('button', { name: 'Plan with Gemini', exact: false })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Plan with Meta', exact: false })).toBeDisabled();
 });
 test('failed planning keeps edited concepts and cancelled requests do not replace them', async ({ page }) => {
   await configure(page); await sample(page);
   await page.getByTestId('concept-card').first().getByLabel('Headline', { exact: true }).fill('Keep this successful edit');
   await page.route('**/api/ai/plan', route => route.fulfill({ status: 502, json: { error: { code: 'plan_invalid' } } }));
   await page.getByRole('checkbox', { name: 'I agree to send this product image', exact: false }).check();
-  await page.getByRole('button', { name: 'Plan with Gemini', exact: false }).click();
+  await page.getByRole('button', { name: 'Plan with Meta', exact: false }).click();
   await expect(page.locator('.request-error[role=alert]')).toContainText('previous concepts have been kept');
   await expect(page.getByTestId('concept-card').first().getByLabel('Headline', { exact: true })).toHaveValue('Keep this successful edit');
   await page.unroute('**/api/ai/plan');
   await page.route('**/api/ai/plan', async route => { await new Promise(resolve => setTimeout(resolve, 500)); await route.fulfill({ json: samplePlan(newCampaign()) }).catch(() => {}); });
-  await page.getByRole('button', { name: 'Plan with Gemini', exact: false }).click();
+  await page.getByRole('button', { name: 'Plan with Meta', exact: false }).click();
   await page.getByRole('button', { name: 'Cancel request', exact: true }).click();
   await expect(page.getByTestId('concept-card').first().getByLabel('Headline', { exact: true })).toHaveValue('Keep this successful edit');
-  await expect(page.getByRole('button', { name: 'Plan with Gemini', exact: false })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Plan with Meta', exact: false })).toBeEnabled();
 });

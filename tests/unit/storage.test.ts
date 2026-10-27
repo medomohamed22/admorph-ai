@@ -51,13 +51,13 @@ describe('Dexie local persistence', () => {
   it('defaults to English independently of device locale', async () => {
     expect((await loadWorkspace(database())).locale).toBe('en');
   });
-  it('rechecks saved roles against restored catalog capabilities', async () => {
+  it('preserves inactive legacy roles without overwriting user records', async () => {
     const db = database(); const selected = { provider: 'gemini' as const, modelId: 'fixture-text' };
     await saveProviderSettings({ provider: 'gemini', customBaseUrl: '', roles: { planner: selected, critic: selected, edit: selected, image: selected } },
       [{ providerId: 'gemini', fetchedAt: new Date().toISOString(), models: [{ id: 'fixture-text', name: 'Fixture', provider: 'gemini', capabilities: ['text'], availability: 'unknown' }] }], db);
     const loaded = await loadProviderSettings(db);
     expect(loaded.settings?.roles.planner).toEqual(selected);
-    expect(loaded.settings?.roles.image).toBeNull();
+    expect(loaded.settings?.roles.image).toEqual(selected);
   });
   it('preserves acknowledged manual text models when capability metadata is omitted', async () => {
     const db = database(); const selected = { provider: 'meta' as const, modelId: 'fixture-unknown', manual: true };

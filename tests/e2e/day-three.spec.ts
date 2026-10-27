@@ -4,7 +4,7 @@ import ar from '../../src/messages/ar.json';
 
 const fixtureKey = 'fixture-key-never-real';
 const fixturePassphrase = 'fixture passphrase with enough length';
-const catalog = { models: [{ id: 'fixture-text', name: 'Fixture Text', provider: 'gemini', capabilities: ['text'], availability: 'unknown' }],
+const catalog = { models: [{ id: 'fixture-text', name: 'Fixture Text', provider: 'meta', capabilities: ['text'], availability: 'unknown' }],
   fetchedAt: '2026-10-26T10:00:00.000Z', credentialStatus: 'accepted' };
 async function persistedStore(page: Page, name: string): Promise<unknown[]> {
   return page.evaluate(store => new Promise<unknown[]>((resolve, reject) => {
@@ -39,25 +39,24 @@ test('provider roles and catalogs persist, keys and request consent do not', asy
   await page.route('**/api/providers/*', route => route.fulfill({ json: catalog }));
   await page.goto('/settings');
   await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
-  await page.getByLabel('I allow this request', { exact: false }).check();
+  await page.getByLabel("I authorise one request for the chosen task. Tests may generate an image and incur charges. No automatic paid retries.", { exact: false }).check();
   await page.getByRole('button', { name: 'Fetch models', exact: true }).click();
-  await page.getByLabel('Text model for Planner, Critic and Edit command', { exact: true }).selectOption('fixture-text');
-  await page.getByRole('button', { name: 'Use for text roles', exact: true }).click();
+  for(const role of ['planner','critic','edit'])await page.locator(`#meta-${role}`).fill('fixture-text');
   await page.getByRole('button', { name: 'Save Settings', exact: true }).click();
   await expect(page.locator('.request-status')).toContainText('Settings saved locally');
   await page.reload();
-  await expect(page.locator('.saved-summary')).toContainText('fixture-text');
+  await expect(page.locator('#meta-planner')).toHaveValue('fixture-text');
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('I allow this request', { exact: false })).not.toBeChecked();
-  await expect(page.getByText('Saved catalog · credentials not verified in this session', { exact: true })).toBeVisible();
+  await expect(page.getByLabel("I authorise one request for the chosen task. Tests may generate an image and incur charges. No automatic paid retries.", { exact: false })).not.toBeChecked();
+  await expect(page.getByTestId('model-card')).toContainText('Unverified');
   await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
-  await expect(page.locator('.saved-summary')).toContainText('fixture-text');
+  await expect(page.locator('#meta-planner')).toHaveValue('fixture-text');
   for (const name of ['settings', 'modelCatalogCache', 'encryptedCredentials']) {
     expect(JSON.stringify(await persistedStore(page, name))).not.toContain(fixtureKey);
   }
   await page.getByRole('button', { name: 'Clear cached catalogs', exact: true }).click();
   await expect(page.getByTestId('model-card')).toHaveCount(0);
-  await expect(page.locator('.saved-summary')).toContainText('fixture-text');
+  await expect(page.locator('#meta-planner')).toHaveValue('fixture-text');
 });
 
 test('optional encrypted credentials need a passphrase after reload and clear removes ciphertext', async ({ page }) => {
@@ -79,7 +78,7 @@ test('optional encrypted credentials need a passphrase after reload and clear re
   await page.getByLabel('Encryption passphrase', { exact: true }).fill(fixturePassphrase);
   await page.getByRole('button', { name: 'Unlock saved key', exact: true }).click();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue(fixtureKey);
-  await expect(page.getByLabel('I allow this request', { exact: false })).not.toBeChecked();
+  await expect(page.getByLabel("I authorise one request for the chosen task. Tests may generate an image and incur charges. No automatic paid retries.", { exact: false })).not.toBeChecked();
   await page.getByRole('button', { name: 'Clear key', exact: true }).click();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
   expect(await persistedStore(page, 'encryptedCredentials')).toEqual([]);
@@ -149,7 +148,7 @@ test('Arabic switching translates all screens, persists and preserves edits', as
   }
   await page.goto('/settings');
   await expect(page.getByLabel(ar.settings.language, { exact: true })).toHaveValue('ar');
-  await page.getByRole('button', { name: ar.settings.connection, exact: true }).click();
+  await page.getByRole('button', { name: ar.settings.fetch, exact: true }).click();
   await expect(page.locator('.request-error[role=alert]')).toContainText(ar.settings.errors.missing_key);
   await page.screenshot({ path: `test-results/${info.project.name}-day3-ar-settings.png`, fullPage: true });
   await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toContainText(ar.hero.title);
