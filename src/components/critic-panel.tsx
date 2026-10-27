@@ -85,7 +85,7 @@ export function CriticPanel({ creative, creativeLanguage, assets, handleRef, rea
     <div className="critic-ai"><h3>{c.aiTitle}</h3><p>{c.aiHelp}</p><strong>{selection ? `${selection.provider} / ${selection.modelId}` : c.noModel}</strong><p>{c.modelHelp}</p><Link href="/settings">{m.campaign.openSettings} ↗</Link>
       {!compatible && selection && <p className="campaign-notice">{c.incompatible}</p>}
       {compatible && !key && <p className="campaign-notice">{m.campaign.keyHelp}</p>}
-      <label className="studio-consent"><input type="checkbox" checked={consent?.scope === scope && consent.accepted} disabled={busy || !ready || !compatible || !key} onChange={event => setConsent({ scope, accepted: event.target.checked })}/><span>{c.consent}</span></label><p>{m.studio.billing}</p>
+      <label className="studio-consent"><input type="checkbox" checked={consent?.scope === scope && consent.accepted} disabled={busy || !ready || !compatible || !key} onChange={event => setConsent({ scope, accepted: event.target.checked })}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{c.consent}</p></details><p>{m.studio.billing}</p>
       <button className="button primary" disabled={busy || !ready || !compatible || !key || !consent?.accepted || consent.scope !== scope} onClick={() => void review()}>{busy ? c.reviewing : c.run}</button>
       {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); token.current++; setPending(null); setError('cancelled'); }}>{m.campaign.cancel}</button>}
       {error && <p className="request-error" role="alert">{m.settings.errors[error]}</p>}
