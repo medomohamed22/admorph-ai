@@ -2,19 +2,18 @@ import { mkdir, readdir, readFile, writeFile, copyFile, lstat, access } from 'no
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { forbiddenReleasePath as forbidden, containsReleaseSecret } from '../src/lib/security/release.ts';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releases = path.join(root, 'releases');
 const rootFiles = ['package.json', 'package-lock.json', 'next.config.ts', 'tsconfig.json', 'eslint.config.mjs',
   'vitest.config.mts', 'playwright.config.ts', '.gitignore', '.gitattributes', '.vercelignore', '.env.example',
   'vercel.json', 'README.md', 'AGENTS.md', 'ADMORPH_BUILD_PLAN.md', 'DAY1_VALIDATION.md', 'DAY2_VALIDATION.md',
-  'DAY3_VALIDATION.md', 'HACKATHON.md', 'BUILD_LOG.md', 'DEPLOY_GITHUB_VERCEL_AR.md', 'RELEASE_VERIFICATION.md', 'CAMPAIGN_UPDATE_VALIDATION.md'];
+  'DAY3_VALIDATION.md', 'HACKATHON.md', 'BUILD_LOG.md', 'DEPLOY_GITHUB_VERCEL_AR.md', 'RELEASE_VERIFICATION.md', 'CAMPAIGN_UPDATE_VALIDATION.md',
+  'STUDIO_VALIDATION.md', 'CRITIC_VALIDATION.md', 'REPAIR_VALIDATION.md', 'DAY8_VALIDATION.md', 'DAY9_VALIDATION.md',
+  'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SUBMISSION_GUIDE.md','META_ONLY_IMPLEMENTATION.md','META_ONLY_VERIFICATION.md'];
 const directories = ['src', 'public', 'scripts', 'tests', '.github', 'docs'];
 const blocked = new Set(['node_modules', '.next', '.git', '.vercel', 'test-results', 'playwright-report', 'coverage', 'releases']);
-const forbidden = relative => relative.split('/').some(part => blocked.has(part)) ||
-  (path.basename(relative).startsWith('.env') && path.basename(relative) !== '.env.example') || /\.(pem|key|pfx|log|zip|tsbuildinfo)$/i.test(relative);
-const secretPatterns = [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, /AIza[0-9A-Za-z_-]{35}/,
-  /sk-or-v1-[a-f0-9]{64}/i, /ghp_[A-Za-z0-9]{30,}/, /github_pat_[A-Za-z0-9_]{50,}/];
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
 async function walk(directory) {
   const result = [];
@@ -32,9 +31,10 @@ async function manifest(folder) {
     if (relative === 'PACKAGE_MANIFEST.json') continue;
     if (forbidden(relative)) throw new Error(`Excluded file found in package: ${relative}`);
     const bytes = await readFile(full);
-    if (/\.(?:[cm]?[jt]sx?|json|md|ya?ml|txt)$/.test(relative)) {
+    if (/\.(?:[cm]?[jt]sx?|json|md|ya?ml|txt|example|srt|vtt)$/.test(relative) || path.basename(relative) === 'LICENSE') {
       const text = bytes.toString('utf8');
-      if (secretPatterns.some(pattern => pattern.test(text))) throw new Error(`Possible credential in ${relative}; package stopped.`);
+      if (containsReleaseSecret(text)) throw new Error(`Possible credential in ${relative}; package stopped.`);
+      if (path.basename(relative) === '.env.example' && text.split(/\r?\n/).some(line => line.trim() && !line.trim().startsWith('#'))) throw new Error('Environment example must contain comments only.');
     }
     entries.push({ path: relative, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
   }
@@ -42,7 +42,8 @@ async function manifest(folder) {
   const record = { schemaVersion: 1, name: pkg.name, version: pkg.version, preparedAtUTC: new Date().toISOString(),
     timezone: 'Africa/Cairo', node: pkg.engines.node, files: entries,
     excluded: [...blocked, '.env.local', 'API keys', 'browser databases', 'passphrases'],
-    deployment: 'Source package only. GitHub upload and Vercel deployment are performed by the owner.' };
+    deployment: 'Source package only. GitHub upload and Vercel deployment are performed by the owner.',
+    liveProviderVerified: false, remoteDeploymentVerified: false };
   await writeFile(path.join(folder, 'PACKAGE_MANIFEST.json'), `${JSON.stringify(record, null, 2)}\n`);
   return record;
 }
@@ -54,8 +55,9 @@ if (process.argv[2] === '--refresh-manifest') {
   console.log(JSON.stringify({ folder, files: result.files.length }));
 } else {
   await mkdir(releases, { recursive: true });
-  let folder = path.join(releases, 'AdMorph-GitHub-Vercel'), suffix = 2;
-  while (await exists(folder)) folder = path.join(releases, `AdMorph-GitHub-Vercel-${suffix++}`);
+  const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')), label = `AdMorph-${pkg.version}-GitHub-Vercel`;
+  let folder = path.join(releases, label), suffix = 2;
+  while (await exists(folder)) folder = path.join(releases, `${label}-${suffix++}`);
   await mkdir(folder);
   const files = [];
   for (const file of rootFiles) if (await exists(path.join(root, file))) files.push(path.join(root, file));

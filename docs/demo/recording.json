@@ -1,0 +1,73 @@
+{
+  "recordedAtUTC": "2026-10-27T09:40:42.290Z",
+  "base": "http://localhost:3000",
+  "mode": "real-local-browser-recording",
+  "version": "0.9.0",
+  "silent": true,
+  "annotations": "English captions over actual app footage; matching SRT supplied.",
+  "durationSeconds": 68.96,
+  "width": 1440,
+  "height": 1000,
+  "chapters": [
+    {
+      "seconds": 0.427,
+      "text": "AdMorph AI — editable bilingual campaigns. This recording uses local templates; no paid AI request."
+    },
+    {
+      "seconds": 5.928,
+      "text": "Create a browser-local Brand Kit: identity, colors and optional logo."
+    },
+    {
+      "seconds": 9.939,
+      "text": "Use a local sample product and Arabic creative copy. Planning with a provider is optional and separately consented."
+    },
+    {
+      "seconds": 13.513,
+      "text": "Review three distinct concepts before approval: discovery, product benefit and lifestyle."
+    },
+    {
+      "seconds": 19.042,
+      "text": "Three real editable layouts. Each has its own 1080 × 1350 PNG and caption export. No generated-image claim."
+    },
+    {
+      "seconds": 25.993,
+      "text": "The product, text and background remain separate editable layers. Saved designs retain your changes."
+    },
+    {
+      "seconds": 29.897,
+      "text": "Intentionally broken Arabic headline: actual font measurements detect clipping and low solid-fill contrast."
+    },
+    {
+      "seconds": 35.327,
+      "text": "Preview the real before/after images first. The original stays unchanged until you approve the proposal."
+    },
+    {
+      "seconds": 42.457,
+      "text": "Approve the measured fix. Clipping and contrast warnings clear; repair history is stored locally."
+    },
+    {
+      "seconds": 46.755,
+      "text": "Undo restores the original problem. You remain in control."
+    },
+    {
+      "seconds": 50.29,
+      "text": "Export is a real full-resolution 1080 × 1350 PNG, with no selection handles."
+    },
+    {
+      "seconds": 54.07,
+      "text": "Bring your own key and explicitly consent to paid requests. No shared owner-funded generation key."
+    },
+    {
+      "seconds": 59.194,
+      "text": "The interface supports Arabic and RTL. Local editing and export work without entering any key."
+    },
+    {
+      "seconds": 63.178,
+      "text": "Local workflow verified. Live Meta/Gemini access, remote deployment and organiser submission remain owner steps."
+    }
+  ],
+  "paidApiCalls": 0,
+  "browserErrors": [],
+  "liveProviderVerified": false,
+  "remoteDeploymentVerified": false
+}

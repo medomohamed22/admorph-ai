@@ -1,0 +1,19 @@
+{
+  "checkedAtUTC": "2026-10-27T08:29:23.006Z",
+  "base": "http://localhost:3000",
+  "mode": "local-development-build",
+  "version": "0.7.0",
+  "milestone": 7,
+  "passed": [
+    "actual-Arabic-clipping-and-contrast-repair",
+    "unchanged-source-preview",
+    "two-full-resolution-comparison-PNGs",
+    "persisted-receipt-reload-undo-redo",
+    "320px-RTL-no-overflow",
+    "stable-studio-no-HMR-reload-loop"
+  ],
+  "unexpectedNavigations": 0,
+  "browserErrors": [],
+  "paidApiCalls": 0,
+  "remoteDeploymentVerified": false
+}
