@@ -22,6 +22,13 @@ import {
 } from '@/lib/auto-run/runner';
 import { buildAutoCopy, composeAutoAd } from '@/lib/auto-run/compose';
 import { buildResults, type AutoResult } from '@/lib/auto-run/results';
+import {
+  checkResultProvenance,
+  isResultModified,
+  qualityLabel,
+  verifyProductPixels,
+  type PixelCheck,
+} from '@/lib/auto-run/integrity';
 import { writeZip } from '@/lib/export/zip';
 import { checkCreative } from '@/lib/critic/rules';
 
@@ -51,6 +58,7 @@ export function AutoRunTool() {
   const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
   const [captionDraft, setCaptionDraft] = useState('');
   const [copied, setCopied] = useState(false);
+  const [pixelCheck, setPixelCheck] = useState<PixelCheck | null>(null);
   const [zipBusy, setZipBusy] = useState(false);
   const [zipNote, setZipNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -110,6 +118,30 @@ export function AutoRunTool() {
     setSelectedAssets(found);
   }
 
+  useEffect(() => {
+    if (!run || !selected || !run.productAssetId || !run.cutoutAssetId) {
+      return;
+    }
+    let alive = true;
+    (async () => {
+      const db = getDatabase();
+      const productAsset = await db.assets.get(run.productAssetId!);
+      const cutoutAsset = await db.assets.get(run.cutoutAssetId!);
+      if (!alive || !productAsset || !cutoutAsset) return;
+      try {
+        const original = await blobToImageData(productAsset.blob);
+        const cutout = await blobToImageData(cutoutAsset.blob);
+        if (!alive) return;
+        setPixelCheck(verifyProductPixels(original, cutout));
+      } catch {
+        if (alive) setPixelCheck(null);
+      }
+    })().catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [run, selected]);
+
   function resetLoaded() {
     loadedRef.current = new Set();
     setLoadedIds(new Set());
@@ -119,6 +151,7 @@ export function AutoRunTool() {
     setSelectedId(result.id);
     setCaptionDraft(result.caption);
     setCopied(false);
+    setPixelCheck(null);
     resetLoaded();
     await loadResultAssets(working, result);
   }
@@ -312,6 +345,7 @@ export function AutoRunTool() {
     setResults([]);
     setSelectedId(null);
     setSelectedAssets([]);
+    setPixelCheck(null);
     setBusy(true);
     await persist(working);
     await execute(working, 'cutout');
@@ -325,6 +359,10 @@ export function AutoRunTool() {
     abort.current = new AbortController();
     const working = resetFrom(run, from);
     setRun(working);
+    setResults([]);
+    setSelectedId(null);
+    setSelectedAssets([]);
+    setPixelCheck(null);
     setBusy(true);
     await persist(working);
     await execute(working, from);
@@ -355,6 +393,7 @@ export function AutoRunTool() {
     } else {
       setSelectedId(null);
       setSelectedAssets([]);
+      setPixelCheck(null);
     }
   }
 
@@ -518,6 +557,31 @@ export function AutoRunTool() {
   }
 
   const headlineFont = selected?.hero.layers.find((layer) => layer.kind === 'headline')?.fontFamily;
+  const provenanceIssues =
+    run && selected
+      ? checkResultProvenance(
+          run,
+          selected,
+          new Map(
+            selectedAssets.map((asset) => [
+              asset.id,
+              {
+                kind: asset.kind,
+                derivedFrom: asset.meta?.derivedFrom,
+                provider: asset.meta?.provider,
+              },
+            ]),
+          ),
+        )
+      : [];
+  const templateCaption =
+    run != null
+      ? buildAutoCopy(run.brandName, run.productCategory || 'product', run.brandDescription).caption
+      : '';
+  const label =
+    selected != null
+      ? qualityLabel(pixelCheck, provenanceIssues, isResultModified(selected, templateCaption))
+      : 'not_checked';
   return (
     <section className="feature-card" data-testid="auto-run-tool">
       <h2>{t.title}</h2>
@@ -668,15 +732,14 @@ export function AutoRunTool() {
             ))}
           </div>
           <p>{selected.tagline}</p>
-          <label>
-            {t.caption}
-            <textarea
-              maxLength={1200}
-              value={captionDraft}
-              onChange={(event) => setCaptionDraft(event.target.value)}
-              onBlur={() => void commitCaption(captionDraft)}
-            />
-          </label>
+          <label htmlFor="auto-run-caption">{t.caption}</label>
+          <textarea
+            id="auto-run-caption"
+            maxLength={1200}
+            value={captionDraft}
+            onChange={(event) => setCaptionDraft(event.target.value)}
+            onBlur={() => void commitCaption(captionDraft)}
+          />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button type="button" className="button secondary" onClick={() => void copyCaption()}>
               {copied ? t.copied : t.copyCaption}
@@ -688,7 +751,7 @@ export function AutoRunTool() {
                 downloadTextFile(`ad-caption-${selected.id.slice(0, 8)}.txt`, captionDraft)
               }
             >
-              {t.download}
+              {t.downloadCaption}
             </button>
             <button type="button" className="button secondary" onClick={() => void applyCaptionToAll()}>
               {t.applyCaptionToAll}
@@ -719,6 +782,39 @@ export function AutoRunTool() {
             </button>
           </div>
           {zipNote && <p role="status">{zipNote}</p>}
+          <section>
+            <h4>
+              {t.quality}: {t.qualityLabels[label === 'not_checked' ? 'notChecked' : label]}
+            </h4>
+            <ul>
+              <li>
+                {t.qualityChecks.productPixels}:{' '}
+                {pixelCheck == null
+                  ? t.qualityLabels.notChecked
+                  : pixelCheck.preserved
+                    ? t.qualityLabels.verified
+                    : `${t.qualityLabels.warning} (${pixelCheck.mismatchedPixels}/${pixelCheck.totalPixels})`}
+              </li>
+              <li>
+                {t.qualityChecks.provenance}:{' '}
+                {provenanceIssues.length === 0
+                  ? t.qualityLabels.verified
+                  : `${t.qualityLabels.warning}: ${provenanceIssues.join(', ')}`}
+              </li>
+              <li>
+                {t.qualityChecks.text}:{' '}
+                {provenanceIssues.includes('text_box')
+                  ? t.qualityLabels.warning
+                  : t.qualityLabels.verified}
+              </li>
+              <li>
+                {t.qualityChecks.caption}:{' '}
+                {provenanceIssues.includes('caption_length')
+                  ? t.qualityLabels.warning
+                  : t.qualityLabels.verified}
+              </li>
+            </ul>
+          </section>
           <DesignCanvas
             layers={selected.hero.layers}
             assets={selectedAssets}

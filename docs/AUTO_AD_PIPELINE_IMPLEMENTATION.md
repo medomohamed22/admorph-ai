@@ -228,6 +228,27 @@ mocked tests alone can miss stale server modules.
   whose render times out is skipped with a note, and captions are
   still included.
 
+## 12. PR6 notes (integrity, E2E, release)
+
+- Integrity (`src/lib/auto-run/integrity.ts`) is computed from the
+  run's own stored data: pixel preservation (opaque cutout pixels
+  must carry the original RGB, same dimensions), provenance
+  (cutout kind/provider/source, background kind and layer wiring,
+  transparent text fills, caption length), and modification (caption
+  or background changed after the run). Labels: Verified, Warning,
+  Not checked (pixel comparison pending), Modified.
+- Auto-ads is linked from the main navigation (`nav.autoAds`) and
+  enabled by default; the `/auto-ads` and `/auto-ads/cutout` routes
+  are no longer unlinked-only.
+- E2E (`tests/e2e/auto-ads.spec.ts`) covers the no-key flow with
+  Meta/provider routes aborted and counted, reload, regenerate-only,
+  caption TXT and ZIP contents, invalid-product retry, and an Arabic
+  RTL run exporting 1080×1350.
+- Release report: `docs/RELEASE_AUTO_AD_REPORT.md`. Production smoke
+  (`scripts/production-smoke.mjs`) adds a no-key auto-ads run with a
+  Verified label and a ZIP download.
+
+
 
 
 
