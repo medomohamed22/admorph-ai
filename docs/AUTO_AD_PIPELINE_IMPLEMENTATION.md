@@ -134,3 +134,25 @@ mocked tests alone can miss stale server modules.
   warnings honestly, and can save the cutout to the local library or
   download it as PNG. It makes no Meta call.
 
+## 8. PR2 notes (planning and background-only generation)
+
+- `src/lib/background/brief.ts` holds the validated `BackgroundBrief`
+  (category, material, palette, mood, lighting, camera, reserved product and
+  text zones, style preset, negative constraints), the three preset
+  geometries (hero, dynamic, minimal — all inside 1080x1350 with no
+  product/text overlap), a deterministic analyzer (material by product type,
+  fixed negative list), exact-color dominant-color counting, and the
+  background-only prompt builder. The brief has no image field by design.
+- Both background request schemas (`image-server` and the `meta-runtime`
+  parser actually used by the route) accept an optional `backgroundBrief`
+  and stay strict: an `image` field is rejected, so product pixels cannot
+  enter a background request. Legacy payloads without a brief keep the exact
+  previous prompt. When a brief is present, the Meta prompt is built only
+  from its metadata.
+- The local background painter moved verbatim into
+  `src/lib/background/local.ts` and is now unit tested against a fake
+  canvas context. Verified honestly: it already used brand colors
+  (second-to-third gradient plus a first-color disc); PR2 tests that
+  behavior instead of pretending it was broken.
+
+
