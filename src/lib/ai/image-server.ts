@@ -2,12 +2,13 @@ import {metaModelId} from './model-id';
 import { z } from 'zod';
 import { brandInputSchema } from '../db/schema';
 import { conceptFieldsSchema } from '../campaign/schema';
+import { backgroundBriefSchema } from '../background/brief';
 import { ProviderError } from './errors';
 import { type TransportOptions } from './transport';
 export const backgroundRequestSchema = z.object({
   providerId: z.literal('meta'), modelId:metaModelId,
   apiKey: z.string().trim().min(1).max(4096).refine(value => !/[\x00-\x1f\x7f]/.test(value)),
-  consent: z.literal(true), approved: z.literal(true), brand: brandInputSchema, concept: conceptFieldsSchema,
+  consent: z.literal(true), approved: z.literal(true), brand: brandInputSchema, concept: conceptFieldsSchema, backgroundBrief: backgroundBriefSchema.optional(),
 }).strict();
 export const MAX_BACKGROUND_BYTES = 3 * 1024 * 1024;
 const imageResponse = z.object({ promptFeedback: z.object({ blockReason: z.string().optional() }).optional(), candidates: z.array(z.object({

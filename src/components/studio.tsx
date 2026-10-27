@@ -17,6 +17,7 @@ import {StudioTools} from './studio-tools';
 import {IssueFix} from './issue-fix';
 import {ProductMakeover} from './product-makeover';
 import {checkCreative,fingerprint} from '@/lib/critic/rules';
+import { paintLocalBackground } from '@/lib/background/local';
 import type {Finding} from '@/lib/critic/schema';
 import { CriticPanel } from './critic-panel';
 
@@ -77,9 +78,8 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   function localBackground() {
     if (!creative || !campaign || busy) return;
     setError(null); const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
-    const ctx = canvas.getContext('2d')!; const gradient = ctx.createLinearGradient(0, 0, 1080, 1350);
-    gradient.addColorStop(0, campaign.brandSnapshot.colors[1]); gradient.addColorStop(1, campaign.brandSnapshot.colors[2]); ctx.fillStyle = gradient; ctx.fillRect(0, 0, 1080, 1350);
-    ctx.fillStyle = campaign.brandSnapshot.colors[0] + '22'; ctx.beginPath(); ctx.arc(830, 780, 580, 0, Math.PI * 2); ctx.fill();
+    const ctx = canvas.getContext('2d')!;
+    paintLocalBackground(ctx, campaign.brandSnapshot.colors);
     canvas.toBlob(blob => { if (blob) studio.background(blob, 'local', null); }, 'image/png');
   }
   function download() {
