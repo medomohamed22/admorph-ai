@@ -36,10 +36,12 @@ One no-key auto-ads flow, enabled by default from the main navigation
   background-only regenerate from deterministic local variants, and a
   dependency-free stored-ZIP writer (PNG + caption TXT per result).
 - PR6 — integrity, E2E, release (this PR): pixel-level product
-  preservation check (opaque cutout pixels must carry the original
-  RGB), provenance/structure checks, quality labels (Verified /
-  Warning / Not checked / Modified), Playwright E2E for the no-key
-  flow, and production smoke coverage for auto-ads.
+  preservation check (fully opaque cutout pixels must match the
+  original RGB exactly; semi-transparent feather pixels are allowed
+  the canvas premultiplication rounding bound), provenance/structure
+  checks, quality labels (Verified / Warning / Not checked /
+  Modified), Playwright E2E for the no-key flow, and production
+  smoke coverage for auto-ads.
 
 ## Verification
 
@@ -56,10 +58,19 @@ One no-key auto-ads flow, enabled by default from the main navigation
   exporting a 1080×1350 PNG. Fixed during E2E: the caption
   textarea's wrapping label polluted its accessible name with the
   caption value, so it is now linked with htmlFor/id.
-- Production smoke (`npm run test:production` against the live
-  domain): home, hackathon EN/AR, brand/campaign/studio flows, API
-  origin and consent guards, plus a no-key auto-ads run with a
-  Verified quality label and a ZIP download.
+- Production smoke (`npm run test:production`): home, hackathon EN/AR,
+  brand/campaign/studio flows, API origin and consent guards, plus a
+  no-key auto-ads run with a Verified quality label and a ZIP
+  download. Execution note: the script is written to run against
+  the live domain, but in this environment the browser's tunnel to
+  the live domain is blocked by the VM egress proxy (curl reaches
+  it fine), so the smoke was executed against the local production
+  build of the merged main, and the live domain was verified
+  separately via HTTP 200 checks on health, home, cutout and
+  auto-ads pages. The critic step expects
+  `rule-contrast_unavailable` (two text layers) because headline
+  and brand fills are transparent since PR3 — contrast against a
+  transparent box is correctly unavailable, never a false pass.
 - Real HTTP check (PR4): a valid background brief with a dummy key
   returned Meta 401 (validation passed, no paid usage); a malformed
   brief returned 400 validation. The brief-aware route works against
