@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { hexSchema } from '../db/schema';
 import { creativeSchema, type Creative } from '../editor/schema';
 import { backgroundBriefSchema, backgroundStyleSchema, type BackgroundBrief } from '../background/brief';
+import { autoResultSchema, type AutoResult } from './results';
 
 export const AUTO_RUN_STEPS = [
   'cutout',
@@ -40,6 +41,7 @@ export interface AutoRunRecord {
   backgroundAssetId: string | null;
   brief: BackgroundBrief | null;
   hero: Creative | null;
+  results: AutoResult[];
   tagline: string;
   caption: string;
   dominantColors: string[];
@@ -72,6 +74,7 @@ export const autoRunRecordSchema = z
     backgroundAssetId: z.string().uuid().nullable(),
     brief: backgroundBriefSchema.nullable(),
     hero: creativeSchema.nullable(),
+    results: z.array(autoResultSchema).optional().default([]),
     tagline: z.string(),
     caption: z.string(),
     dominantColors: z.array(z.string()),
@@ -122,6 +125,7 @@ export function createRun(input: AutoRunRecordInput): AutoRunRecord {
     backgroundAssetId: null,
     brief: null,
     hero: null,
+    results: [],
     tagline: '',
     caption: '',
     dominantColors: [],

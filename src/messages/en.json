@@ -824,7 +824,16 @@
       "cancelled": "The run was cancelled.",
       "failed": "The run failed.",
       "storage": "Could not save the run locally."
-    }
+    },
+    "results": "Results",
+    "variant": "Variant",
+    "regenerateBackground": "Regenerate background only",
+    "copyCaption": "Copy caption",
+    "copied": "Copied",
+    "downloadZip": "Download set (ZIP)",
+    "applyCaptionToAll": "Apply this caption to all",
+    "caption": "Caption",
+    "zipSkipped": "Some images were skipped in the ZIP."
   },
   "cutout": {
     "title": "Cut out a product",

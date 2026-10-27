@@ -181,4 +181,46 @@ describe('local brand-color background', () => {
     expect(arcCalls[0].slice(0, 3)).toEqual([830, 780, 580]);
     expect(lastFillStyle).toBe('#16100C22');
   });
+
+  it('paints distinct variants from the same palette', () => {
+    const paint = (variant: number) => {
+      const stops: [number, string][] = [];
+      const gradientCalls: number[][] = [];
+      const arcCalls: number[][] = [];
+      const ctx = {
+        createLinearGradient: (...args: number[]) => {
+          gradientCalls.push(args);
+          return { addColorStop: (offset: number, color: string) => stops.push([offset, color]) };
+        },
+        set fillStyle(value: unknown) {},
+        get fillStyle() {
+          return '';
+        },
+        fillRect: () => {},
+        beginPath: () => {},
+        arc: (...args: number[]) => {
+          arcCalls.push(args);
+        },
+        fill: () => {},
+      } as unknown as CanvasRenderingContext2D;
+      paintLocalBackground(ctx, PALETTE, variant);
+      return { stops, gradientArgs: gradientCalls[0], arcArgs: arcCalls[0] };
+    };
+    const v0 = paint(0);
+    expect(v0.stops).toEqual([
+      [0, '#F5EEDF'],
+      [1, '#7ED3E0'],
+    ]);
+    expect(v0.gradientArgs).toEqual([0, 0, 1080, 1350]);
+    expect(v0.arcArgs.slice(0, 2)).toEqual([830, 780]);
+    const v1 = paint(1);
+    expect(v1.stops).toEqual([
+      [0, '#7ED3E0'],
+      [1, '#F5EEDF'],
+    ]);
+    expect(v1.arcArgs.slice(0, 2)).toEqual([250, 300]);
+    const v2 = paint(2);
+    expect(v2.gradientArgs).toEqual([0, 0, 0, 1350]);
+    expect(v2.arcArgs.slice(0, 2)).toEqual([540, 1100]);
+  });
 });
