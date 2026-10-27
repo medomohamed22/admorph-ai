@@ -3,11 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useMessages } from './workspace';
 import DesignCanvas, { type CanvasHandle } from './design-canvas';
 import { validateProduct } from '@/lib/campaign/client';
-import { ProviderError } from '@/lib/ai/errors';
 import { cutoutImage } from '@/lib/cutout/provider';
 import { getDatabase } from '@/lib/db/dexie';
 import type { Asset } from '@/lib/db/schema';
-import type { Creative } from '@/lib/editor/schema';
 import { buildBackgroundBrief, dominantColors, type BackgroundStyle } from '@/lib/background/brief';
 import { paintLocalBackground } from '@/lib/background/local';
 import { blobToImageData, canvasToBlob } from '@/lib/browser/image-data';
@@ -23,6 +21,8 @@ import {
   type AutoRunStepId,
 } from '@/lib/auto-run/runner';
 import { buildAutoCopy, composeAutoAd } from '@/lib/auto-run/compose';
+import { buildResults, type AutoResult } from '@/lib/auto-run/results';
+import { writeZip } from '@/lib/export/zip';
 import { checkCreative } from '@/lib/critic/rules';
 
 /**
@@ -45,12 +45,21 @@ export function AutoRunTool() {
   const [consent, setConsent] = useState(false);
   const [run, setRun] = useState<AutoRunRecord | null>(null);
   const [pastRuns, setPastRuns] = useState<AutoRunRecord[]>([]);
-  const [hero, setHero] = useState<Creative | null>(null);
-  const [heroAssets, setHeroAssets] = useState<Asset[]>([]);
+  const [results, setResults] = useState<AutoResult[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedAssets, setSelectedAssets] = useState<Asset[]>([]);
+  const [loadedIds, setLoadedIds] = useState<Set<string>>(new Set());
+  const [captionDraft, setCaptionDraft] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [zipBusy, setZipBusy] = useState(false);
+  const [zipNote, setZipNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const abort = useRef<AbortController | null>(null);
   const heroHandle = useRef<CanvasHandle | null>(null);
+  const loadedRef = useRef<Set<string>>(new Set());
+
+  const selected = results.find((result) => result.id === selectedId) ?? null;
 
   useEffect(() => {
     let alive = true;
@@ -90,16 +99,28 @@ export function AutoRunTool() {
     return asset?.blob ?? null;
   }
 
-  async function loadHeroAssets(working: AutoRunRecord) {
-    const ids = [working.productAssetId, working.cutoutAssetId, working.backgroundAssetId];
+  async function loadResultAssets(working: AutoRunRecord, result: AutoResult) {
     const db = getDatabase();
     const found: Asset[] = [];
-    for (const id of ids) {
+    for (const id of [working.cutoutAssetId, result.backgroundAssetId]) {
       if (!id) continue;
       const asset = await db.assets.get(id);
       if (asset) found.push(asset);
     }
-    setHeroAssets(found);
+    setSelectedAssets(found);
+  }
+
+  function resetLoaded() {
+    loadedRef.current = new Set();
+    setLoadedIds(new Set());
+  }
+
+  async function selectResult(working: AutoRunRecord, result: AutoResult) {
+    setSelectedId(result.id);
+    setCaptionDraft(result.caption);
+    setCopied(false);
+    resetLoaded();
+    await loadResultAssets(working, result);
   }
 
   async function execute(starting: AutoRunRecord, from: AutoRunStepId) {
@@ -193,7 +214,7 @@ export function AutoRunTool() {
             working.brandDescription,
           );
           const headline = working.hero.layers.find((layer) => layer.kind === 'headline');
-          const hero: Creative = {
+          const hero = {
             ...working.hero,
             caption: copy.caption,
             layers: working.hero.layers.map((layer) =>
@@ -215,12 +236,31 @@ export function AutoRunTool() {
         setRun(working);
         await persist(working);
       }
+      if (working.hero && working.cutoutAssetId && working.backgroundAssetId) {
+        working = {
+          ...working,
+          results: buildResults({
+            brandName: working.brandName,
+            brandColors: working.brandColors,
+            brandDescription: working.brandDescription,
+            productCategory: working.productCategory || 'product',
+            stylePreset: working.stylePreset,
+            hero: working.hero,
+            tagline: working.tagline,
+            caption: working.caption,
+            cta: t.ctaDefault,
+            cutoutAssetId: working.cutoutAssetId,
+            backgroundAssetId: working.backgroundAssetId,
+            sceneMood: working.brief?.sceneMood ?? 'fresh, premium',
+          }),
+        };
+      }
       working = finishRun(working, 'done');
       setRun(working);
       await persist(working);
-      if (working.hero) {
-        setHero(working.hero);
-        await loadHeroAssets(working);
+      if (working.results.length > 0) {
+        setResults(working.results);
+        await selectResult(working, working.results[0]);
       }
     } catch (cause) {
       if (signal?.aborted) {
@@ -256,10 +296,8 @@ export function AutoRunTool() {
     setError('');
     try {
       await validateProduct(product.blob);
-    } catch (e) {
-      setError(
-        e instanceof ProviderError && e.code === 'product_size' ? t.preflight.product : t.preflight.product,
-      );
+    } catch {
+      setError(t.preflight.product);
       return;
     }
     abort.current = new AbortController();
@@ -271,8 +309,9 @@ export function AutoRunTool() {
       stylePreset,
     });
     setRun(working);
-    setHero(null);
-    setHeroAssets([]);
+    setResults([]);
+    setSelectedId(null);
+    setSelectedAssets([]);
     setBusy(true);
     await persist(working);
     await execute(working, 'cutout');
@@ -294,26 +333,191 @@ export function AutoRunTool() {
   async function viewPast(past: AutoRunRecord) {
     setRun(past);
     setError('');
-    if (past.hero) {
-      setHero(past.hero);
-      await loadHeroAssets(past);
+    const pastResults =
+      past.results.length > 0
+        ? past.results
+        : past.hero && past.backgroundAssetId
+          ? [
+              {
+                id: crypto.randomUUID(),
+                preset: past.stylePreset,
+                tagline: past.tagline,
+                caption: past.caption,
+                hero: past.hero,
+                backgroundAssetId: past.backgroundAssetId,
+                backgroundVariant: 0,
+              } satisfies AutoResult,
+            ]
+          : [];
+    setResults(pastResults);
+    if (pastResults.length > 0) {
+      await selectResult(past, pastResults[0]);
     } else {
-      setHero(null);
-      setHeroAssets([]);
+      setSelectedId(null);
+      setSelectedAssets([]);
     }
   }
 
-  async function downloadHero() {
-    if (!hero || !heroHandle.current) return;
+  function heroReady(result: AutoResult | null): boolean {
+    if (!result) return false;
+    return result.hero.layers
+      .filter((layer) => layer.visible && layer.assetId)
+      .every((layer) => loadedIds.has(layer.assetId!));
+  }
+
+  async function commitCaption(value: string) {
+    if (!run || !selected) return;
+    const caption = value.slice(0, 1200);
+    const nextResults = results.map((result) =>
+      result.id === selected.id
+        ? { ...result, caption, hero: { ...result.hero, caption } }
+        : result,
+    );
+    const working: AutoRunRecord = { ...run, results: nextResults };
+    setResults(nextResults);
+    setRun(working);
+    await persist(working);
+  }
+
+  async function applyCaptionToAll() {
+    if (!run || !selected) return;
+    const caption = captionDraft.slice(0, 1200);
+    const nextResults = results.map((result) => ({
+      ...result,
+      caption,
+      hero: { ...result.hero, caption },
+    }));
+    const working: AutoRunRecord = { ...run, results: nextResults };
+    setResults(nextResults);
+    setRun(working);
+    await persist(working);
+  }
+
+  async function copyCaption() {
+    if (!selected) return;
+    try {
+      await navigator.clipboard.writeText(captionDraft);
+      setCopied(true);
+    } catch {
+      setError(t.errors.failed);
+    }
+  }
+
+  function downloadTextFile(name: string, text: string) {
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function regenerateBackground() {
+    if (!run || !selected) return;
+    const variant = (selected.backgroundVariant + 1) % 3;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1350;
+    paintLocalBackground(canvas.getContext('2d')!, run.brandColors, variant);
+    const blob = await canvasToBlob(canvas);
+    const asset: Asset = {
+      id: crypto.randomUUID(),
+      kind: 'background',
+      blob,
+      createdAt: new Date().toISOString(),
+    };
+    await getDatabase().assets.put(asset);
+    const nextResults = results.map((result) =>
+      result.id === selected.id
+        ? {
+            ...result,
+            backgroundAssetId: asset.id,
+            backgroundVariant: variant,
+            hero: {
+              ...result.hero,
+              layers: result.hero.layers.map((layer) =>
+                layer.kind === 'background' ? { ...layer, assetId: asset.id } : layer,
+              ),
+            },
+          }
+        : result,
+    );
+    const working: AutoRunRecord = { ...run, results: nextResults };
+    setResults(nextResults);
+    setRun(working);
+    await persist(working);
+    const updated = nextResults.find((result) => result.id === selected.id)!;
+    await selectResult(working, updated);
+  }
+
+  async function downloadSelectedPng() {
+    if (!selected || !heroHandle.current) return;
     await document.fonts.ready;
     const url = heroHandle.current.exportPng();
     const link = document.createElement('a');
     link.href = url;
-    link.download = `admorph-auto-${run?.id ?? 'hero'}.png`;
+    link.download = `admorph-auto-${selected.id}.png`;
     link.click();
   }
 
-  const headlineFont = hero?.layers.find((layer) => layer.kind === 'headline')?.fontFamily;
+  function dataUrlToBytes(dataUrl: string): Uint8Array {
+    const base64 = dataUrl.split(',')[1] ?? '';
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+
+  async function downloadZip() {
+    if (!run || results.length === 0 || zipBusy) return;
+    setZipBusy(true);
+    setZipNote('');
+    setError('');
+    const encoder = new TextEncoder();
+    const entries: Array<{ name: string; data: Uint8Array }> = [];
+    let skipped = 0;
+    try {
+      for (let index = 0; index < results.length; index++) {
+        const result = results[index];
+        entries.push({ name: `ad-${index + 1}-caption.txt`, data: encoder.encode(result.caption) });
+        if (selectedId !== result.id) {
+          await selectResult(run, result);
+        }
+        let png: Uint8Array | null = null;
+        for (let attempt = 0; attempt < 50; attempt++) {
+          const needed = result.hero.layers
+            .filter((layer) => layer.visible && layer.assetId)
+            .map((layer) => layer.assetId!);
+          if (needed.every((id) => loadedRef.current.has(id)) && heroHandle.current) break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        try {
+          await document.fonts.ready;
+          if (heroHandle.current) png = dataUrlToBytes(heroHandle.current.exportPng());
+        } catch {
+          png = null;
+        }
+        if (png) entries.push({ name: `ad-${index + 1}.png`, data: png });
+        else skipped++;
+      }
+      const bytes = writeZip(entries);
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'admorph-auto-set.zip';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      if (skipped > 0) setZipNote(t.zipSkipped);
+    } catch {
+      setError(t.errors.failed);
+    } finally {
+      setZipBusy(false);
+    }
+  }
+
+  const headlineFont = selected?.hero.layers.find((layer) => layer.kind === 'headline')?.fontFamily;
   return (
     <section className="feature-card" data-testid="auto-run-tool">
       <h2>{t.title}</h2>
@@ -427,15 +631,8 @@ export function AutoRunTool() {
             {t.retry}
           </button>
         )}
-        {hero && (
-          <button type="button" className="button secondary" onClick={() => void downloadHero()}>
-            {t.download}
-          </button>
-        )}
       </div>
-      {error && (
-        <p role="alert">{error}</p>
-      )}
+      {error && <p role="alert">{error}</p>}
       {run && (
         <ol role="status">
           {run.steps.map((step) => (
@@ -446,27 +643,95 @@ export function AutoRunTool() {
           ))}
         </ol>
       )}
-      {run && run.status === 'done' && hero && (
+      {run && run.status === 'done' && (
+        <p>
+          {t.dominantColors}: {run.dominantColors.join(', ') || '—'} · {t.reviewCount}:{' '}
+          {run.reviewCodes.join(', ') || '—'}
+        </p>
+      )}
+      {results.length > 0 && selected && (
         <section>
-          <h3>{t.hero}</h3>
-          <p>{run.tagline}</p>
-          <p>{run.caption}</p>
-          <p>
-            {t.dominantColors}: {run.dominantColors.join(', ') || '—'}
-          </p>
-          <p>
-            {t.reviewCount}: {run.reviewCodes.join(', ') || '—'}
-          </p>
+          <h3>{t.results}</h3>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {results.map((result, index) => (
+              <button
+                key={result.id}
+                type="button"
+                className="button secondary"
+                aria-pressed={result.id === selected.id}
+                disabled={zipBusy}
+                onClick={() => run && void selectResult(run, result)}
+              >
+                {index === 0 ? t.hero : `${t.variant} ${index}`} — {t.styles[result.preset]} —{' '}
+                {result.tagline}
+              </button>
+            ))}
+          </div>
+          <p>{selected.tagline}</p>
+          <label>
+            {t.caption}
+            <textarea
+              maxLength={1200}
+              value={captionDraft}
+              onChange={(event) => setCaptionDraft(event.target.value)}
+              onBlur={() => void commitCaption(captionDraft)}
+            />
+          </label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button type="button" className="button secondary" onClick={() => void copyCaption()}>
+              {copied ? t.copied : t.copyCaption}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() =>
+                downloadTextFile(`ad-caption-${selected.id.slice(0, 8)}.txt`, captionDraft)
+              }
+            >
+              {t.download}
+            </button>
+            <button type="button" className="button secondary" onClick={() => void applyCaptionToAll()}>
+              {t.applyCaptionToAll}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={zipBusy}
+              onClick={() => void regenerateBackground()}
+            >
+              {t.regenerateBackground}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={!heroReady(selected)}
+              onClick={() => void downloadSelectedPng()}
+            >
+              {t.download}
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              disabled={zipBusy}
+              onClick={() => void downloadZip()}
+            >
+              {t.downloadZip}
+            </button>
+          </div>
+          {zipNote && <p role="status">{zipNote}</p>}
           <DesignCanvas
-            layers={hero.layers}
-            assets={heroAssets}
+            layers={selected.hero.layers}
+            assets={selectedAssets}
             selected={null}
             select={() => {}}
             patch={() => {}}
             zoom={1}
             handle={heroHandle}
-            ready
-            onReady={() => {}}
+            ready={heroReady(selected)}
+            onReady={(id) => {
+              loadedRef.current = new Set(loadedRef.current).add(id);
+              setLoadedIds(loadedRef.current);
+            }}
             label={t.hero}
             rtl={headlineFont === 'Cairo'}
             disabled

@@ -205,5 +205,29 @@ mocked tests alone can miss stale server modules.
   local steps with zero cost. Meta background generation stays a manual
   studio action; no network request is made by the orchestrator.
 
+## 11. PR5 notes (copy, results, regenerate, ZIP)
+
+- Tagline candidates are local templates from user words only
+  (`src/lib/auto-run/results.ts`): brand, category, mood and
+  description permuted into three distinct lines, deduplicated. No
+  model call, no invented offers or claims.
+- A finished run builds a results set: the hero plus up to three
+  variants (same preset with another tagline, then the other two
+  presets). A variant that fails to compose is skipped; the hero
+  always stays. Each result carries its own caption (max 1200 chars,
+  editable, copyable, downloadable as UTF-8 TXT) with an explicit
+  apply-to-all action.
+- The local background painter gained deterministic variants (reversed
+  and vertical gradients, moved disc), so background-only regenerate
+  produces a visibly different backdrop from the same palette while
+  product, text and caption are untouched. Regenerate replaces only
+  that result's background asset.
+- ZIP export uses a dependency-free stored-ZIP writer
+  (`src/lib/export/zip.ts`, real CRC-32, parse-back tested). PNGs are
+  rendered through the existing canvas one result at a time; a result
+  whose render times out is skipped with a note, and captions are
+  still included.
+
+
 
 

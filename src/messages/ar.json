@@ -824,7 +824,16 @@
       "cancelled": "أُلغيت التشغيلة.",
       "failed": "فشلت التشغيلة.",
       "storage": "تعذّر حفظ التشغيلة محليًا."
-    }
+    },
+    "results": "النتائج",
+    "variant": "نسخة",
+    "regenerateBackground": "إعادة توليد الخلفية فقط",
+    "copyCaption": "نسخ الوصف",
+    "copied": "تم النسخ",
+    "downloadZip": "تنزيل المجموعة (ZIP)",
+    "applyCaptionToAll": "تطبيق هذا الوصف على الكل",
+    "caption": "الوصف",
+    "zipSkipped": "تخطينا بعض الصور في ملف ZIP."
   },
   "cutout": {
     "title": "قصّ المنتج",
