@@ -40,6 +40,24 @@ describe('product pixel preservation', () => {
       false,
     );
   });
+
+  it('tolerates premultiplication rounding on feather pixels only', () => {
+    const original = imageData(2, 1, () => [22, 16, 12, 255]);
+    // Alpha 128 allows floor(255/256)+1 = 1 per channel.
+    expect(
+      verifyProductPixels(original, imageData(2, 1, () => [23, 16, 12, 128])).preserved,
+    ).toBe(true);
+    expect(
+      verifyProductPixels(original, imageData(2, 1, () => [30, 16, 12, 128])).preserved,
+    ).toBe(false);
+    // Fully transparent pixels are ignored, fully opaque must match exactly.
+    expect(
+      verifyProductPixels(original, imageData(2, 1, () => [99, 99, 99, 0])).preserved,
+    ).toBe(true);
+    expect(
+      verifyProductPixels(original, imageData(2, 1, () => [23, 16, 12, 255])).preserved,
+    ).toBe(false);
+  });
 });
 
 describe('result quality labels', () => {

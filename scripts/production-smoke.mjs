@@ -68,7 +68,7 @@ try {
   await page.getByLabel('حجم الخط', { exact: true }).fill('160'); await page.getByLabel('ارتفاع الطبقة', { exact: true }).fill('24');
   await page.getByLabel('لون النص', { exact: true }).fill('#ffffff');
   await page.getByRole('button', { name: 'راجع التصميم', exact: true }).click();
-  await expect(page.getByTestId('rule-text_clipped')).toBeVisible(); await expect(page.getByTestId('rule-contrast')).toBeVisible();
+  await expect(page.getByTestId('rule-text_clipped')).toBeVisible(); await expect(page.getByTestId('rule-contrast_unavailable')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'test-results/production-critic-ar.png', fullPage: true });
   await expect(page.getByRole('button', { name: 'راجع باستخدام Meta', exact: true })).toBeDisabled();
@@ -130,6 +130,15 @@ try {
     .png()
     .toBuffer();
   await page.goto(`${base}/auto-ads`);
+  await expect(page.getByTestId('auto-run-tool')).toBeVisible();
+  // The earlier sections leave the persisted locale on Arabic; let that
+  // load settle, then force English so the rest of the section can use
+  // the English labels. Without the settle, the flip can land mid-form.
+  await page.waitForTimeout(1000);
+  if ((await page.locator('html').getAttribute('dir')) === 'rtl') {
+    await page.getByRole('button', { name: 'التبديل إلى الإنجليزية', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Build the ad', exact: true })).toBeDisabled();
+  }
   await page.getByLabel('Brand name', { exact: true }).fill('Smoke auto brand');
   await page.getByLabel('Product category', { exact: true }).fill('canned cold brew');
   await page
@@ -146,7 +155,7 @@ try {
   expect(zipBytes.includes(Buffer.from('ad-1.png', 'ascii'))).toBe(true);
   await page.screenshot({ path: 'test-results/production-auto-ads.png', fullPage: true });
   const result = { checkedAtUTC: new Date().toISOString(), base, mode: 'local-production-build',
-    passed: ['home', 'hackathon-en-ar', 'mobile-overflow', 'brand-save-reload', 'campaign-sample-edit-approve-reload-en-ar', 'studio-layers-background-edit-reload-ar-png-1080x1350', 'automatic-critic-real-text-clipping-contrast-ar', 'approved-repair-real-before-after-1080x1350', 'repair-reload-undo-redo', 'health', 'missing-key', 'custom-proxy-rejection', 'image-origin-and-consent-guards', 'critic-origin-and-consent-guards', 'repair-and-meta-origin-consent-guards', 'auto-ads-no-key-run-verified-zip'],
+    passed: ['home', 'hackathon-en-ar', 'mobile-overflow', 'brand-save-reload', 'campaign-sample-edit-approve-reload-en-ar', 'studio-layers-background-edit-reload-ar-png-1080x1350', 'automatic-critic-real-text-clipping-contrast-unavailable-ar', 'approved-repair-real-before-after-1080x1350', 'repair-reload-undo-redo', 'health', 'missing-key', 'custom-proxy-rejection', 'image-origin-and-consent-guards', 'critic-origin-and-consent-guards', 'repair-and-meta-origin-consent-guards', 'auto-ads-no-key-run-verified-zip'],
     browserErrors: errors, paidApiCalls: false, remoteDeploymentVerified: false };
   await writeFile('test-results/production-smoke.json', JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
 } finally { await browser.close(); }

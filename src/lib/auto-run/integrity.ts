@@ -17,8 +17,14 @@ export interface PixelCheck {
 
 /**
  * The cutout must keep the original product pixels: same dimensions, and
- * every opaque cutout pixel must carry the original RGB at that position.
- * Only the alpha channel may change. Pure and unit tested.
+ * every visible cutout pixel must carry the original RGB at that position.
+ * Only the alpha channel may change. Fully opaque pixels must match
+ * exactly. Semi-transparent feather pixels are allowed the rounding bound
+ * of the canvas premultiplication round-trip (at most
+ * floor(255 / (2 * alpha)) + 1 per channel): the PNG itself is lossless,
+ * but drawing it through a premultiplied canvas and reading it back
+ * rounds edge pixels. A redrawn product differs by far more than that.
+ * Pure and unit tested.
  */
 export function verifyProductPixels(original: ImageData, cutout: ImageData): PixelCheck {
   const total = original.width * original.height;
@@ -31,11 +37,13 @@ export function verifyProductPixels(original: ImageData, cutout: ImageData): Pix
   }
   let mismatched = 0;
   for (let i = 0; i < original.data.length; i += 4) {
-    if (cutout.data[i + 3] === 0) continue;
+    const alpha = cutout.data[i + 3];
+    if (alpha === 0) continue;
+    const allowed = alpha === 255 ? 0 : Math.floor(255 / (2 * alpha)) + 1;
     if (
-      original.data[i] !== cutout.data[i] ||
-      original.data[i + 1] !== cutout.data[i + 1] ||
-      original.data[i + 2] !== cutout.data[i + 2]
+      Math.abs(original.data[i] - cutout.data[i]) > allowed ||
+      Math.abs(original.data[i + 1] - cutout.data[i + 1]) > allowed ||
+      Math.abs(original.data[i + 2] - cutout.data[i + 2]) > allowed
     ) {
       mismatched++;
     }
