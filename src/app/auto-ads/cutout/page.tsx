@@ -1,5 +1,2 @@
-import { CutoutTool } from '@/components/cutout-tool';
-
-export default function Page() {
-  return <CutoutTool />;
-}
+import { redirect } from 'next/navigation';
+export default function RemovedPage() { redirect('/oneshot'); }

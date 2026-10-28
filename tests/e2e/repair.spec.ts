@@ -1,56 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
-import { readFile } from 'node:fs/promises';
-import sharp from 'sharp';
-import ar from '../../src/messages/ar.json';
-import en from '../../src/messages/en.json';
-async function panel(page: Page, name: string) { if (test.info().project.name !== 'desktop') await page.getByRole('tab', { name, exact:true }).click(); }
-async function enter(page: Page) {
-  if (page.url().endsWith('/settings')) await page.getByRole('link', { name:'Campaigns', exact:true }).click(); else await page.goto('/campaigns/new');
-  await page.getByRole('button', { name:'Use sample product', exact:false }).click();
-  await page.getByLabel('Creative language', { exact:true }).selectOption('ar'); await page.getByRole('button', { name:'Create local sample concepts', exact:false }).click();
-  const card = page.getByTestId('concept-card').first(); await card.getByRole('button', { name:'Approve concept', exact:false }).click(); await card.getByRole('link', { name:'Open design editor', exact:false }).click(); await expect(page.getByRole('button', { name:'Download PNG', exact:false }).first()).toBeEnabled();
-}
-async function badHeadline(page: Page) {
-  await panel(page,'Edit'); await page.getByLabel('Layer text', { exact:true }).fill('عنوان عربي طويل يحتاج إلى مساحة كافية ليظهر بالكامل داخل التصميم دون قص');
-  await page.getByLabel('Font size', { exact:true }).fill('160'); await page.getByLabel('Layer width', { exact:true }).fill('120'); await page.getByLabel('Layer height', { exact:true }).fill('24'); await page.getByLabel('Text color', { exact:true }).fill('#ffffff'); await page.getByRole('button', { name:'Review design', exact:true }).click();
-}
-async function configure(page: Page) {
-  await page.goto('/settings'); await expect(page.getByLabel('API key', { exact:true })).toBeEnabled();
-  await page.evaluate(() => new Promise<void>((resolve) => { const open=indexedDB.open('admorph-local-v1'); open.onsuccess=()=> { const db=open.result, tx=db.transaction(['settings','modelCatalogCache'],'readwrite'), selected={provider:'meta',modelId:'fixture-repair-vision'};
-    tx.objectStore('settings').put({ key:'providerSettings', value:{provider:'meta',customBaseUrl:'',roles:{planner:selected,critic:selected,edit:selected,image:null}} }); tx.objectStore('modelCatalogCache').put({providerId:'meta',fetchedAt:new Date().toISOString(),models:[{id:'fixture-repair-vision',name:'Fixture repair',provider:'meta',capabilities:['text','vision','structured_output'],capabilityEvidence:'metadata',availability:'available'}]}); tx.oncomplete=()=>{db.close();resolve();}; }; }));
-  await page.reload(); await page.getByLabel('API key', { exact:true }).fill('fixture-repair-key-not-real'); await enter(page); await panel(page,'Review'); await page.getByText(en.repair.aiTitle, { exact:true }).click();
-}
-test('local fixes use real before/after renders, preserve the source until approved and survive reload with undo', async ({ page }, info) => {
-  let calls=0; await page.route('**/api/ai/**', route=>{calls++;return route.abort();}); await enter(page); await badHeadline(page); await expect(page.getByTestId('rule-text_clipped')).toBeVisible(); await expect(page.getByTestId('rule-contrast')).toBeVisible();
-  await page.getByRole('button', {name:en.repair.local,exact:true}).click(); await expect(page.getByRole('button',{name:en.repair.apply,exact:true})).toBeEnabled();
-  await panel(page,'Edit'); await expect(page.getByLabel('Layer width',{exact:true})).toHaveValue('120'); await panel(page,'Review');
-  await page.getByRole('button',{name:en.repair.preview,exact:true}).click(); const dialog=page.getByRole('dialog'); await expect(dialog).toBeVisible();
-  const sources=await dialog.locator('img').evaluateAll(images=>images.map(image=>(image as HTMLImageElement).src)); expect(sources).toHaveLength(2); expect(sources[0]).not.toBe(sources[1]); for(const source of sources) { const meta=await sharp(Buffer.from(source.split(',')[1],'base64')).metadata(); expect([meta.width,meta.height]).toEqual([1080,1350]); }
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true); await page.screenshot({path:`test-results/${info.project.name}-repair-comparison.png`,fullPage:true}); await page.getByRole('button',{name:en.repair.close,exact:true}).click();
-  await page.getByRole('button',{name:en.repair.apply,exact:true}).click(); await expect(page.getByTestId('repair-receipt')).toContainText(en.repair.saved); await expect(page.getByTestId('rule-text_clipped')).toHaveCount(0); await expect(page.getByTestId('rule-contrast')).toHaveCount(0);
-  await page.reload(); await panel(page,'Review'); await expect(page.getByRole('button',{name:en.repair.undo,exact:true})).toBeEnabled(); await page.getByRole('button',{name:en.repair.undo,exact:true}).click(); await expect(page.getByTestId('rule-text_clipped')).toBeVisible(); await page.getByRole('button',{name:en.repair.redo,exact:true}).click(); await expect(page.getByTestId('rule-text_clipped')).toHaveCount(0);
-  await page.getByRole('button',{name:'Switch to Arabic',exact:true}).click(); await expect(page.getByRole('button',{name:ar.repair.compare,exact:true})).toBeVisible(); expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-  await panel(page,ar.studio.tabs.edit); await page.getByLabel(ar.studio.text,{exact:true}).fill('تعديل يدوي جديد'); await panel(page,ar.studio.tabs.review); await expect(page.getByRole('button',{name:ar.repair.undo,exact:true})).toBeDisabled(); expect(calls).toBe(0);
-});
-test('unsafe AI proposals and measured regressions never change the current creative', async ({page})=>{
-  await configure(page); let calls=0; await page.route('**/api/ai/repairs',async route=>{calls++;const body=route.request().postDataJSON(); expect(body.modelId).toBe('fixture-repair-vision'); expect(body.imageConsent).toBe(true); expect(body.creativeLanguage).toBe('ar'); const meta=await sharp(Buffer.from(body.preview.data,'base64')).metadata(); expect([meta.width,meta.height]).toEqual([540,675]); const layer=body.creative.layers.find((item:{kind:string})=>item.kind==='headline'); await route.fulfill({json:{rationale:'Synthetic fixture plan.',actions:calls===1?[{type:'execute_js',code:'run()'}]:[{type:'set_text',layerId:layer.id,text:''}]}}); });
-  const run=page.getByRole('button',{name:en.repair.aiButton,exact:true}); await expect(run).toBeDisabled(); expect(calls).toBe(0); await page.getByRole('checkbox',{name:en.repair.consent,exact:true}).check(); await run.click(); await expect(page.locator('.repair-panel [role=alert]')).toBeVisible(); await expect(page.getByTestId('repair-receipt')).toHaveCount(0);
-  await run.click(); await expect(page.getByTestId('repair-proposal')).toContainText(en.repair.regression); await expect(page.getByRole('button',{name:en.repair.apply,exact:true})).toBeDisabled(); await panel(page,'Edit'); await expect(page.getByLabel('Layer text',{exact:true})).not.toHaveValue(''); expect(calls).toBe(2);
-});
-test('stale proposals are blocked and two explicit AI passes stop further requests',async({page})=>{
-  await configure(page); let calls=0; await page.route('**/api/ai/repairs',route=>{calls++; const body=route.request().postDataJSON(), layer=body.creative.layers.find((item:{kind:string})=>item.kind==='headline'); return route.fulfill({json:{rationale:'Synthetic small font adjustment.',actions:[{type:'set_font_size',layerId:layer.id,fontSize:layer.fontSize-1}]}});});
-  const run=page.getByRole('button',{name:en.repair.aiButton,exact:true}), consent=page.getByRole('checkbox',{name:en.repair.consent,exact:true}); await consent.check(); await run.click(); await expect(page.getByRole('button',{name:en.repair.apply,exact:true})).toBeEnabled(); await panel(page,'Edit'); await page.getByLabel('Layer text',{exact:true}).fill('عنوان مختلف'); await panel(page,'Review'); await expect(page.getByTestId('repair-proposal')).toContainText(en.repair.stale); await expect(page.getByRole('button',{name:en.repair.apply,exact:true})).toBeDisabled();
-  for(let pass=1;pass<=2;pass++){ await consent.check(); await run.click(); await expect(page.getByRole('button',{name:en.repair.apply,exact:true})).toBeEnabled(); await page.getByRole('button',{name:en.repair.apply,exact:true}).click(); await expect(page.getByTestId('repair-receipt')).toContainText(`${pass}/2`); }
-  await expect(run).toBeDisabled(); await expect(page.getByRole('button',{name:en.repair.local,exact:true})).toBeDisabled(); expect(calls).toBe(3);
-});
-test('repair history failure keeps the approved fix and session undo without claiming a durable save',async({page})=>{
-  await enter(page); await badHeadline(page); await page.getByRole('button',{name:en.repair.local,exact:true}).click();
-  await page.evaluate(()=>{const put=IDBObjectStore.prototype.put; IDBObjectStore.prototype.put=function(...args:Parameters<IDBObjectStore['put']>){if(this.name==='repairHistory')throw new DOMException('Synthetic quota','QuotaExceededError');return put.apply(this,args);};});
-  await page.getByRole('button',{name:en.repair.apply,exact:true}).click(); await expect(page.getByTestId('repair-receipt')).toContainText(en.repair.sessionOnly); await expect(page.getByTestId('rule-text_clipped')).toHaveCount(0); await expect(page.getByRole('button',{name:'Download PNG',exact:false}).first()).toBeEnabled(); await page.getByRole('button',{name:en.repair.undo,exact:true}).click(); await expect(page.getByTestId('rule-text_clipped')).toBeVisible();
-});
-test('Meta text/image smoke uses explicit per-mode consent and exports labelled secret-free evidence',async({page})=>{
-  let calls=0;const png=await readFile('public/demo/sora-product.png'); await page.route('**/api/providers/meta-smoke',route=>{calls++;const body=route.request().postDataJSON();expect(body.providerId).toBe('meta');expect(body.apiKey).toBe('fixture-meta-key-not-real'); expect(body.consent).toBe(true); return body.kind==='text'?route.fulfill({json:{kind:'text',source:'fixture',modelId:body.modelId,checkedAtUTC:new Date().toISOString(),reply:'ready',requestId:null}}):route.fulfill({contentType:'image/png',body:png,headers:{'X-AdMorph-Source':'fixture','X-AdMorph-Checked-At':new Date().toISOString()}});});
-  await page.goto('/settings');  await page.getByLabel(en.metaSmoke.model,{exact:true}).fill('fixture-selected-model'); await page.getByRole('checkbox',{name:en.metaSmoke.ack,exact:true}).check(); await expect(page.getByRole('button',{name:en.metaSmoke.runText,exact:true})).toBeDisabled(); await page.getByLabel('API key',{exact:true}).fill('fixture-meta-key-not-real'); const consent=page.getByRole('checkbox',{name:en.metaSmoke.textConsent,exact:true}); await expect(consent).toBeEnabled(); expect(calls).toBe(0); await consent.check(); await page.getByRole('button',{name:en.metaSmoke.runText,exact:true}).click(); await expect(page.getByTestId('meta-smoke-result')).toContainText(en.metaSmoke.fixture);
-  const download=page.waitForEvent('download');await page.getByRole('button',{name:en.metaSmoke.download,exact:true}).click();const evidence=await readFile((await(await download).path())!,'utf8');expect(evidence).not.toMatch(/fixture-meta-key-not-real|apiKey|base64/);expect(JSON.parse(evidence)).toMatchObject({source:'fixture',kind:'text',modelId:'fixture-selected-model'});
-  await page.getByLabel(en.metaSmoke.kind,{exact:true}).selectOption('image'); await expect(page.getByTestId('meta-smoke-result')).toHaveCount(0); await page.getByRole('checkbox',{name:en.metaSmoke.ack,exact:true}).check(); await expect(page.getByRole('button',{name:en.metaSmoke.runImage,exact:true})).toBeDisabled();await page.getByRole('checkbox',{name:en.metaSmoke.imageConsent,exact:true}).check(); await page.getByRole('button',{name:en.metaSmoke.runImage,exact:true}).click(); await expect(page.getByAltText(en.metaSmoke.imageAlt,{exact:true})).toBeVisible(); expect(calls).toBe(2); expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+import { expect, test } from '@playwright/test';
+
+test('removed route /studio/sample redirects to one-shot', async ({ page }) => {
+  await page.goto('/studio/sample');
+  await expect(page).toHaveURL(/\/oneshot$/);
 });

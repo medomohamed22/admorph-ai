@@ -1,2 +1,2 @@
-import { CampaignWorkspace } from '@/components/campaign';
-export default function Page() { return <CampaignWorkspace/>; }
+import { redirect } from 'next/navigation';
+export default function RemovedPage() { redirect('/oneshot'); }
