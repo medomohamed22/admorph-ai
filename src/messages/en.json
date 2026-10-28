@@ -3,10 +3,7 @@
     "home": "AdMorph home",
     "skip": "Skip to content",
     "main": "Main navigation",
-    "explore": "Explore demo",
     "brands": "Brand kits",
-    "campaigns": "Campaigns",
-    "autoAds": "Auto ads",
     "settings": "Settings",
     "create": "Create your Brand",
     "switchLanguage": "Switch to Arabic",
@@ -16,8 +13,9 @@
     "eyebrow": "YOUR NEXT BIG IDEA STARTS HERE",
     "title": "One product.",
     "accent": "A world of possibilities.",
-    "description": "Turn a product and a little inspiration into three distinct ad directions. Made for your brand. Ready for your creative touch.",
-    "note": "No account. No API key. Just a little creative curiosity."
+    "description": "Upload a product, pick your brand, arrange your ad, and generate one finished image — with a certificate that proves it matches.",
+    "note": "No account. Just your product and your brand.",
+    "cta": "Create a one-shot ad"
   },
   "demo": {
     "eyebrow": "THE PLAYGROUND",
@@ -68,24 +66,6 @@
         "caption": "A fresh start, one cup at a time. Discover Sora ceremonial matcha.",
         "background": "#dedaf0",
         "accent": "#62547f"
-      }
-    ]
-  },
-  "steps": {
-    "eyebrow": "FROM SPARK TO SOMETHING GREAT",
-    "title": "Your brand. Your creative flow.",
-    "items": [
-      {
-        "title": "Make it your brand",
-        "description": "Start with your colors, your story, and a little personality."
-      },
-      {
-        "title": "Explore three directions",
-        "description": "Find a fresh angle, a compelling benefit, or a new story."
-      },
-      {
-        "title": "Fine-tune the details",
-        "description": "Make the creative yours, with explainable design feedback."
       }
     ]
   },
