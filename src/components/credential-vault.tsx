@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMessages } from './workspace';
 import { useProviderSession } from './provider-session';
 import { CredentialError, encryptCredential, decryptCredential } from '@/lib/security/credentials';
@@ -12,6 +12,18 @@ export function CredentialVault() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<keyof typeof s | null>(null);
   const record = vault[provider];
+  // Surface the vault exactly when it matters, instead of leaving it buried
+  // in a collapsed section: a saved key with an empty session (after a full
+  // reload) needs unlocking, and a fresh key with no saved copy needs the
+  // Remember action. The guard keeps a manual collapse respected until the
+  // situation itself changes again.
+  const detailsRef = useRef<HTMLDetailsElement | null>(null);
+  const needsAttention = Boolean(record && !configs[provider].apiKey) || Boolean(!record && configs[provider].apiKey.trim());
+  const wasAttention = useRef(false);
+  useEffect(() => {
+    if (needsAttention && !wasAttention.current && detailsRef.current) detailsRef.current.open = true;
+    wasAttention.current = needsAttention;
+  }, [needsAttention]);
   async function act(action: 'store' | 'unlock' | 'forget') {
     const epoch = session.currentKeyEpoch();
     setBusy(true); setResult(null);
@@ -41,7 +53,7 @@ export function CredentialVault() {
       setResult(error instanceof CredentialError ? error.code === 'passphrase' ? 'passphraseError' : error.code : 'storageError');
     } finally { setPassphrase(''); setBusy(false); }
   }
-  return <details className="credential-vault"><summary>{s.title}</summary><p>{s.note}</p>{record && <><p>{s.locked}</p>{record.baseUrl && <p>{s.endpoint}: <bdi>{record.baseUrl}</bdi></p>}</>}
+  return <details className="credential-vault" ref={detailsRef}><summary>{s.title}</summary><p>{s.note}</p>{record && <><p>{s.locked}</p>{record.baseUrl && <p>{s.endpoint}: <bdi>{record.baseUrl}</bdi></p>}</>}
     <label htmlFor="vault-passphrase">{s.passphrase}</label><input id="vault-passphrase" type="password" autoComplete="off" value={passphrase} maxLength={256} disabled={busy} onChange={event => setPassphrase(event.target.value)}/><p className="input-hint">{s.hint}</p>
     <div className="field-actions"><button className="button secondary" disabled={busy || !session.ready} onClick={() => void act('store')}>{s.remember}</button>{record && <><button className="button secondary" disabled={busy} onClick={() => void act('unlock')}>{s.unlock}</button><button className="button secondary" disabled={busy} onClick={() => void act('forget')}>{s.forget}</button></>}</div>
     {busy && <p role="status">{s.busy}</p>}{result && <p role="status" className="vault-result">{s[result]}</p>}
