@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Circle, Ellipse, Text, Image as KonvaImage, Group, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Circle, Ellipse, Text, Image as KonvaImage, Group, Transformer, Line } from 'react-konva';
 import type Konva from 'konva';
 import { clampLayer, type EditableLayer, type Polish } from '@/lib/editor/schema';
-import { shadowBox, reflectionBox, visibleProductBox } from '@/lib/editor/polish';
+import { shadowBox, reflectionBox, visibleProductBox, contactShadow, castShadow, resolveShadowDirection } from '@/lib/editor/polish';
 import { resolveLayerDirection } from '@/lib/editor/direction';
 import { fitContain } from '@/lib/editor/fit';
 import type { Asset } from '@/lib/db/schema';
@@ -75,6 +75,10 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
   const productSize = loadedProduct?.url === productImageUrl ? loadedProduct.size : null;
   const productBox = productLayer && productSize ? visibleProductBox(productLayer, productSize) : productLayer;
   const shadow = polish?.shadow && productBox ? shadowBox(productBox, dimensions) : null;
+  const shadowIntensity = polish?.shadowIntensity ?? 1;
+  const shadowDirection = resolveShadowDirection(polish);
+  const contact = polish?.shadow && productBox ? contactShadow(productBox, shadowIntensity) : null;
+  const cast = polish?.shadow && productBox ? castShadow(productBox, shadowDirection, shadowIntensity) : null;
   const reflection = polish?.reflection && productBox && productAsset ? reflectionBox(productBox, dimensions) : null;
   useEffect(() => {
     const node = selected ? stage.current?.findOne(`#${selected}`) : null;
@@ -143,7 +147,11 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
       </Group>;
       if (layer.kind === 'background' && polish?.grade) return [group, <Rect key="polish-grade" name="polish" x={0} y={0} width={dimensions.width} height={dimensions.height} fill={polish.grade} opacity={0.14} listening={false}/>];
       if (layer.kind === 'product') return [
-        ...(shadow ? [<Ellipse key="polish-shadow" name="polish" x={shadow.cx} y={shadow.cy} radiusX={shadow.rx} radiusY={shadow.ry} fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={Math.max(shadow.rx, shadow.ry)} fillRadialGradientColorStops={[0, 'rgba(0,0,0,0.45)', 1, 'rgba(0,0,0,0)']} listening={false}/>] : []),
+        ...(shadow ? [
+          <Ellipse key="polish-shadow-ambient" name="polish" x={shadow.cx} y={shadow.cy} radiusX={shadow.rx} radiusY={shadow.ry} fillRadialGradientStartPoint={{ x: 0, y: 0 }} fillRadialGradientEndPoint={{ x: 0, y: 0 }} fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={Math.max(shadow.rx, shadow.ry)} fillRadialGradientColorStops={[0, `rgba(0,0,0,${0.16 * shadowIntensity})`, 1, 'rgba(0,0,0,0)']} listening={false}/>,
+          ...(cast ? [<Line key="polish-shadow-cast" name="polish" points={cast.points} closed fillLinearGradientStartPoint={cast.from} fillLinearGradientEndPoint={cast.to} fillLinearGradientColorStops={[0, `rgba(0,0,0,${cast.opacity})`, 1, 'rgba(0,0,0,0)']} listening={false}/>] : []),
+          ...(contact ? [<Rect key="polish-shadow-contact" name="polish" x={contact.x} y={contact.y} width={contact.width} height={contact.height} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 0, y: contact.height }} fillLinearGradientColorStops={[0, `rgba(0,0,0,${contact.opacity})`, 1, 'rgba(0,0,0,0)']} listening={false}/>] : []),
+        ] : []),
         group,
         ...(reflection && productAsset ? [<PolishReflection key="polish-reflection" blob={productAsset.blob} box={reflection}/>] : []),
       ];

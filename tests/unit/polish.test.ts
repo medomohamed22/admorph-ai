@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shadowBox, reflectionBox, visibleProductBox } from '../../src/lib/editor/polish';
+import { shadowBox, reflectionBox, visibleProductBox, contactShadow, castShadow, resolveShadowDirection } from '../../src/lib/editor/polish';
 import { compose } from '../../src/lib/editor/composition';
 import { newCampaign } from '../../src/lib/campaign/schema';
 import { samplePlan } from '../../src/lib/campaign/sample';
@@ -49,6 +49,29 @@ describe('polish geometry', () => {
     const reflection = reflectionBox(visible, size)!;
     expect(reflection.y).toBe(visible.y + visible.height + 8);
     expect(reflection.width).toBe(visible.width);
+  });
+
+  it('builds a three-layer shadow: contact at the touch line, skewed cast, resolved direction', () => {
+    const box = { x: 190, y: 360, width: 700, height: 780 };
+    const contact = contactShadow(box);
+    expect(contact.width).toBe(box.width);
+    expect(contact.y).toBeLessThan(box.y + box.height);
+    expect(contact.y + contact.height).toBeGreaterThan(box.y + box.height);
+    expect(contact.height).toBeLessThan(box.height * 0.1);
+    const castLeft = castShadow(box, 'left');
+    expect(castLeft.points[4]).toBeGreaterThan(castLeft.points[2]);
+    expect(castLeft.to.x).toBeGreaterThan(castLeft.from.x);
+    const castRight = castShadow(box, 'right');
+    expect(castRight.points[4]).toBeLessThan(castRight.points[2]);
+    expect(castRight.to.x).toBeLessThan(castRight.from.x);
+    const castFront = castShadow(box, 'front');
+    expect(castFront.points[0]).toBeGreaterThan(box.x);
+    expect(castFront.points[2]).toBeLessThan(box.x + box.width);
+    expect(castFront.to.x).toBe(castFront.from.x);
+    expect(resolveShadowDirection({ shadowDirection: 'right', lightDirection: 'left' })).toBe('right');
+    expect(resolveShadowDirection({ shadowDirection: 'auto', lightDirection: 'left' })).toBe('left');
+    expect(resolveShadowDirection({})).toBe('front');
+    expect(resolveShadowDirection(undefined)).toBe('front');
   });
 });
 

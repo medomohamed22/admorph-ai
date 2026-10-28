@@ -74,6 +74,7 @@ export const visionBackgroundAnalysisSchema = z
     mood: z.string().trim().max(120),
     lighting: z.string().trim().max(120),
     productScale: z.enum(['large-center', 'medium-left', 'medium-right']),
+    lightDirection: z.enum(['left', 'right', 'front']).optional(),
     sceneIdeas: z.array(z.object({
       scene: z.string().trim().min(1).max(200),
       setting: z.string().trim().min(1).max(80),
