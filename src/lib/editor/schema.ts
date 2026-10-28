@@ -22,7 +22,7 @@ export const creativeSchema = z.object({
   layers: z.array(layerSchema).min(1).max(10), caption: z.string().max(1200),
   source: z.enum(['composition', 'local', 'gemini', 'meta']), model: selectionSchema.nullable(),
   placement: z.enum(['off','feed','reels']).optional(), inputRevision: z.number().int().nonnegative(), createdAt: z.string().datetime(), updatedAt: z.string().datetime(),
-  // Derived stage nodes only (shadow/reflection/grade); never a layer kind,
+  // Derived stage nodes only (shadow/grade); never a layer kind,
   // so product pixels stay untouched and no rule or repair flow changes.
   polish: polishSchema.optional(),
   // Style target only: shown side-by-side, never a layer, never exported.

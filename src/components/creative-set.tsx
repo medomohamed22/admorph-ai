@@ -8,7 +8,7 @@ import { useStudio } from './studio-session';
 import { useCampaign } from './campaign-session';
 import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
-import { cutoutImage } from '@/lib/cutout/provider';
+import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { findCutoutAsset } from '@/lib/cutout/provenance';
 import { getDatabase } from '@/lib/db/dexie';
 const Preview = dynamic(() => import('./creative-preview'), { ssr: false });
@@ -43,7 +43,7 @@ export function CreativeSet({ campaign, product }: { campaign: Campaign; product
           let result;
           if (mode === 'sam' && key && segmentModel) {
             try {
-              result = await cutoutImage(product.blob, 'meta-sam', { apiKey: key, modelId: segmentModel, prompt: 'product' });
+              result = await cutoutImage(product.blob, 'meta-sam', { apiKey: key, modelId: segmentModel, prompt: SAM_PRODUCT_PROMPT });
             } catch {
               result = await cutoutImage(product.blob, 'local');
               note = m.cutout.samFallbackNote;

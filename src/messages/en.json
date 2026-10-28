@@ -653,7 +653,7 @@
     "bgReviewTextFixed": "Text color adjusted to the lightest brand color for readability (undoable).",
     "bgReviewGrade": "Lighten background grade",
     "bgReviewFailed": "The background review could not run on this image, so no contrast verdict is shown.",
-    "bgReviewIntegrated": "Integration polish applied automatically (contact shadow + reflection, undoable)."
+    "bgReviewIntegrated": "Integration polish applied automatically (contact shadow, undoable)."
   },
   "critic": {
     "open": "Review design",
@@ -967,7 +967,8 @@
     "samFailed": "SAM cutout failed. You can retry or use the local cutout.",
     "samFallbackNote": "SAM cutout failed, so the local cutout was used instead.",
     "useLocalInstead": "Use the local cutout instead",
-    "descriptionSam": "Upload a product photo and isolate it with Meta SAM. The product photo is sent to Meta when this provider is chosen; product pixels never change."
+    "descriptionSam": "Upload a product photo and isolate it with Meta SAM. The product photo is sent to Meta when this provider is chosen; product pixels never change.",
+    "roughBottomNote": "The cutout edge looks rough at the base — props touching the product may have confused the cut. Try a cleaner photo, or cut again."
   },
   "creativeSet": {
     "eyebrow": "YOUR THREE DESIGNS",
@@ -1194,7 +1195,6 @@
     "localCheck": "Optional request check on app server · no Meta call",
     "localCheckPassed": "Local image, model ID and output schema are valid. No Meta request was sent.",
     "polishShadow": "Soft shadow under product",
-    "polishReflection": "Product reflection",
     "polishGrade": "Background grade",
     "polishGradeOff": "Off",
     "polishShadowLight": "Light direction (shadow)",
@@ -1203,7 +1203,7 @@
     "polishShadowLightRight": "Light from right",
     "polishShadowLightFront": "Front light",
     "polishShadowIntensity": "Shadow strength",
-    "polishHelp": "Shadow, reflection and grade are derived overlays: product pixels never change.",
+    "polishHelp": "Shadow and grade are derived overlays: product pixels never change.",
     "wordmark": "Wordmark font",
     "wordmarkBold": "bold",
     "wordmarkRegular": "regular"

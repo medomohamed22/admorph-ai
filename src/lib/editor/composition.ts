@@ -43,5 +43,48 @@ export function compose(campaign: Campaign, concept: EditableConcept, productId:
     const height = Math.round(layer.height * sy);
     return { ...layer, y: Math.min(Math.round(layer.y * sy), size.height - height), height };
   });
+  creative.layers = resolveTextOverlap(creative.layers, size);
   return creative;
+}
+
+/** Text must never cover the product: a text box intersecting the product
+ * box is moved to the first free strip around the product (above, below,
+ * left, right) that fits the canvas and avoids other text boxes. When no
+ * strip fits, the box slides to the nearest product edge — covering the
+ * product is the worse evil, so it always loses to text-text crowding.
+ * Pure geometry on layer boxes; the user can still drag text anywhere
+ * afterwards, so this only guards generated and template geometry. */
+export function resolveTextOverlap(layers: EditableLayer[], dimensions: { width: number; height: number }): EditableLayer[] {
+  const product = layers.find(item => item.kind === 'product' && item.visible);
+  if (!product) return layers;
+  const MARGIN = 16;
+  type Box = { x: number; y: number; width: number; height: number };
+  const boxOf = (l: Pick<EditableLayer, 'x' | 'y' | 'width' | 'height'>): Box => ({ x: l.x, y: l.y, width: l.width, height: l.height });
+  const hits = (a: Box, b: Box) => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+  const inflated: Box = { x: product.x - MARGIN, y: product.y - MARGIN, width: product.width + MARGIN * 2, height: product.height + MARGIN * 2 };
+  const working = layers.map(item => ({ ...item }));
+  for (const layer of working) {
+    if (!['brand', 'headline', 'cta'].includes(layer.kind) || !layer.visible) continue;
+    if (!hits(boxOf(layer), inflated)) continue;
+    const others = working.filter(item => item.id !== layer.id && item.visible && ['brand', 'headline', 'cta'].includes(item.kind));
+    const candidates = [
+      { x: layer.x, y: product.y - MARGIN - layer.height },
+      { x: layer.x, y: product.y + product.height + MARGIN },
+      { x: product.x - MARGIN - layer.width, y: layer.y },
+      { x: product.x + product.width + MARGIN, y: layer.y },
+    ];
+    const fits = candidates.find(c => c.x >= 0 && c.y >= 0 && c.x + layer.width <= dimensions.width && c.y + layer.height <= dimensions.height
+      && !hits({ ...c, width: layer.width, height: layer.height }, inflated)
+      && !others.some(o => hits({ ...c, width: layer.width, height: layer.height }, boxOf(o))));
+    if (fits) { layer.x = fits.x; layer.y = fits.y; continue; }
+    // Fallback: slide to the nearest product edge, clamped to the canvas.
+    const centerY = layer.y + layer.height / 2, centerX = layer.x + layer.width / 2;
+    const productCenterY = product.y + product.height / 2, productCenterX = product.x + product.width / 2;
+    if (Math.abs(centerY - productCenterY) >= Math.abs(centerX - productCenterX)) {
+      layer.y = Math.max(0, Math.min(dimensions.height - layer.height, centerY < productCenterY ? product.y - MARGIN - layer.height : product.y + product.height + MARGIN));
+    } else {
+      layer.x = Math.max(0, Math.min(dimensions.width - layer.width, centerX < productCenterX ? product.x - MARGIN - layer.width : product.x + product.width + MARGIN));
+    }
+  }
+  return working;
 }

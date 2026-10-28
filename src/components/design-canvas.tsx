@@ -3,7 +3,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Ellipse, Text, Image as KonvaImage, Group, Transformer, Line } from 'react-konva';
 import type Konva from 'konva';
 import { clampLayer, type EditableLayer, type Polish } from '@/lib/editor/schema';
-import { shadowBox, reflectionBox, visibleProductBox, contactShadow, castShadow, resolveShadowDirection } from '@/lib/editor/polish';
+import { shadowBox, visibleProductBox, contactShadow, castShadow, resolveShadowDirection } from '@/lib/editor/polish';
 import { resolveLayerDirection } from '@/lib/editor/direction';
 import { fitContain } from '@/lib/editor/fit';
 import type { Asset } from '@/lib/db/schema';
@@ -27,21 +27,6 @@ function Raster({ blob, id, width, height, cover = false, onReady }: { blob: Blo
   const fitted = fitContain({ width, height }, image.width, image.height);
   return <KonvaImage image={image} x={fitted.x} y={fitted.y} width={fitted.width} height={fitted.height} listening={false}/>;
 }
-function PolishReflection({ blob, box }: { blob: Blob; box: { x: number; y: number; width: number; height: number } }) {
-  const url = useObjectUrl(blob); const [image, setImage] = useState<HTMLImageElement | undefined>();
-  useEffect(() => {
-    if (!url) return; let alive = true; const next = new window.Image(); next.src = url;
-    next.decode().then(() => { if (alive) setImage(next); }).catch(() => {});
-    return () => { alive = false; };
-  }, [url]);
-  if (!image) return null;
-  const fitted = fitContain({ width: box.width, height: box.height }, image.width, image.height);
-  // Flipped vertically: the image's bottom edge sits at the strip's top, so
-  // the reflection reads as a mirror of the product's underside.
-  return <Group name="polish" x={box.x} y={box.y} width={box.width} height={box.height} listening={false} opacity={0.22}>
-    <KonvaImage image={image} x={fitted.x} y={box.height - fitted.y} width={fitted.width} height={fitted.height} scaleY={-1} listening={false}/>
-  </Group>;
-}
 export type CanvasHandle = { exportPng: () => string; measureText: (candidate?: EditableLayer[]) => TextMetrics; renderLayers: (candidate: EditableLayer[]) => string };
 export default function DesignCanvas({ layers, assets, selected, select, patch, zoom, handle, ready, onReady, label, disabled, placement = 'off', findings = [], onIssue, dimensions = { width: 1080, height: 1350 }, polish }: {
   layers: EditableLayer[]; assets: Asset[]; selected: string | null; select: (id: string | null) => void;
@@ -55,15 +40,15 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
   const scale = Math.min(1, (width - 20) / dimensions.width, 740 / dimensions.height) * zoom;
   // Polish nodes are derived from the product layer, never stored layers:
   // the shadow sits behind the product, the grade right above the
-  // background, the reflection below the product. Repair previews strip
+  // background. Repair previews strip
   // them (see renderLayers) so a repair judges geometry, not polish.
   const productLayer = layers.find(item => item.kind === 'product' && item.visible);
   const productAsset = productLayer?.assetId ? assets.find(item => item.id === productLayer.assetId) : undefined;
-  // The shadow and reflection hug the can's visible rect, not the layer
+  // The shadow hugs the can's visible rect, not the layer
   // box: the photo is contain-fitted inside the box, so the layer box is
   // wider (and sometimes taller) than the can itself. Until the photo
   // decodes, the layer box is the fallback — same as before.
-  const polishOn = !!(polish?.shadow || polish?.reflection);
+  const polishOn = !!polish?.shadow;
   const productImageUrl = useObjectUrl(polishOn ? productAsset?.blob ?? null : null);
   const [loadedProduct, setLoadedProduct] = useState<{ url: string; size: { width: number; height: number } } | null>(null);
   useEffect(() => {
@@ -79,7 +64,6 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
   const shadowDirection = resolveShadowDirection(polish);
   const contact = polish?.shadow && productBox ? contactShadow(productBox, shadowIntensity) : null;
   const cast = polish?.shadow && productBox ? castShadow(productBox, shadowDirection, shadowIntensity) : null;
-  const reflection = polish?.reflection && productBox && productAsset ? reflectionBox(productBox, dimensions) : null;
   useEffect(() => {
     const node = selected ? stage.current?.findOne(`#${selected}`) : null;
     transformer.current?.nodes(node?.isVisible() ? [node] : []);
@@ -153,7 +137,6 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
           ...(contact ? [<Rect key="polish-shadow-contact" name="polish" x={contact.x} y={contact.y} width={contact.width} height={contact.height} fillLinearGradientStartPoint={{ x: 0, y: 0 }} fillLinearGradientEndPoint={{ x: 0, y: contact.height }} fillLinearGradientColorStops={[0, `rgba(0,0,0,${contact.opacity})`, 1, 'rgba(0,0,0,0)']} listening={false}/>] : []),
         ] : []),
         group,
-        ...(reflection && productAsset ? [<PolishReflection key="polish-reflection" blob={productAsset.blob} box={reflection}/>] : []),
       ];
       return [group];
     })}<Transformer ref={transformer} rotateEnabled={false} flipEnabled={false} enabledAnchors={!disabled && selected && layers.find(layer => layer.id === selected)?.kind !== 'background' ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : []} boundBoxFunc={(old, next) => Math.abs(next.width) < 24 * scale || Math.abs(next.height) < 24 * scale ? old : next}/></Layer>

@@ -68,6 +68,8 @@ describe('background brief', () => {
       'no people',
       'no objects cropped by the frame edges',
       'no scattered piles of props',
+      'no pedestal or raised platform',
+      'no visible table edge',
     ]);
   });
 
@@ -98,7 +100,8 @@ describe('background brief', () => {
     expect(prompt).toContain('#16100C');
     expect(prompt).toContain('no text');
     expect(prompt).toContain('x 200–880');
-    expect(prompt).toContain('clear surface');
+    expect(prompt).toContain('continuous ground surface');
+    expect(prompt).toContain('never a raised platform');
     expect(prompt).toContain('cropped by the frame edges');
     expect(prompt).toContain('minimal and uncluttered');
     expect(prompt).toContain('must contrast with the product');

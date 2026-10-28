@@ -5,6 +5,7 @@ import {
   trimBounds,
 } from '../../src/lib/cutout/segment';
 import { cutoutImage } from '../../src/lib/cutout/provider';
+import { cutoutBottomRoughness } from '../../src/lib/cutout/quality';
 import { taskSchema } from '../../src/lib/ai/task-support';
 import type { Asset } from '../../src/lib/db/schema';
 
@@ -131,5 +132,37 @@ describe('cutout storage compatibility', () => {
   it('Meta SAM is wired through the segment task and refuses to run without config', async () => {
     expect(taskSchema.options).toContain('segment');
     await expect(cutoutImage(new Blob(), 'meta-sam')).rejects.toThrow('meta_sam_missing_config');
+  });
+});
+
+describe('cutoutBottomRoughness', () => {
+  const alphaFromBottom = (width: number, height: number, bottom: (x: number) => number) => {
+    const alpha = new Uint8Array(width * height);
+    for (let x = 0; x < width; x++) {
+      const b = bottom(x);
+      for (let y = 0; y <= b && y < height; y++) alpha[y * width + x] = 255;
+    }
+    return alpha;
+  };
+
+  it('calls a flat bottom clean', () => {
+    const result = cutoutBottomRoughness(alphaFromBottom(100, 100, () => 79), 100, 100);
+    expect(result).toEqual({ rough: false, maxStep: 0 });
+  });
+
+  it('flags a bite at the base as rough', () => {
+    const result = cutoutBottomRoughness(alphaFromBottom(100, 100, (x) => (x >= 40 && x <= 50 ? 50 : 79)), 100, 100);
+    expect(result.rough).toBe(true);
+    expect(result.maxStep).toBe(29);
+  });
+
+  it('calls a smooth taper clean', () => {
+    const result = cutoutBottomRoughness(alphaFromBottom(100, 100, (x) => 79 - Math.floor(Math.abs(x - 50) / 5)), 100, 100);
+    expect(result.rough).toBe(false);
+    expect(result.maxStep).toBeLessThanOrEqual(1);
+  });
+
+  it('rejects a mismatched alpha buffer', () => {
+    expect(() => cutoutBottomRoughness(new Uint8Array(10), 100, 100)).toThrow('invalid_alpha');
   });
 });

@@ -60,6 +60,6 @@ test('Meta background without vision shows the review box, and the reference hin
     open.onsuccess = () => { const db = open.result; const tx = db.transaction('creatives'); const req = tx.objectStore('creatives').getAll(); req.onsuccess = () => { const rows = req.result as { polish?: { shadow: boolean; reflection: boolean } }[]; const hit = rows.find((row) => row.polish); resolve(hit ? hit.polish! : null); }; tx.oncomplete = () => db.close(); };
   }));
   expect(polish?.shadow).toBe(true);
-  expect(polish?.reflection).toBe(true);
+  expect(polish?.reflection).toBe(false);
   expect(errors).toEqual([]);
 });
