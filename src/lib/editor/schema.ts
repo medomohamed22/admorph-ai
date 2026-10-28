@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { selectionSchema } from '../db/schema';
 import { dimensionsFor, SIZE_FORMATS } from '../editor/sizes';
+export const polishSchema = z.object({
+  shadow: z.boolean(), reflection: z.boolean(), grade: z.string().regex(/^#[\da-f]{6}$/i).nullable(),
+}).strict();
+export type Polish = z.infer<typeof polishSchema>;
 export const layerSchema = z.object({
   id: z.string().uuid(), kind: z.enum(['background', 'product', 'logo', 'headline', 'brand', 'cta']),
   x: z.number().min(0).max(1080), y: z.number().min(0).max(1920), width: z.number().min(24).max(1080), height: z.number().min(24).max(1920),
@@ -15,6 +19,9 @@ export const creativeSchema = z.object({
   layers: z.array(layerSchema).min(1).max(10), caption: z.string().max(1200),
   source: z.enum(['composition', 'local', 'gemini', 'meta']), model: selectionSchema.nullable(),
   placement: z.enum(['off','feed','reels']).optional(), inputRevision: z.number().int().nonnegative(), createdAt: z.string().datetime(), updatedAt: z.string().datetime(),
+  // Derived stage nodes only (shadow/reflection/grade); never a layer kind,
+  // so product pixels stay untouched and no rule or repair flow changes.
+  polish: polishSchema.optional(),
   // Denormalized at compose time; old creatives without it are 4:5. The layer
   // schema above only guards the union of all sizes (1080x1920); this refine
   // is what keeps a creative inside its own platform size.
