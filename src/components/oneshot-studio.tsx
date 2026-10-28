@@ -5,6 +5,7 @@ import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
 import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
+import { ProviderError } from '@/lib/ai/errors';
 import { extractedSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
@@ -46,7 +47,7 @@ export default function OneshotStudio() {
   const [originalBlob, setOriginalBlob] = useState<Blob | null>(null);
   const [currentBlob, setCurrentBlob] = useState<Blob | null>(null);
   const [cutoutBlob, setCutoutBlob] = useState<Blob | null>(null);
-  const [cutoutMethod, setCutoutMethod] = useState<'local' | 'meta-sam' | null>(null);
+  const [cutoutMethod, setCutoutMethod] = useState<'meta-sam' | null>(null);
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [brief, setBrief] = useState('');
@@ -87,12 +88,11 @@ export default function OneshotStudio() {
   const selectedElement = elements.find(item => item.id === selected);
 
   async function runCutout(blob: Blob): Promise<Blob> {
-    let result;
-    if (segmentModel && key) {
-      try { result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, prompt: SAM_PRODUCT_PROMPT }); }
-      catch { result = await cutoutImage(blob, 'local'); }
-    } else result = await cutoutImage(blob, 'local');
-    setCutoutBlob(result.cutoutBlob); setCutoutMethod(result.provider);
+    // SAM-only: a failed or unconfigured SAM cutout is a visible error, never
+    // a silent local fallback — the fallback used to hide every SAM failure.
+    if (!segmentModel || !key) throw new ProviderError(!key ? 'missing_key' : 'sam_unavailable', 400);
+    const result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, prompt: SAM_PRODUCT_PROMPT, signal: AbortSignal.timeout(65000) });
+    setCutoutBlob(result.cutoutBlob); setCutoutMethod('meta-sam');
     setElements(previous => {
       const product = previous.find(item => item.kind === 'product');
       if (product) return previous.map(item => item.kind === 'product' ? { ...item, blob: result.cutoutBlob } : item);
@@ -158,7 +158,11 @@ export default function OneshotStudio() {
   async function toggleEnhance(on: boolean) {
     if (!originalBlob || enhanceBusy) return;
     setEnhanceNote('');
-    if (!on) { setEnhance(false); await runCutout(originalBlob); setCurrentBlob(originalBlob); return; }
+    if (!on) {
+      try { await runCutout(originalBlob); setCurrentBlob(originalBlob); setEnhance(false); }
+      catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+      return;
+    }
     const model = provider.taskModel('image_edit') ?? imageModel;
     if (!model || !key || !consent) return;
     setEnhanceBusy(true); setError('');
@@ -217,7 +221,7 @@ export default function OneshotStudio() {
       <h2>{t.uploadProduct}</h2>
       <input aria-label={t.uploadProduct} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void uploadProduct(file); }} />
       <input aria-label={t.uploadLogo} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void uploadLogo(file); }} />
-      {cutoutMethod && <p>{t.cutoutMethod}: {cutoutMethod === 'meta-sam' ? t.samCutout : t.localCutout}</p>}
+      {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
       <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => setBrand(previous => ({ ...previous, name: event.target.value }))} /></label>
       <label>{t.brandDescription}<textarea value={brand.description} maxLength={500} onChange={event => setBrand(previous => ({ ...previous, description: event.target.value }))} /></label>
       <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] }))} />)}</div>

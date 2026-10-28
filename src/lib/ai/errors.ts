@@ -3,7 +3,7 @@ export const errorCodes = ['missing_key', 'consent', 'invalid_request', 'custom_
   'timeout', 'network', 'cors', 'invalid_response', 'upstream', 'catalog_limit', 'cancelled',
   'storage_error', 'role_capability', 'manual_id', 'manual_ack', 'incomplete_roles',
   'campaign_input', 'product_image', 'product_size', 'product_dimensions', 'unsupported_planner',
-  'plan_invalid', 'plan_blocked', 'plan_truncated', 'image_input', 'image_response', 'image_shape', 'image_model', 'export_error', 'review_input', 'review_invalid', 'review_preview', 'repair_invalid', 'repair_stale', 'repair_assets', 'meta_response','meta_only','unsupported_task','unverified_task'] as const;
+  'plan_invalid', 'plan_blocked', 'plan_truncated', 'image_input', 'image_response', 'image_shape', 'image_model', 'export_error', 'review_input', 'review_invalid', 'review_preview', 'repair_invalid', 'repair_stale', 'repair_assets', 'meta_response','meta_only','unsupported_task','unverified_task','sam_unavailable'] as const;
 export type ErrorCode = typeof errorCodes[number];
 export type ErrorDetails={source:'application'|'meta'|'internal';message?:string;fields?:string[];parameter?:string;upstreamStatus?:number;requestId?:string};
 export class ProviderError extends Error {

@@ -235,7 +235,8 @@
       "meta_response": "Meta did not return a supported smoke response. Check the selected model and account access; no automatic retry ran.",
       "meta_only": "Only Meta is active. Inactive provider records were preserved.",
       "unsupported_task": "Meta explicitly rejected support for this task. Choose another model.",
-      "unverified_task": "Verify this task with the current key/model before using it."
+      "unverified_task": "Verify this task with the current key/model before using it.",
+      "sam_unavailable": "SAM cutout needs a Meta key and the sam-3.1 segment model in Settings. No cutout was applied."
     },
     "connectionFailed": "Action needs attention — see message below",
     "lastSuccess": "Last successful catalog · not a fresh access check",
@@ -1217,7 +1218,6 @@
     "uploadLogo": "Logo (optional)",
     "cutout": "Cut out product",
     "cutoutMethod": "Cutout",
-    "localCutout": "Local cutout in browser",
     "samCutout": "Meta (SAM) cutout",
     "brandName": "Brand name",
     "brandDescription": "Brand description",
