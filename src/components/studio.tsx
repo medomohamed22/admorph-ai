@@ -119,12 +119,14 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const canvasScope = useMemo(() => ({ creativeId: creative?.id }), [creative?.id]);
   const [loaded, setLoaded] = useState<{ scope: object | null; ids: Set<string> }>({ scope: null, ids: new Set() }), [error, setError] = useState<ErrorCode | null>(null);
   const handle = useRef<CanvasHandle | null>(null), abort = useRef<AbortController | null>(null), requestId = useRef(0);
+  const visionWatchdog = useRef<ReturnType<typeof setTimeout> | null>(null), visionRunId = useRef(0);
   const [wide,setWide]=useState(false),[exportNotice,setExportNotice]=useState<{signature:string;text:string}|null>(null);
   useEffect(()=>{const media=window.matchMedia('(min-width:751px)'),update=()=>setWide(media.matches);Promise.resolve().then(update);media.addEventListener('change',update);return()=>media.removeEventListener('change',update);},[]);
   const [markers,setMarkers]=useState(true),[issues,setIssues]=useState<Finding[]>([]),[activeIssue,setActiveIssue]=useState<Finding|null>(null);
   const onReady = useCallback((id: string) => setLoaded(previous => previous.scope === canvasScope ? previous.ids.has(id) ? previous : { scope: canvasScope, ids: new Set([...previous.ids, id]) } : { scope: canvasScope, ids: new Set([id]) }), [canvasScope]);
   useEffect(() => { let alive = true; Promise.all([document.fonts.load('48px Inter'), document.fonts.load('48px Cairo')]).then(() => { if (alive) setFontsReady(true); }); return () => { alive = false; }; }, []);
   useEffect(() => () => { requestId.current++; abort.current?.abort(); }, []);
+  useEffect(() => () => { if (visionWatchdog.current) clearTimeout(visionWatchdog.current); }, []);
   useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) { setBusy(false); setConsent(false); setSelected(null); setError(null); } }); return () => { alive = false; }; }, [campaignId, concept?.id, provider.keyEpoch]);
   useEffect(() => () => { requestId.current++; abort.current?.abort(); }, [campaignId, concept?.id, provider.keyEpoch]);
   const imageModel = provider.taskModel('image');
@@ -139,6 +141,16 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   async function analyzeProduct() {
     if (!product || !visionModel || !visionKey || !consent || visionBusy) return;
     setVisionBusy(true); setVisionNote(''); setError(null);
+    // The fetch below already aborts at 55s, but a promise that never
+    // settles (or post-fetch work that hangs) would still leave the button
+    // stuck on "Analyzing…". This watchdog guarantees recovery with a clear
+    // timeout message even then; the run id keeps a stale timer from
+    // cancelling a newer analysis.
+    const runId = ++visionRunId.current;
+    if (visionWatchdog.current) clearTimeout(visionWatchdog.current);
+    visionWatchdog.current = setTimeout(() => {
+      if (visionRunId.current === runId) { setVisionBusy(false); setError('timeout'); }
+    }, 65000);
     try {
       const data = await blobToBase64(product.blob);
       const response = await metaFetch('vision', '/api/ai/vision-background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -151,7 +163,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       setVisionAnalysis(visionBackgroundAnalysisSchema.parse(await response.json()));
       setSelectedScene(0);
     } catch (cause) { setError(errorCode(cause)); }
-    finally { setVisionBusy(false); }
+    finally { if (visionWatchdog.current) { clearTimeout(visionWatchdog.current); visionWatchdog.current = null; } setVisionBusy(false); }
   }
   /**
    * Product-presence check on a generated background. A failed check (network
@@ -290,6 +302,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
         <section className={`studio-panel ${tab === 'generate' ? 'active' : ''}`} data-panel="generate"><h2>{s.backgroundTitle}</h2><p>{s.backgroundHelp}</p><strong>{imageModel ? `${imageModel.provider} / ${imageModel.modelId}` : s.noImageModel}</strong><p>{imageModel?.imageCapabilityConfirmed ? s.userConfirmed : s.modelHelp}</p><Link href="/settings">{m.campaign.openSettings} ↗</Link>
           <div className="vision-first"><h3>{s.visionTitle}</h3><p>{s.visionHelp}</p>
           <button className="button secondary" disabled={visionBusy || !visionModel || !visionKey || !consent || !approved} onClick={() => void analyzeProduct()}>{visionBusy ? s.visionAnalyzing : s.visionAnalyze}</button>
+          {error && <p className="request-error" role="alert">{m.settings.errors[error]}</p>}
           {!visionModel && <p className="field-help">{s.visionUnavailable}</p>}
           {visionAnalysis && <fieldset><legend>{visionAnalysis.productCategory} · {visionAnalysis.material} · {visionAnalysis.mood}</legend>
             {visionAnalysis.sceneIdeas.map((idea, index) => <label key={index}><input type="radio" name="vision-scene" checked={selectedScene === index} onChange={() => setSelectedScene(index)} /><strong>{idea.scene}</strong> — {idea.setting}<br /><small>{idea.reason}</small></label>)}
