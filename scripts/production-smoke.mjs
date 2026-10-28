@@ -106,7 +106,7 @@ try {
   expect(unsafeCritic.status()).toBe(403);
   const incompleteCritic = await page.request.post(`${base}/api/ai/critic`, { headers: { Origin: base }, data: {} });
   expect(incompleteCritic.status()).toBe(400);
-  for (const path of ['/api/ai/repairs','/api/ai/brand-extract','/api/ai/shift-copy','/api/ai/product-makeover','/api/providers/task-test','/api/providers/meta-smoke']) {
+  for (const path of ['/api/ai/repairs','/api/ai/brand-extract','/api/ai/shift-copy','/api/ai/product-makeover','/api/providers/task-test','/api/providers/meta-smoke','/api/ai/reference','/api/ai/reference-layout']) {
     expect((await page.request.post(`${base}${path}`, { headers: { Origin: 'https://untrusted.test' }, data: {} })).status()).toBe(403);
     expect((await page.request.post(`${base}${path}`, { headers: { Origin: base }, data: {} })).status()).toBe(400);
   }
@@ -155,7 +155,7 @@ try {
   expect(zipBytes.includes(Buffer.from('ad-1.png', 'ascii'))).toBe(true);
   await page.screenshot({ path: 'test-results/production-auto-ads.png', fullPage: true });
   const result = { checkedAtUTC: new Date().toISOString(), base, mode: 'local-production-build',
-    passed: ['home', 'hackathon-en-ar', 'mobile-overflow', 'brand-save-reload', 'campaign-sample-edit-approve-reload-en-ar', 'studio-layers-background-edit-reload-ar-png-1080x1350', 'automatic-critic-real-text-clipping-contrast-unavailable-ar', 'approved-repair-real-before-after-1080x1350', 'repair-reload-undo-redo', 'health', 'missing-key', 'custom-proxy-rejection', 'image-origin-and-consent-guards', 'critic-origin-and-consent-guards', 'repair-and-meta-origin-consent-guards', 'auto-ads-no-key-run-verified-zip'],
+    passed: ['home', 'hackathon-en-ar', 'mobile-overflow', 'brand-save-reload', 'campaign-sample-edit-approve-reload-en-ar', 'studio-layers-background-edit-reload-ar-png-1080x1350', 'automatic-critic-real-text-clipping-contrast-unavailable-ar', 'approved-repair-real-before-after-1080x1350', 'repair-reload-undo-redo', 'health', 'missing-key', 'custom-proxy-rejection', 'image-origin-and-consent-guards', 'critic-origin-and-consent-guards', 'repair-and-meta-origin-consent-guards', 'quality-reference-routes-origin-consent-guards', 'auto-ads-no-key-run-verified-zip'],
     browserErrors: errors, paidApiCalls: false, remoteDeploymentVerified: false };
   await writeFile('test-results/production-smoke.json', JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
 } finally { await browser.close(); }
