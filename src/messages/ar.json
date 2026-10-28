@@ -1247,6 +1247,10 @@
     "uploadHintIcon": "رسمة صغيرة مسطحة تتحط على الكانفاس.",
     "uploadChoose": "اختر ملفًا",
     "uploadChange": "تغيير الملف",
-    "uploadCutting": "جارٍ قص المنتج…"
+    "uploadCutting": "جارٍ قص المنتج…",
+    "brandPick": "اختر براندك",
+    "brandCustom": "براند مخصص",
+    "brandNew": "أنشئ براندًا جديدًا",
+    "editBrand": "تعديل تفاصيل البراند"
   }
 }

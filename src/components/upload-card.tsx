@@ -2,6 +2,7 @@
 import { useRef } from 'react';
 
 type UploadCardProps = {
+  testId?: string;
   title: string;
   hint: string;
   preview?: string | null;
@@ -22,10 +23,10 @@ type UploadCardProps = {
  * with its exact aria-label so automated uploads keep working; the
  * visible button forwards clicks to it.
  */
-export default function UploadCard({ title, hint, preview, state, busyText, chooseText, changeText, inputLabel, accept = 'image/png,image/jpeg,image/webp', disabled, onFile }: UploadCardProps) {
+export default function UploadCard({ testId, title, hint, preview, state, busyText, chooseText, changeText, inputLabel, accept = 'image/png,image/jpeg,image/webp', disabled, onFile }: UploadCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   return (
-    <div className={`upload-card ${state}`}>
+    <div className={`upload-card ${state}`} data-testid={testId}>
       <input
         ref={inputRef}
         type="file"

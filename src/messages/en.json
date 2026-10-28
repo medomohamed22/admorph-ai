@@ -1247,6 +1247,10 @@
     "uploadHintIcon": "A small flat graphic to place on the canvas.",
     "uploadChoose": "Choose a file",
     "uploadChange": "Change file",
-    "uploadCutting": "Cutting out your product…"
+    "uploadCutting": "Cutting out your product…",
+    "brandPick": "Choose your brand",
+    "brandCustom": "Custom brand",
+    "brandNew": "Create a new brand",
+    "editBrand": "Edit brand details"
   }
 }

@@ -36,6 +36,7 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
+  await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   // The consent box only enables once the canvas is ready (cutout decoded,
@@ -97,6 +98,7 @@ test('One-shot enhance shows a success note and a before/after preview', async (
 
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   const consentBox = page.getByLabel('I agree to send this mockup to Meta');
@@ -141,4 +143,38 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
   await expect(page.getByText('SAM returned text but no usable mask for this photo.')).toBeVisible({ timeout: 30000 });
   await expect(page.getByTestId('oneshot-canvas')).toHaveCount(0);
   expect(errors).toEqual([]);
+});
+
+test('brand picker fills identity and logo from a saved brand kit', async ({ page }) => {
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  const brandId = await page.evaluate(async () => {
+    const blob = await (await fetch('/demo/sora-product.png')).blob();
+    const brandId = crypto.randomUUID();
+    const assetId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open('admorph-local-v1');
+      open.onerror = () => reject(new Error('db open failed'));
+      open.onblocked = () => reject(new Error('db blocked'));
+      open.onsuccess = () => {
+        const db = open.result, tx = db.transaction(['assets', 'brands'], 'readwrite');
+        tx.objectStore('assets').put({ id: assetId, kind: 'logo', blob, createdAt: now });
+        tx.objectStore('brands').put({ id: brandId, name: 'Picker Brand', description: 'Picked from the kit.', colors: ['#111111', '#eeeeee', '#336699'], logoAssetId: assetId, createdAt: now, updatedAt: now });
+        tx.oncomplete = () => { db.close(); resolve(); };
+        tx.onerror = () => { db.close(); reject(new Error('seed failed')); };
+        tx.onabort = () => { db.close(); reject(new Error('seed aborted')); };
+      };
+    });
+    return brandId;
+  });
+  await page.goto('/oneshot');
+  await page.getByLabel('Choose your brand').selectOption(brandId);
+  await page.getByText('Edit brand details', { exact: true }).click();
+  await expect(page.getByLabel('Brand name')).toHaveValue('Picker Brand');
+  await expect(page.getByLabel('Brand description')).toHaveValue('Picked from the kit.');
+  await expect(page.getByLabel('color-1')).toHaveValue('#111111');
+  await expect(page.getByLabel('color-2')).toHaveValue('#eeeeee');
+  await expect(page.getByLabel('color-3')).toHaveValue('#336699');
+  await expect(page.getByTestId('upload-card-logo').locator('img')).toBeVisible();
 });
