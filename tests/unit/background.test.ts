@@ -67,6 +67,7 @@ describe('background brief', () => {
       'no watermark',
       'no people',
       'no objects cropped by the frame edges',
+      'no scattered piles of props',
     ]);
   });
 
@@ -99,6 +100,8 @@ describe('background brief', () => {
     expect(prompt).toContain('x 200–880');
     expect(prompt).toContain('clear surface');
     expect(prompt).toContain('cropped by the frame edges');
+    expect(prompt).toContain('minimal and uncluttered');
+    expect(prompt).toContain('must contrast with the product');
     expect(prompt).not.toContain('data:image');
     expect(prompt).not.toContain('base64');
   });

@@ -7,6 +7,20 @@
 // only soften the product.
 
 import type { EditableLayer } from './schema';
+import { fitContain } from './fit';
+
+/** The product's actually-visible rect: the layer box contain-fits the
+ * photo, so a tall can in a wide box leaves transparent margins. Shadow
+ * and reflection must hug the visible can, not the wide layer box — the
+ * old layer-box math made the shadow nearly twice as wide as the can and
+ * left it floating below the can's true bottom edge. */
+export function visibleProductBox(
+  product: Pick<EditableLayer, 'x' | 'y' | 'width' | 'height'>,
+  imageSize: { width: number; height: number },
+): { x: number; y: number; width: number; height: number } {
+  const fitted = fitContain({ width: product.width, height: product.height }, imageSize.width, imageSize.height);
+  return { x: product.x + fitted.x, y: product.y + fitted.y, width: fitted.width, height: fitted.height };
+}
 
 export type PolishSettings = { shadow: boolean; reflection: boolean; grade: string | null };
 
