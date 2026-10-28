@@ -10,13 +10,16 @@ export function compose(campaign: Campaign, concept: EditableConcept, productId:
   const base = { fontFamily, fontSize: 48, visible: true, assetId: null, color: '#18251b', fill: campaign.brandSnapshot.colors[1], text: '' } as const;
   const layer = (kind: EditableLayer['kind'], x: number, y: number, width: number, height: number, patch: Partial<EditableLayer> = {}): EditableLayer => ({ ...base, id: crypto.randomUUID(), kind, x, y, width, height, ...patch });
   const ctaPair = ctaBrandPair(campaign.brandSnapshot.colors);
+  // The extracted wordmark weight carries into the brand and headline
+  // layers; the CTA keeps normal weight so its capsule metrics stay put.
+  const wordmarkStyle = campaign.brandSnapshot.wordmarkBold ? 'bold' as const : 'normal' as const;
   const now = new Date().toISOString();
   const creative: Creative = { id: crypto.randomUUID(), campaignId: campaign.id, conceptId: concept.id, inputRevision: campaign.inputRevision,
     caption: concept.caption, source: 'composition', model: null, createdAt: now, updatedAt: now, format: campaign.format,
     layers: [layer('background', 0, 0, 1080, 1350),
-      layer('brand', 75, 60, 700, 90, { text: campaign.brandSnapshot.name, fontSize: 44, fill: 'transparent' }),
+      layer('brand', 75, 60, 700, 90, { text: campaign.brandSnapshot.name, fontSize: 44, fill: 'transparent', fontStyle: wordmarkStyle }),
       ...(logoId ? [layer('logo', 850, 55, 150, 120, { assetId: logoId })] : []),
-      layer('headline', 75, 205, 930, 265, { text: concept.headline, fontSize: 76, fill: 'transparent' }),
+      layer('headline', 75, 205, 930, 265, { text: concept.headline, fontSize: 76, fill: 'transparent', fontStyle: wordmarkStyle }),
       layer('product', 220, 510, 640, 590, { assetId: productId }),
       layer('cta', 180, 1180, 720, 100, { text: concept.ctaText ?? (campaign.creativeLanguage === 'ar' ? 'اكتشف المزيد' : 'Discover more'), fontSize: 38, color: ctaPair.color, fill: ctaPair.fill }),
     ] };

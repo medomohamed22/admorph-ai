@@ -78,7 +78,7 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
           group.setAttrs({ x: item.x, y: item.y, width: item.width, height: item.height, clipWidth: item.width, clipHeight: item.height, visible: item.visible, opacity:item.opacity??1, scaleX: 1, scaleY: 1 }); group.zIndex(index);
           group.getChildren().forEach(child => {
             if (child.getClassName() === 'Rect') child.setAttrs({ width: item.width, height: item.height, fill: ['background', 'brand', 'headline', 'cta'].includes(item.kind) ? item.fill : 'rgba(0,0,0,0)' });
-            if (child.getClassName() === 'Text') child.setAttrs({ width: item.width, height: item.height, text: item.text, fontFamily: item.fontFamily, fontSize: item.fontSize, fill: item.color });
+            if (child.getClassName() === 'Text') child.setAttrs({ width: item.width, height: item.height, text: item.text, fontFamily: item.fontFamily, fontStyle: item.fontStyle ?? 'normal', fontSize: item.fontSize, fill: item.color });
             if (child.getClassName() === 'Image') {
               const image = (child as Konva.Image).image() as HTMLImageElement;
               const ratio = item.kind === 'background' ? Math.max(item.width / image.width, item.height / image.height) : Math.min(item.width / image.width, item.height / image.height);
@@ -94,7 +94,7 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
         const group = stage.current?.findOne(`#${item.id}`) as Konva.Group | undefined;
         const node = group?.getChildren().find(child => child.getClassName() === 'Text') as Konva.Text | undefined;
         if (!node) continue;
-        const measured = node.clone({ height: 'auto', width: item.width, text: item.text, fontSize: item.fontSize, fontFamily: item.fontFamily }) as Konva.Text;
+        const measured = node.clone({ height: 'auto', width: item.width, text: item.text, fontSize: item.fontSize, fontFamily: item.fontFamily, fontStyle: item.fontStyle ?? 'normal' }) as Konva.Text;
         const drawn = measured.textArr.map(line => line.text).join('').replace(/\s/g, '');
         metrics[item.id] = { neededHeight: measured.height(), unrenderable: drawn.length < item.text.replace(/\s/g, '').length };
         measured.destroy();
@@ -124,7 +124,7 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
         onTransformEnd={event => { const node = event.target; const safe = clampLayer(layer, { x: node.x(), y: node.y(), width: layer.width * node.scaleX(), height: layer.height * node.scaleY() }, dimensions); node.setAttrs({ x: safe.x, y: safe.y, width: safe.width, height: safe.height, scaleX: 1, scaleY: 1 }); patch(layer.id, safe); }}>
         <Rect width={layer.width} height={layer.height} fill={['background', 'cta', 'headline', 'brand'].includes(layer.kind) ? layer.fill : 'rgba(0,0,0,0)'} cornerRadius={layer.kind === 'cta' ? 24 : 0} preventDefault={layer.kind !== 'background'}/>
         {asset ? <Raster blob={asset.blob} id={asset.id} width={layer.width} height={layer.height} cover={layer.kind === 'background'} onReady={onReady}/> : null}
-        {['headline', 'brand', 'cta'].includes(layer.kind) && <Text text={layer.text} width={layer.width} height={layer.height} padding={layer.kind === 'cta' ? 15 : 8} fill={layer.color} fontFamily={layer.fontFamily} fontSize={layer.fontSize} lineHeight={1.2} align={layer.kind === 'cta' ? 'center' : resolveLayerDirection(layer) === 'rtl' ? 'right' : 'left'} verticalAlign="middle" wrap="word" direction={resolveLayerDirection(layer)}/>}
+        {['headline', 'brand', 'cta'].includes(layer.kind) && <Text text={layer.text} width={layer.width} height={layer.height} padding={layer.kind === 'cta' ? 15 : 8} fill={layer.color} fontFamily={layer.fontFamily} fontStyle={layer.fontStyle ?? 'normal'} fontSize={layer.fontSize} lineHeight={1.2} align={layer.kind === 'cta' ? 'center' : resolveLayerDirection(layer) === 'rtl' ? 'right' : 'left'} verticalAlign="middle" wrap="word" direction={resolveLayerDirection(layer)}/>}
       </Group>;
       if (layer.kind === 'background' && polish?.grade) return [group, <Rect key="polish-grade" name="polish" x={0} y={0} width={dimensions.width} height={dimensions.height} fill={polish.grade} opacity={0.14} listening={false}/>];
       if (layer.kind === 'product') return [

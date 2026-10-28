@@ -7,7 +7,7 @@ export const brandInputSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().min(1).max(500),
   colors: z.tuple([hexSchema, hexSchema, hexSchema]),
-  logoPlacement:logoPlacementSchema.optional(),logoAspectRatio:z.number().positive().max(1000).optional(),brandTone:z.string().max(120).optional(),shortDescriptionEn:z.string().max(500).optional(),shortDescriptionAr:z.string().max(500).optional(),recommendedFontEn:z.literal('Inter').optional(),recommendedFontAr:z.literal('Cairo').optional(),
+  logoPlacement:logoPlacementSchema.optional(),logoAspectRatio:z.number().positive().max(1000).optional(),brandTone:z.string().max(120).optional(),shortDescriptionEn:z.string().max(500).optional(),shortDescriptionAr:z.string().max(500).optional(),recommendedFontEn:z.literal('Inter').optional(),recommendedFontAr:z.literal('Cairo').optional(),wordmarkStyle:z.string().max(200).optional(),wordmarkBold:z.boolean().optional(),
 }).strict();
 export type BrandInput = z.infer<typeof brandInputSchema>;
 export const brandSchema = brandInputSchema.extend({
