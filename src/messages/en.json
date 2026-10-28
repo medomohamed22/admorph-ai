@@ -638,7 +638,8 @@
     "bgReviewResized": "Product enlarged to fit the scene.",
     "bgReviewTextFixed": "Text color adjusted to the lightest brand color for readability (undoable).",
     "bgReviewGrade": "Lighten background grade",
-    "bgReviewFailed": "The background review could not run on this image, so no contrast verdict is shown."
+    "bgReviewFailed": "The background review could not run on this image, so no contrast verdict is shown.",
+    "bgReviewIntegrated": "Integration polish applied automatically (contact shadow + reflection, undoable)."
   },
   "critic": {
     "open": "Review design",

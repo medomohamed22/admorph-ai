@@ -63,7 +63,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const [selectedScene, setSelectedScene] = useState(0);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionNote, setVisionNote] = useState('');
-  type BackgroundReview = { productRatio: number | null; textLow: { id: string; ratio: number }[]; resized: boolean; textFixed: boolean; failed?: boolean };
+  type BackgroundReview = { productRatio: number | null; textLow: { id: string; ratio: number }[]; resized: boolean; textFixed: boolean; failed?: boolean; integrated?: boolean };
   const [bgReview, setBgReview] = useState<BackgroundReview | null>(null);
   async function runCutout(mode: 'sam' | 'local') {
     if (!creative || !product || cutoutState === 'cutting') return;
@@ -218,13 +218,14 @@ export default function Studio({ campaignId }: { campaignId: string }) {
    * Post-background review, run right after a background is applied. It
    * measures real pixels (not text-box fills): product vs surrounding
    * background, and each transparent-fill text layer vs the background
-   * behind it. Two fixes apply automatically in one undoable update: the
-   * product layer follows the vision scale rect, and unreadable text moves
-   * to the lightest brand color. Any decode failure still shows the box
+   * behind it. Three fixes apply automatically in one undoable update: the
+   * product layer follows the vision scale rect, unreadable text moves
+   * to the lightest brand color, and contact shadow + reflection ground
+   * the product on the new background. Any decode failure still shows the box
    * with an unavailable note instead of vanishing silently — generation
    * already succeeded, and the review must never block it.
    */
-  async function reviewBackground(blob: Blob, fresh: Creative, scale: VisionBackgroundAnalysis['productScale'] | undefined) {
+  async function reviewBackground(blob: Blob, fresh: Creative, scale: VisionBackgroundAnalysis['productScale'] | undefined, assets: Asset[]) {
     if (!campaign) return;
     try {
       const dims = dimensionsFor(fresh.format);
@@ -258,8 +259,13 @@ export default function Studio({ campaignId }: { campaignId: string }) {
         next = { ...next, layers: next.layers.map(item => textLow.some(t => t.id === item.id) ? { ...item, color: lightest } : item) };
         textFixed = true;
       }
-      if (resized || textFixed) studio.update(next);
-      setBgReview({ productRatio, textLow, resized, textFixed });
+      // Integration polish is automatic, not another step: a fresh
+      // background grounds the product with a contact shadow and a
+      // reflection unless the user already set them.
+      const integrated = !fresh.polish?.shadow || !fresh.polish?.reflection;
+      if (integrated) next = { ...next, polish: { shadow: true, reflection: true, grade: fresh.polish?.grade ?? null } };
+      if (resized || textFixed || integrated) studio.update(next, assets);
+      setBgReview({ productRatio, textLow, resized, textFixed, integrated });
     } catch { /* fail-open: the box still appears, saying the review could not run */ setBgReview({ productRatio: null, textLow: [], resized: false, textFixed: false, failed: true }); }
   }
   async function generate() {
@@ -296,7 +302,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
         }
       }
       if (blocked) { setVisionNote(s.visionProductFound); return; }
-      if (requestId.current === id && !controller.signal.aborted && blob) { const applied = studio.background(blob, 'meta', imageModel); setConsent(false); if (applied) void reviewBackground(blob, applied, brief?.productScale); }
+      if (requestId.current === id && !controller.signal.aborted && blob) { const applied = studio.background(blob, 'meta', imageModel); setConsent(false); if (applied) void reviewBackground(blob, applied.creative, brief?.productScale, applied.assets); }
     } catch (cause) { if (requestId.current === id) setError(controller.signal.aborted ? 'cancelled' : errorCode(cause)); }
     finally { if (requestId.current === id) { setBusy(false); abort.current = null; } }
   }
@@ -346,7 +352,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     setError(null); setBgReview(null); const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
     const ctx = canvas.getContext('2d')!;
     paintLocalBackground(ctx, campaign.brandSnapshot.colors);
-    canvas.toBlob(blob => { if (blob) { const applied = studio.background(blob, 'local', null); if (applied) void reviewBackground(blob, applied, undefined); } }, 'image/png');
+    canvas.toBlob(blob => { if (blob) { const applied = studio.background(blob, 'local', null); if (applied) void reviewBackground(blob, applied.creative, undefined, applied.assets); } }, 'image/png');
   }
   async function download() {
     setError(null);
@@ -393,11 +399,12 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); requestId.current++; setBusy(false); setError('cancelled'); }}>{m.campaign.cancel}</button>}
           {bgReview && <div className="background-review" data-testid="background-review"><h3>{s.bgReviewTitle}</h3>
             {bgReview.failed && <p>{s.bgReviewFailed}</p>}
-            {!bgReview.failed && (bgReview.productRatio === null && bgReview.textLow.length === 0 && !bgReview.resized && !bgReview.textFixed ? <p>{s.bgReviewOk}</p> : <>
+            {!bgReview.failed && (bgReview.productRatio === null && bgReview.textLow.length === 0 && !bgReview.resized && !bgReview.textFixed && !bgReview.integrated ? <p>{s.bgReviewOk}</p> : <>
               {bgReview.productRatio !== null && <p>{bgReview.productRatio >= PRODUCT_CONTRAST_MIN ? s.bgReviewProductOk.replace('{ratio}', bgReview.productRatio.toFixed(2)) : s.bgReviewProductLow.replace('{ratio}', bgReview.productRatio.toFixed(2))}</p>}
               {bgReview.textLow.length > 0 && <p>{s.bgReviewTextLow.replace('{ratio}', Math.min(...bgReview.textLow.map(t => t.ratio)).toFixed(2))}</p>}
               {bgReview.resized && <p>{s.bgReviewResized}</p>}
               {bgReview.textFixed && <p>{s.bgReviewTextFixed}</p>}
+              {bgReview.integrated && <p>{s.bgReviewIntegrated}</p>}
               {bgReview.productRatio !== null && bgReview.productRatio < PRODUCT_CONTRAST_MIN && <button className="button secondary" onClick={() => { if (!creative || !campaign) return; const lightest = lightestBrandColor(campaign.brandSnapshot.colors); studio.update({ ...creative, polish: { shadow: creative.polish?.shadow ?? false, reflection: creative.polish?.reflection ?? false, grade: lightest } }); }}>{s.bgReviewGrade}</button>}
             </>)}
           </div>}

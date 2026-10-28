@@ -51,5 +51,15 @@ test('Meta background without vision shows the review box, and the reference hin
   const review = page.getByTestId('background-review');
   await expect(review).toBeVisible({ timeout: 30000 });
   await expect(review).toContainText('Background review');
+  await expect(review).toContainText('Integration polish applied automatically');
+  // The integration polish must survive the debounced save, not just the render.
+  await expect(page.getByTestId('studio-save')).toHaveText('Saved in this browser');
+  const polish = await page.evaluate(() => new Promise<{ shadow: boolean; reflection: boolean } | null>((resolve) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => resolve(null);
+    open.onsuccess = () => { const db = open.result; const tx = db.transaction('creatives'); const req = tx.objectStore('creatives').getAll(); req.onsuccess = () => { const rows = req.result as { polish?: { shadow: boolean; reflection: boolean } }[]; const hit = rows.find((row) => row.polish); resolve(hit ? hit.polish! : null); }; tx.oncomplete = () => db.close(); };
+  }));
+  expect(polish?.shadow).toBe(true);
+  expect(polish?.reflection).toBe(true);
   expect(errors).toEqual([]);
 });
