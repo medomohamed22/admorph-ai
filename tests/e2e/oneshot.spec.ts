@@ -110,3 +110,35 @@ test('One-shot enhance shows a success note and a before/after preview', async (
   await expect(page.getByTestId('oneshot-enhance-compare').getByRole('img')).toHaveCount(2);
   expect(errors).toEqual([]);
 });
+
+test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic error', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
+
+  // SAM answers but with zero masks: the page must show the precise
+  // no-mask diagnosis instead of a generic provider error.
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await expect(page.getByText('SAM returned text but no usable mask for this photo.')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByTestId('oneshot-canvas')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
