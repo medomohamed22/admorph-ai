@@ -12,9 +12,11 @@ import { cutoutImage } from '@/lib/cutout/provider';
 import { findCutoutAsset } from '@/lib/cutout/provenance';
 import { blobToBase64 } from '@/lib/cutout/raster';
 import { buildVisionBrief, withStrictNegatives, visionBackgroundAnalysisSchema, checkBackgroundSchema, type VisionBackgroundAnalysis, type CheckBackgroundResult } from '@/lib/background/brief';
+import { useObjectUrl } from './logo';
 import { resolveLayerDirection } from '@/lib/editor/direction';
 import { dimensionsFor } from '@/lib/editor/sizes';
 import { applyTemplate, TEMPLATE_IDS, type TemplateId } from '@/lib/editor/templates';
+import { referenceLayoutSchema, type ReferenceLayout } from '@/lib/ai/reference';
 import { getDatabase } from '@/lib/db/dexie';
 import type { Asset } from '@/lib/db/schema';
 import { useProviderSession } from './provider-session';
@@ -113,6 +115,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const [selected, setSelected] = useState<string | null>(null), [zoom, setZoom] = useState(1);
   const [tab, setTab] = useState<'layers' | 'edit' | 'generate' | 'review' | 'export'>('edit');
   const [consent, setConsent] = useState(false), [busy, setBusy] = useState(false), [fontsReady, setFontsReady] = useState(false);
+  const [referenceBusy, setReferenceBusy] = useState(false), [layoutBusy, setLayoutBusy] = useState(false), [referenceLayout, setReferenceLayout] = useState<ReferenceLayout | null>(null);
   const canvasScope = useMemo(() => ({ creativeId: creative?.id }), [creative?.id]);
   const [loaded, setLoaded] = useState<{ scope: object | null; ids: Set<string> }>({ scope: null, ids: new Set() }), [error, setError] = useState<ErrorCode | null>(null);
   const handle = useRef<CanvasHandle | null>(null), abort = useRef<AbortController | null>(null), requestId = useRef(0);
@@ -128,6 +131,8 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const imageReady = imageModel?.provider === 'meta' ;
   const key = imageModel ? provider.configs[imageModel.provider].apiKey.trim() : '';
   const layer = creative?.layers.find(item => item.id === selected) ?? creative?.layers.find(item => item.kind === 'headline');
+  const referenceAsset = creative?.referenceAssetId ? studio.assets.find(item => item.id === creative.referenceAssetId) : undefined;
+  const referenceUrl = useObjectUrl(referenceAsset?.blob ?? null);
   const ready = fontsReady && !!creative && creative.layers.filter(item => item.visible && item.assetId).every(item => loaded.scope === canvasScope && loaded.ids.has(item.assetId!));
   useEffect(()=>{let alive=true;Promise.resolve().then(()=>{if(alive&&ready&&creative&&handle.current)setIssues(checkCreative(creative,handle.current.measureText(),new Set(studio.assets.map(asset=>asset.id)),dimensionsFor(creative.format)).issues);});return()=>{alive=false;};},[creative,ready,studio.assets]);
   /** Vision-first step: analyze the product photo into scene ideas. */
@@ -202,6 +207,47 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     } catch (cause) { if (requestId.current === id) setError(controller.signal.aborted ? 'cancelled' : errorCode(cause)); }
     finally { if (requestId.current === id) { setBusy(false); abort.current = null; } }
   }
+  /** Reference image: a full AI render as a style target only — never a layer, never exported. */
+  async function generateReference() {
+    if (!creative || !campaign || !concept || !approved || !imageReady || !imageModel || !key || !consent || busy || referenceBusy || !product) return;
+    setReferenceBusy(true); setError(null);
+    try {
+      const data = await blobToBase64(product.blob);
+      const response = await metaFetch('image', '/api/ai/reference', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true,
+          image: { mimeType: product.blob.type, data }, brand: campaign.brandSnapshot, headline: concept.headline,
+          visualDirection: concept.visualDirection, scene: visionAnalysis?.sceneIdeas[selectedScene]?.scene }),
+        signal: AbortSignal.timeout(55000), cache: 'no-store' });
+      if (!response.ok) {
+        const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
+        throw new ProviderError(body.error?.code && body.error.code in m.settings.errors ? body.error.code : 'image_response', response.status);
+      }
+      const candidate = await response.blob();
+      if (!['image/png', 'image/jpeg', 'image/webp'].includes(candidate.type) || candidate.size > 3 * 1024 * 1024) throw new ProviderError('image_response');
+      const url = URL.createObjectURL(candidate);
+      try { const image = new Image(); image.src = url; await image.decode(); if (image.width > 4096 || image.height > 4096) throw new ProviderError('image_response'); }
+      finally { URL.revokeObjectURL(url); }
+      studio.setReference(candidate); setReferenceLayout(null); setConsent(false);
+    } catch (cause) { setError(errorCode(cause)); }
+    finally { setReferenceBusy(false); }
+  }
+  /** Layout hints: vision reads the reference zones and suggests the closest template; applying is the user's call. */
+  async function analyzeReferenceLayout() {
+    if (!creative || !referenceAsset || !visionModel || !visionKey || !consent || layoutBusy) return;
+    setLayoutBusy(true); setError(null);
+    try {
+      const data = await blobToBase64(referenceAsset.blob);
+      const response = await metaFetch('vision', '/api/ai/reference-layout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: referenceAsset.blob.type, data } }),
+        signal: AbortSignal.timeout(55000), cache: 'no-store' });
+      if (!response.ok) {
+        const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
+        throw new ProviderError(body.error?.code && body.error.code in m.settings.errors ? body.error.code : 'image_response', response.status);
+      }
+      setReferenceLayout(referenceLayoutSchema.parse(await response.json()));
+    } catch (cause) { setError(errorCode(cause)); }
+    finally { setLayoutBusy(false); }
+  }
   function localBackground() {
     if (!creative || !campaign || busy) return;
     setError(null); const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
@@ -251,6 +297,16 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           {visionNote && <p role="status">{visionNote}</p>}</div>
           <label className="studio-consent"><input type="checkbox" checked={consent} disabled={busy || !approved || !imageReady || !key} onChange={event => setConsent(event.target.checked)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{s.consent}</p></details><p>{s.billing}</p><button className="button primary" disabled={busy || !approved || !imageReady || !key || !consent} onClick={() => void generate()}>{busy ? s.generating : s.generate}</button>
           {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); requestId.current++; setBusy(false); setError('cancelled'); }}>{m.campaign.cancel}</button>}
+          <div className="reference-block"><h3>{s.referenceTitle}</h3><p>{s.referenceHelp}</p>
+          <button className="button secondary" disabled={referenceBusy || busy || !approved || !imageReady || !key || !consent || !product} onClick={() => void generateReference()}>{referenceBusy ? s.referenceGenerating : s.referenceGenerate}</button>
+          {referenceAsset && referenceUrl && <div className="reference-side">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={referenceUrl} alt={s.referenceAlt} className="reference-image"/>
+            <p>{s.referenceOnly}</p>
+            <button className="button secondary" disabled={layoutBusy || !visionModel || !visionKey || !consent} onClick={() => void analyzeReferenceLayout()}>{layoutBusy ? s.referenceAnalyzing : s.referenceAnalyze}</button>
+            <button className="text-button" onClick={() => { studio.update({ ...creative, referenceAssetId: null }); setReferenceLayout(null); }}>{s.referenceClear}</button>
+            {referenceLayout && <div className="reference-layout"><p>{s.referenceZones.replace('{product}', s.referenceZoneNames[referenceLayout.productZone]).replace('{headline}', s.referenceZoneNames[referenceLayout.headlineZone]).replace('{cta}', s.referenceZoneNames[referenceLayout.ctaZone])}</p><p>{referenceLayout.notes}</p><p>{s.referenceTemplate.replace('{template}', s.templates[referenceLayout.suggestedTemplate])}</p><button className="button primary" onClick={() => studio.update({ ...creative, layers: applyTemplate(creative.layers, referenceLayout.suggestedTemplate, dimensions) })}>{s.referenceApply}</button></div>}
+          </div>}</div>
           <ProductMakeover/><div className="local-plan"><h3>{s.localTitle}</h3><p>{s.localHelp}</p><button className="button secondary" disabled={busy} onClick={localBackground}>{s.localButton}</button></div>
         </section><section className={`studio-panel ${tab === 'export' ? 'active' : ''}`} data-panel="export"><h2>{s.exportTitle}</h2><p>{s.exportHelp}</p><button className="button primary" disabled={!ready} onClick={download}>{s.download} ↗</button><label htmlFor="creative-caption">{m.campaign.fields.caption}</label><textarea id="creative-caption" disabled={busy} rows={5} maxLength={1200} value={creative.caption} dir={campaign.creativeLanguage === 'ar' ? 'rtl' : 'ltr'} onChange={event => studio.update({ ...creative, caption: event.target.value })}/><p>{s.reviewLater}</p></section>
         <CriticPanel onFix={setActiveIssue} key={creative.id} creative={creative} creativeLanguage={campaign.creativeLanguage} assets={studio.assets} handleRef={handle} ready={ready} fontsReady={fontsReady} active={tab === 'review'} selectLayer={id => { setSelected(id); setTab('edit'); }}/>

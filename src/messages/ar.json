@@ -607,7 +607,26 @@
       "hero-center": "بطل في المنتصف",
       "split": "مقسّم",
       "minimal": "بسيط"
-    }
+    },
+    "referenceTitle": "صورة مرجعية",
+    "referenceHelp": "ولّد إعلانًا كاملًا بالذكاء الاصطناعي كهدف أسلوب فقط — لا يُصدَّر أبدًا ولا يدخل طبقات التصميم. بعدها حلّل تركيبه وطبّق أقرب قالب بموافقتك.",
+    "referenceGenerate": "ولّد صورة مرجعية",
+    "referenceGenerating": "جارٍ توليد المرجع…",
+    "referenceAlt": "صورة مرجعية مولدة بالذكاء الاصطناعي",
+    "referenceOnly": "مرجع فقط — لا يُصدَّر ولا يُستخدم كمنتج.",
+    "referenceAnalyze": "حلّل التركيب",
+    "referenceAnalyzing": "جارٍ تحليل التركيب…",
+    "referenceClear": "أزل المرجع",
+    "referenceZones": "المنتج: {product} · العنوان: {headline} · زر الإجراء: {cta}",
+    "referenceZoneNames": {
+      "center": "المنتصف",
+      "left": "اليسار",
+      "right": "اليمين",
+      "top": "الأعلى",
+      "bottom": "الأسفل"
+    },
+    "referenceTemplate": "أقرب قالب: {template}",
+    "referenceApply": "طبّق القالب"
   },
   "critic": {
     "open": "راجع التصميم",

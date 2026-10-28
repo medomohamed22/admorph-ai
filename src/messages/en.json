@@ -607,7 +607,26 @@
       "hero-center": "Hero center",
       "split": "Split",
       "minimal": "Minimal"
-    }
+    },
+    "referenceTitle": "Reference image",
+    "referenceHelp": "Generate a full AI ad as a style target only — never exported, never a layer. Then analyze its layout and apply the closest template with your approval.",
+    "referenceGenerate": "Generate reference",
+    "referenceGenerating": "Generating reference…",
+    "referenceAlt": "AI-generated reference image",
+    "referenceOnly": "Reference only — never exported, never used as the product.",
+    "referenceAnalyze": "Analyze layout",
+    "referenceAnalyzing": "Analyzing layout…",
+    "referenceClear": "Remove reference",
+    "referenceZones": "Product: {product} · Headline: {headline} · CTA: {cta}",
+    "referenceZoneNames": {
+      "center": "Center",
+      "left": "Left",
+      "right": "Right",
+      "top": "Top",
+      "bottom": "Bottom"
+    },
+    "referenceTemplate": "Closest template: {template}",
+    "referenceApply": "Apply template"
   },
   "critic": {
     "open": "Review design",

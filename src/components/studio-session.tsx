@@ -98,6 +98,12 @@ function useStudioState() {
     update({ ...creative, layers: creative.layers.map(item => item.kind === 'product' ? { ...item, assetId: asset.id } : item) }, [...assets, asset]);
     return true;
   }
+  /** Save an AI reference image: recorded on the creative, never a layer. */
+  function setReference(blob: Blob) {
+    if (!creative) return;
+    const asset: Asset = { id: crypto.randomUUID(), kind: 'reference', blob, createdAt: new Date().toISOString() };
+    update({ ...creative, referenceAssetId: asset.id }, [...assets, asset]);
+  }
   function undo() { const last = history.at(-1); if (!creative || !last) return; setHistory(history.slice(0, -1)); setFuture([creative, ...future]); update(last, assets, false); }
   function redo() { const next = future[0]; if (!creative || !next) return; setHistory([...history, creative]); setFuture(future.slice(1)); update(next, assets, false); }
   async function applyRepair(record: RepairReceipt) {
@@ -115,7 +121,7 @@ function useStudioState() {
     if (!current || fingerprint(current.creative) !== expected) return false;
     update(snapshot, current.assets); return true;
   }
-  return { creative, assets, saveState, open, patch, update, background, replaceProductLayer, undo, redo, canUndo: !!history.length, canRedo: !!future.length,
+  return { creative, assets, saveState, open, patch, update, background, replaceProductLayer, setReference, undo, redo, canUndo: !!history.length, canRedo: !!future.length,
     applyRepair, restoreRepair, listSet, restoreSet, prepareSet, flush: () => creative ? persist(creative, assets, version.current) : Promise.resolve(false) };
 }
 const StudioContext = createContext<ReturnType<typeof useStudioState> | null>(null);
