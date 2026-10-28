@@ -12,7 +12,7 @@ import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { cutoutBottomRoughness } from '@/lib/cutout/quality';
 import { findCutoutAsset } from '@/lib/cutout/provenance';
 import { blobToBase64 } from '@/lib/cutout/raster';
-import { buildVisionBrief, withStrictNegatives, visionBackgroundAnalysisSchema, checkBackgroundSchema, SCALE_GEOMETRY, type VisionBackgroundAnalysis, type CheckBackgroundResult } from '@/lib/background/brief';
+import { buildVisionBrief, withStrictNegatives, visionBackgroundAnalysisSchema, checkBackgroundSchema, dominantColors, SCALE_GEOMETRY, type VisionBackgroundAnalysis, type CheckBackgroundResult } from '@/lib/background/brief';
 import { useObjectUrl } from './logo';
 import { resolveLayerDirection } from '@/lib/editor/direction';
 import { dimensionsFor } from '@/lib/editor/sizes';
@@ -283,7 +283,8 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   /**
    * Product-presence check on a generated background. A failed check (network
    * or upstream error) returns null and never blocks generation; a positive
-   * check blocks the background and triggers one strict regeneration.
+   * check — a product, or a raised platform the product would stand on —
+   * blocks the background and triggers one strict regeneration.
    */
   async function checkBackground(blob: Blob): Promise<CheckBackgroundResult | null> {
     if (!visionModel || !visionKey) return null;
@@ -378,9 +379,24 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     if (!creative || !campaign || !concept || !approved || !imageReady || !imageModel || !key || !consent || busy) return;
     const id = ++requestId.current; const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null); setVisionNote(''); setBgReview(null);
     try {
-      const brief = visionAnalysis ? buildVisionBrief(visionAnalysis, selectedScene, campaign.brandSnapshot.colors) : undefined;
+      // The background model never sees product pixels, so the brief
+      // carries the cutout's measured colors for harmony. Only the cutout
+      // counts: the raw photo's backdrop would pollute the measurement.
+      // Fail-open: colors are an enhancement, never a reason to block.
+      let productColors: string[] | undefined;
+      try {
+        const productLayer = creative.layers.find(item => item.kind === 'product' && item.visible);
+        const productAsset = productLayer?.assetId ? studio.assets.find(item => item.id === productLayer.assetId) : undefined;
+        if (productAsset?.kind === 'cutout') {
+          const image = await decodeImage(productAsset.blob);
+          const rgba = drawToRgba(image, image.naturalWidth, image.naturalHeight);
+          productColors = dominantColors(rgba.data, rgba.width, rgba.height, 3);
+        }
+      } catch { /* no colors: the brief still carries the brand palette */ }
+      const brief = visionAnalysis ? buildVisionBrief(visionAnalysis, selectedScene, campaign.brandSnapshot.colors, productColors) : undefined;
       let blob: Blob | null = null;
       let blocked = false;
+      let blockedByPlatform = false;
       for (let attempt = 0; attempt < 2 && !blob && !blocked; attempt++) {
         const attemptBrief = attempt === 0 ? brief : brief ? withStrictNegatives(brief) : undefined;
         const response = await metaFetch('image', '/api/ai/background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -398,16 +414,17 @@ export default function Studio({ campaignId }: { campaignId: string }) {
         try { const image = new Image(); image.src = url; await image.decode(); if (image.width > 4096 || image.height > 4096) throw new ProviderError('image_response'); }
         finally { URL.revokeObjectURL(url); }
         const check = await checkBackground(candidate);
-        if (check?.hasProduct) {
+        if (check?.hasProduct || check?.hasPlatform) {
           // Vision path: one strict regeneration. Legacy path (no brief):
           // no stronger prompt exists, so block and let the user pick a scene.
           if (attempt === 0 && brief) continue;
           blocked = true;
+          blockedByPlatform = !!check?.hasPlatform && !check?.hasProduct;
         } else {
           blob = candidate;
         }
       }
-      if (blocked) { setVisionNote(s.visionProductFound); return; }
+      if (blocked) { setVisionNote(blockedByPlatform ? s.visionPlatformFound : s.visionProductFound); return; }
       if (requestId.current === id && !controller.signal.aborted && blob) { const applied = studio.background(blob, 'meta', imageModel); setConsent(false); if (applied) void reviewBackground(blob, applied.creative, brief?.productScale, applied.assets, visionAnalysis?.lightDirection); }
     } catch (cause) { if (requestId.current === id) setError(controller.signal.aborted ? 'cancelled' : errorCode(cause)); }
     finally { if (requestId.current === id) { setBusy(false); abort.current = null; } }
