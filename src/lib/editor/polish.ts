@@ -26,7 +26,49 @@ export type PolishSettings = { shadow: boolean; reflection: boolean; grade: stri
 
 type Box = { x: number; y: number; width: number; height: number };
 
-/** Soft ellipse centered under the product; null when the product touches the canvas bottom. */
+/** Dominant scene light: left/right = light comes from that side, front = light from the camera. */
+export type LightDirection = 'left' | 'right' | 'front';
+export type ShadowDirection = 'auto' | LightDirection;
+
+/** Effective cast direction: an explicit manual choice wins, otherwise the
+ * vision-measured light direction, otherwise front light. */
+export function resolveShadowDirection(polish: { shadowDirection?: ShadowDirection; lightDirection?: LightDirection } | undefined): LightDirection {
+  if (polish?.shadowDirection && polish.shadowDirection !== 'auto') return polish.shadowDirection;
+  return polish?.lightDirection ?? 'front';
+}
+
+/** Tight contact darkening straddling the product's bottom edge: darkest
+ * at the touch line, fading downward. This is the layer that stops the
+ * product from reading as floating. */
+export function contactShadow(
+  box: { x: number; y: number; width: number; height: number },
+  intensity = 1,
+): { x: number; y: number; width: number; height: number; opacity: number } {
+  const height = Math.max(8, box.height * 0.03);
+  return { x: box.x, y: box.y + box.height - height * 0.35, width: box.width, height, opacity: Math.min(0.6, 0.5 * intensity) };
+}
+
+/** Directional cast: a quadrilateral from the footprint's bottom edge,
+ * skewed away from the light (light from the left throws the shadow to
+ * the right) and fading toward its far edge. Front light gives a short,
+ * centered cast. */
+export function castShadow(
+  box: { x: number; y: number; width: number; height: number },
+  direction: LightDirection,
+  intensity = 1,
+): { points: number[]; from: { x: number; y: number }; to: { x: number; y: number }; opacity: number } {
+  const bottom = box.y + box.height;
+  const drop = box.height * 0.14;
+  const skew = direction === 'left' ? box.width * 0.3 : direction === 'right' ? -box.width * 0.3 : 0;
+  const inset = direction === 'front' ? box.width * 0.1 : 0;
+  const x0 = box.x + inset, x1 = box.x + box.width - inset;
+  return {
+    points: [x0, bottom, x1, bottom, x1 + skew, bottom + drop, x0 + skew, bottom + drop],
+    from: { x: (x0 + x1) / 2, y: bottom },
+    to: { x: (x0 + x1) / 2 + skew, y: bottom + drop },
+    opacity: Math.min(0.45, 0.38 * intensity),
+  };
+}
 export function shadowBox(
   product: Pick<EditableLayer, 'x' | 'y' | 'width' | 'height'>,
   dimensions: { width: number; height: number },

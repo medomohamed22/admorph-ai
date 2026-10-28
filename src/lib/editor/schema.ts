@@ -3,6 +3,9 @@ import { selectionSchema } from '../db/schema';
 import { dimensionsFor, SIZE_FORMATS } from '../editor/sizes';
 export const polishSchema = z.object({
   shadow: z.boolean(), reflection: z.boolean(), grade: z.string().regex(/^#[\da-f]{6}$/i).nullable(),
+  lightDirection: z.enum(['left', 'right', 'front']).optional(),
+  shadowDirection: z.enum(['auto', 'left', 'right', 'front']).optional(),
+  shadowIntensity: z.number().min(0.5).max(1.5).optional(),
 }).strict();
 export type Polish = z.infer<typeof polishSchema>;
 export const layerSchema = z.object({

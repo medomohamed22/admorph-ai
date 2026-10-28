@@ -125,6 +125,16 @@ describe('vision background routes', () => {
     expect(sentEnglish.messages[1].content[0].text).not.toContain('in Arabic');
   });
 
+  it('asks for the scene light direction and parses it when returned', async () => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn(async () => Response.json(envelope({ ...analysis, lightDirection: 'left' })));
+    const response = await handleMetaRoute(request({ ...base(), imageConsent: true, image }, 'vision-background'), 'vision-background', { fetcher });
+    expect(response.status).toBe(200);
+    expect((await response.json() as { lightDirection?: string }).lightDirection).toBe('left');
+    const sent = JSON.parse(String((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(sent.messages[1].content[0].text).toContain('light direction');
+  });
+
   it('checks a generated background for products', async () => {
     const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
     const fetcher = vi.fn(async () => Response.json(envelope({ hasProduct: true, found: 'a can' })));

@@ -223,7 +223,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
    * with an unavailable note instead of vanishing silently — generation
    * already succeeded, and the review must never block it.
    */
-  async function reviewBackground(blob: Blob, fresh: Creative, scale: VisionBackgroundAnalysis['productScale'] | undefined, assets: Asset[]) {
+  async function reviewBackground(blob: Blob, fresh: Creative, scale: VisionBackgroundAnalysis['productScale'] | undefined, assets: Asset[], lightDirection?: VisionBackgroundAnalysis['lightDirection']) {
     if (!campaign) return;
     try {
       const dims = dimensionsFor(fresh.format);
@@ -261,8 +261,13 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       // background grounds the product with a contact shadow and a
       // reflection unless the user already set them.
       const integrated = !fresh.polish?.shadow || !fresh.polish?.reflection;
-      if (integrated) next = { ...next, polish: { shadow: true, reflection: true, grade: fresh.polish?.grade ?? null } };
-      if (resized || textFixed || integrated) studio.update(next, assets);
+      if (integrated) next = { ...next, polish: { ...fresh.polish, shadow: true, reflection: true, grade: fresh.polish?.grade ?? null } };
+      // The vision-measured light direction rides along with the polish so
+      // the cast shadow can skew away from the scene's light later.
+      const current = next.polish;
+      const lightChanged = !!lightDirection && !!current && current.lightDirection !== lightDirection;
+      if (lightChanged) next = { ...next, polish: { ...current, lightDirection } };
+      if (resized || textFixed || integrated || lightChanged) studio.update(next, assets);
       setBgReview({ productRatio, textLow, resized, textFixed, integrated });
     } catch { /* fail-open: the box still appears, saying the review could not run */ setBgReview({ productRatio: null, textLow: [], resized: false, textFixed: false, failed: true }); }
   }
@@ -300,7 +305,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
         }
       }
       if (blocked) { setVisionNote(s.visionProductFound); return; }
-      if (requestId.current === id && !controller.signal.aborted && blob) { const applied = studio.background(blob, 'meta', imageModel); setConsent(false); if (applied) void reviewBackground(blob, applied.creative, brief?.productScale, applied.assets); }
+      if (requestId.current === id && !controller.signal.aborted && blob) { const applied = studio.background(blob, 'meta', imageModel); setConsent(false); if (applied) void reviewBackground(blob, applied.creative, brief?.productScale, applied.assets, visionAnalysis?.lightDirection); }
     } catch (cause) { if (requestId.current === id) setError(controller.signal.aborted ? 'cancelled' : errorCode(cause)); }
     finally { if (requestId.current === id) { setBusy(false); abort.current = null; } }
   }
@@ -403,7 +408,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
               {bgReview.resized && <p>{s.bgReviewResized}</p>}
               {bgReview.textFixed && <p>{s.bgReviewTextFixed}</p>}
               {bgReview.integrated && <p>{s.bgReviewIntegrated}</p>}
-              {bgReview.productRatio !== null && bgReview.productRatio < PRODUCT_CONTRAST_MIN && <button className="button secondary" onClick={() => { if (!creative || !campaign) return; const lightest = lightestBrandColor(campaign.brandSnapshot.colors); studio.update({ ...creative, polish: { shadow: creative.polish?.shadow ?? false, reflection: creative.polish?.reflection ?? false, grade: lightest } }); }}>{s.bgReviewGrade}</button>}
+              {bgReview.productRatio !== null && bgReview.productRatio < PRODUCT_CONTRAST_MIN && <button className="button secondary" onClick={() => { if (!creative || !campaign) return; const lightest = lightestBrandColor(campaign.brandSnapshot.colors); studio.update({ ...creative, polish: { ...creative.polish, shadow: creative.polish?.shadow ?? false, reflection: creative.polish?.reflection ?? false, grade: lightest } }); }}>{s.bgReviewGrade}</button>}
             </>)}
           </div>}
           <div className="reference-block"><h3>{s.referenceTitle}</h3><p>{s.referenceHelp}</p>
