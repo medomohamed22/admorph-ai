@@ -173,7 +173,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     try {
       const data = await blobToBase64(product.blob);
       const response = await metaFetch('vision', '/api/ai/vision-background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: product.blob.type, data } }),
+        body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, language: workspace.locale, image: { mimeType: product.blob.type, data } }),
         signal: AbortSignal.timeout(65000), cache: 'no-store' });
       if (!response.ok) {
         const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
@@ -389,8 +389,8 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           <button className="button secondary" disabled={visionBusy || !visionModel || !visionKey || !consent || !approved} onClick={() => void analyzeProduct()}>{visionBusy ? s.visionAnalyzing : s.visionAnalyze}</button>
           {error && <p className="request-error" role="alert">{m.settings.errors[error]}</p>}
           {!visionModel && <p className="field-help">{s.visionUnavailable}</p>}
-          {visionAnalysis && <fieldset><legend>{visionAnalysis.productCategory} · {visionAnalysis.material} · {visionAnalysis.mood}</legend>
-            {visionAnalysis.sceneIdeas.map((idea, index) => <label key={index}><input type="radio" name="vision-scene" checked={selectedScene === index} onChange={() => setSelectedScene(index)} /><strong>{idea.scene}</strong> — {idea.setting}<br /><small>{idea.reason}</small></label>)}
+          {visionAnalysis && <fieldset className="vision-scenes"><legend>{visionAnalysis.productCategory} · {visionAnalysis.material} · {visionAnalysis.mood}</legend>
+            {visionAnalysis.sceneIdeas.map((idea, index) => <label key={index} className={selectedScene === index ? 'scene-card selected' : 'scene-card'}><input type="radio" name="vision-scene" checked={selectedScene === index} onChange={() => setSelectedScene(index)} /><span><strong>{idea.scene}</strong> — {idea.setting}<br /><small>{idea.reason}</small></span></label>)}
           </fieldset>}
           {visionNote && <p role="status">{visionNote}</p>}</div>
           <label className="studio-consent"><input type="checkbox" checked={consent} disabled={busy || !approved || !imageReady || !key} onChange={event => setConsent(event.target.checked)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{s.consent}</p></details><p>{s.billing}</p><button className="button primary" disabled={busy || !approved || !imageReady || !key || !consent} onClick={() => void generate()}>{busy ? s.generating : s.generate}</button>

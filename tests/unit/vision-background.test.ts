@@ -111,6 +111,20 @@ describe('vision background routes', () => {
     expect(sent.messages[1].content[1].type).toBe('image_url');
   });
 
+  it('writes scene ideas in Arabic when the site language is Arabic', async () => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn(async () => Response.json(envelope(analysis)));
+    const arabic = await handleMetaRoute(request({ ...base(), imageConsent: true, language: 'ar', image }, 'vision-background'), 'vision-background', { fetcher });
+    expect(arabic.status).toBe(200);
+    const sentArabic = JSON.parse(String((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(sentArabic.messages[1].content[0].text).toContain('in Arabic');
+    const fetcherEn = vi.fn(async () => Response.json(envelope(analysis)));
+    const english = await handleMetaRoute(request({ ...base(), imageConsent: true, image }, 'vision-background'), 'vision-background', { fetcher: fetcherEn });
+    expect(english.status).toBe(200);
+    const sentEnglish = JSON.parse(String((fetcherEn.mock.calls[0] as unknown as [string, RequestInit])[1].body));
+    expect(sentEnglish.messages[1].content[0].text).not.toContain('in Arabic');
+  });
+
   it('checks a generated background for products', async () => {
     const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
     const fetcher = vi.fn(async () => Response.json(envelope({ hasProduct: true, found: 'a can' })));
