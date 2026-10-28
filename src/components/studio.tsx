@@ -17,6 +17,8 @@ import { resolveLayerDirection } from '@/lib/editor/direction';
 import { dimensionsFor } from '@/lib/editor/sizes';
 import { applyTemplate, TEMPLATE_IDS, type TemplateId } from '@/lib/editor/templates';
 import { referenceLayoutSchema, type ReferenceLayout } from '@/lib/ai/reference';
+import { writeZip } from '@/lib/export/zip';
+import { validateProduct } from '@/lib/campaign/client';
 import { getDatabase } from '@/lib/db/dexie';
 import type { Asset } from '@/lib/db/schema';
 import { useProviderSession } from './provider-session';
@@ -95,6 +97,82 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       setCutoutState('error');
       setCutoutNote(m.cutout.cutoutFailed);
     }
+  }
+  // Swap product: a new photo is cut out and placed on this same
+  // background; text, logo and buttons stay untouched. The creative's
+  // geometry does not change, so the new cutout inherits the fitted
+  // product rect and its derived shadow follows automatically.
+  const [swapFile, setSwapFile] = useState<File | null>(null);
+  const [swapBusy, setSwapBusy] = useState(false);
+  const [swapNote, setSwapNote] = useState('');
+  const [variants, setVariants] = useState<{ name: string; blob: Blob }[]>([]);
+  const recentCutouts = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Asset[] = [];
+    for (const asset of studio.assets) {
+      if (asset.kind !== 'cutout' || !asset.meta?.derivedFrom || seen.has(asset.meta.derivedFrom)) continue;
+      seen.add(asset.meta.derivedFrom);
+      out.push(asset);
+    }
+    return out.reverse();
+  }, [studio.assets]);
+  async function refreshSwapContrast(cutoutBlob: Blob) {
+    if (!creative) return;
+    const dims = dimensionsFor(creative.format);
+    const bgLayer = creative.layers.find((item) => item.kind === 'background');
+    const bgAsset = bgLayer?.assetId ? studio.assets.find((item) => item.id === bgLayer.assetId) : undefined;
+    const productLayer = creative.layers.find((item) => item.kind === 'product');
+    if (!bgAsset || !productLayer) return;
+    try {
+      const bg = drawToRgba(await decodeImage(bgAsset.blob), dims.width, dims.height);
+      const prod = drawToRgba(await decodeImage(cutoutBlob), dims.width, dims.height, productLayer.x, productLayer.y, productLayer.width, productLayer.height);
+      setBgReview({ productRatio: productBackgroundContrast(bg, prod, productLayer), textLow: bgReview?.textLow ?? [], resized: false, textFixed: false, integrated: false });
+    } catch { /* contrast is informational; the swap itself already applied */ }
+  }
+  async function swapProduct() {
+    if (!creative || !swapFile || swapBusy) return;
+    setSwapBusy(true);
+    setSwapNote('');
+    try {
+      await validateProduct(swapFile);
+      const productAsset: Asset = { id: crypto.randomUUID(), kind: 'product', blob: swapFile, createdAt: new Date().toISOString() };
+      try { await getDatabase().assets.put(productAsset); } catch { /* library save is best-effort */ }
+      let result;
+      if (samReady) {
+        try { result = await cutoutImage(swapFile, 'meta-sam', { apiKey: samKey, modelId: segmentModel, prompt: 'product' }); }
+        catch { result = await cutoutImage(swapFile, 'local'); }
+      } else {
+        result = await cutoutImage(swapFile, 'local');
+      }
+      const asset: Asset = { id: crypto.randomUUID(), kind: 'cutout', blob: result.cutoutBlob, createdAt: new Date().toISOString(), meta: { derivedFrom: productAsset.id, provider: result.provider, sourceWidth: result.sourceWidth, sourceHeight: result.sourceHeight, reliable: result.reliable } };
+      try { await getDatabase().assets.put(asset); } catch { /* library save is best-effort */ }
+      if (!studio.replaceProductLayer(asset)) throw new Error('swap_failed');
+      setCutoutMethod(result.provider);
+      await refreshSwapContrast(result.cutoutBlob);
+    } catch {
+      setSwapNote(s.swapFailed);
+    } finally { setSwapBusy(false); }
+  }
+  async function snapshotVariant() {
+    if (!ready || !creative || !handle.current) return;
+    try {
+      await document.fonts.ready;
+      const url = handle.current.exportPng();
+      const blob = await (await fetch(url)).blob();
+      setVariants((previous) => [...previous, { name: `admorph-variant-${previous.length + 1}.png`, blob }]);
+      setSwapNote(s.swapSnapshotSaved);
+    } catch { /* snapshot is best-effort; the PNG download still works */ }
+  }
+  async function downloadVariantsZip() {
+    if (variants.length === 0) return;
+    const entries = await Promise.all(variants.map(async (variant) => ({ name: variant.name, data: new Uint8Array(await variant.blob.arrayBuffer()) })));
+    const bytes = writeZip(entries);
+    const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: 'application/zip' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'admorph-variants.zip';
+    link.click();
+    URL.revokeObjectURL(url);
   }
   // Auto-cutout: when the campaign asks for it, a fresh creative uses the
   // library cutout for this product if one exists, otherwise segments once.
@@ -378,7 +456,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     {activeIssue&&<IssueFix key={activeIssue.id} issue={activeIssue} creative={creative} handle={handle} onClose={()=>setActiveIssue(null)} brandColors={campaign.brandSnapshot.colors}/>}
     {!approved && <p className="campaign-notice">{s.stale}</p>}
     <div className="studio-tabs" role="tablist" aria-label={s.panels}>{(['layers', 'edit', 'generate', 'review', 'export'] as const).map(id => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{s.tabs[id]}</button>)}</div>
-    <div className="studio-layout"><aside className={`studio-layers studio-panel ${tab === 'layers' ? 'active' : ''}`}><h2>{s.layersTitle}</h2><ul>{[...creative.layers].reverse().map(item => <li key={item.id}><button aria-pressed={layer?.id === item.id} onClick={() => { setSelected(item.id); setTab('edit'); }}>{s.kinds[item.kind]}</button></li>)}</ul><label htmlFor="creative-template">{s.template}</label><select id="creative-template" value={creative.appliedTemplate ?? ''} onChange={event => { const value = event.target.value as TemplateId; if (value) studio.update({ ...creative, appliedTemplate: value, layers: applyTemplate(creative.layers, value, dimensions) }); }}><option value="">{s.templateChoose}</option>{TEMPLATE_IDS.map(id => <option key={id} value={id}>{s.templates[id]}</option>)}</select>{creative.appliedTemplate && <p>{s.templateCurrent.replace('{template}', s.templates[creative.appliedTemplate])}</p>}<p>{s.templateHelp}</p><p>{s.layerHelp}</p></aside>
+    <div className="studio-layout"><aside className={`studio-layers studio-panel ${tab === 'layers' ? 'active' : ''}`}><h2>{s.layersTitle}</h2><ul>{[...creative.layers].reverse().map(item => <li key={item.id}><button aria-pressed={layer?.id === item.id} onClick={() => { setSelected(item.id); setTab('edit'); }}>{s.kinds[item.kind]}</button></li>)}</ul><label htmlFor="creative-template">{s.template}</label><select id="creative-template" value={creative.appliedTemplate ?? ''} onChange={event => { const value = event.target.value as TemplateId; if (value) studio.update({ ...creative, appliedTemplate: value, layers: applyTemplate(creative.layers, value, dimensions) }); }}><option value="">{s.templateChoose}</option>{TEMPLATE_IDS.map(id => <option key={id} value={id}>{s.templates[id]}</option>)}</select>{creative.appliedTemplate && <p>{s.templateCurrent.replace('{template}', s.templates[creative.appliedTemplate])}</p>}<p>{s.templateHelp}</p><p>{s.layerHelp}</p><div className="swap-product"><h3>{s.swapTitle}</h3><p>{s.swapHelp}</p><label>{s.swapUpload}<input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setSwapFile(event.target.files?.[0] ?? null)} /></label><button className="button secondary" disabled={!swapFile || swapBusy} onClick={() => void swapProduct()}>{swapBusy ? s.swapBusy : s.swapButton}</button>{swapNote && <p role="status">{swapNote}</p>}{recentCutouts.length > 0 && <><p>{s.swapRecent}</p><div>{recentCutouts.map((asset) => <button key={asset.id} className="text-button" onClick={() => { if (studio.replaceProductLayer(asset)) { setCutoutMethod(asset.meta?.provider ?? null); void refreshSwapContrast(asset.blob); } }}>{new Date(asset.createdAt).toLocaleString()}</button>)}</div></>}<button className="button secondary" disabled={!ready} onClick={() => void snapshotVariant()}>{s.swapSnapshot}</button><button className="button secondary" disabled={variants.length === 0} onClick={() => void downloadVariantsZip()}>{s.swapZip}</button></div></aside>
       <div className="studio-art"><div className="studio-zoom"><label htmlFor="studio-zoom">{s.zoom}</label><select id="studio-zoom" value={zoom} onChange={event => setZoom(Number(event.target.value))}><option value={1}>{s.fit}</option><option value={1.5}>150%</option><option value={2}>200%</option></select></div>
         {fontsReady && <DesignCanvas key={creative.id} placement={creative.placement} findings={(tab==='review'||wide)&&markers?issues:[]} onIssue={setActiveIssue} layers={creative.layers} assets={studio.assets} selected={layer?.id ?? null} select={setSelected} patch={studio.patch} zoom={zoom} handle={handle} ready={ready} onReady={onReady} label={s.canvasLabel} rtl={campaign.creativeLanguage === 'ar'} disabled={busy} dimensions={dimensions} polish={creative.polish}/>}<p className="field-help">{ready ? s.canvasHelp : s.preparing}</p>
       </div><div className="studio-inspector">
