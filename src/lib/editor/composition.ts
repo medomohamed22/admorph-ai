@@ -1,5 +1,6 @@
 import type { Campaign, EditableConcept } from '../campaign/schema';
 import { type Creative, type EditableLayer } from './schema';
+import { dimensionsFor } from './sizes';
 import {defaultLogoPlacement,logoBox} from './logo-placement';
 import {spatialLayers} from './spatial';
 export function compose(campaign: Campaign, concept: EditableConcept, productId: string, logoId: string | null): Creative {
@@ -9,7 +10,7 @@ export function compose(campaign: Campaign, concept: EditableConcept, productId:
   const layer = (kind: EditableLayer['kind'], x: number, y: number, width: number, height: number, patch: Partial<EditableLayer> = {}): EditableLayer => ({ ...base, id: crypto.randomUUID(), kind, x, y, width, height, ...patch });
   const now = new Date().toISOString();
   const creative: Creative = { id: crypto.randomUUID(), campaignId: campaign.id, conceptId: concept.id, inputRevision: campaign.inputRevision,
-    caption: concept.caption, source: 'composition', model: null, createdAt: now, updatedAt: now,
+    caption: concept.caption, source: 'composition', model: null, createdAt: now, updatedAt: now, format: campaign.format,
     layers: [layer('background', 0, 0, 1080, 1350),
       layer('brand', 75, 60, 700, 90, { text: campaign.brandSnapshot.name, fontSize: 44, fill: 'transparent' }),
       ...(logoId ? [layer('logo', 850, 55, 150, 120, { assetId: logoId })] : []),
@@ -28,5 +29,14 @@ export function compose(campaign: Campaign, concept: EditableConcept, productId:
   }
   if(concept.spatialPreset)creative.layers=spatialLayers(creative.layers,concept.spatialPreset);
   const logo=creative.layers.find(layer=>layer.kind==='logo');if(logo&&campaign.brandSnapshot.logoPlacement)Object.assign(logo,logoBox(campaign.brandSnapshot.logoPlacement??defaultLogoPlacement,campaign.brandSnapshot.logoAspectRatio??1));
+  // Width is 1080 on every platform size, so the tuned 4:5 layout scales
+  // vertically only: y/height by H/1350, x/width/fonts untouched. The scale
+  // runs last so angle, spatial and logo geometry all scale together, and
+  // the background always fills the new canvas exactly.
+  const size = dimensionsFor(campaign.format), sy = size.height / 1350;
+  if (sy !== 1) creative.layers = creative.layers.map(layer => {
+    const height = Math.round(layer.height * sy);
+    return { ...layer, y: Math.min(Math.round(layer.y * sy), size.height - height), height };
+  });
   return creative;
 }

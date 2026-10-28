@@ -1,6 +1,7 @@
 import type { Creative } from '../editor/schema';
 import { contrastRatio } from '../editor/checks';
 import { hasMixedScripts } from '../editor/direction';
+import { dimensionsFor } from '../editor/sizes';
 import type { Finding, RuleResult, TextMetrics } from './schema';
 import {placementFindings} from '../editor/safe-zones';
 function canonical(value: unknown): unknown {
@@ -18,7 +19,7 @@ export function checkCreative(creative: Creative, measurements: TextMetrics, ass
   const add = (code: Finding['code'], severity: Finding['severity'], layerIds: string[], evidence: Finding['evidence'] = {}) => issues.push({ id: `${code}:${layerIds.join(':')}:${evidence.kind ?? ''}`, code, severity, layerIds, evidence });
   const visible = creative.layers.filter(layer => layer.visible);
   for (const layer of visible) {
-    if (![layer.x, layer.y, layer.width, layer.height].every(Number.isFinite) || layer.x < 0 || layer.y < 0 || layer.width <= 0 || layer.height <= 0 || layer.x + layer.width > 1080.01 || layer.y + layer.height > 1350.01) add('bounds', 'error', [layer.id]);
+    if (![layer.x, layer.y, layer.width, layer.height].every(Number.isFinite) || layer.x < 0 || layer.y < 0 || layer.width <= 0 || layer.height <= 0 || layer.x + layer.width > dimensions.width + 0.01 || layer.y + layer.height > dimensions.height + 0.01) add('bounds', 'error', [layer.id]);
     if (layer.assetId && !assetIds.has(layer.assetId)) add('asset_missing', 'error', [layer.id]);
     if (!['headline', 'brand', 'cta'].includes(layer.kind) || !layer.text.trim()) continue;
     const metrics = measurements[layer.id];
@@ -37,7 +38,7 @@ export function checkCreative(creative: Creative, measurements: TextMetrics, ass
   for (const kind of ['headline', 'brand', 'cta'] as const) if (!visible.some(layer => layer.kind === kind && layer.text.trim())) add('copy_missing', 'error', creative.layers.filter(layer => layer.kind === kind).map(layer => layer.id), { kind });
   if (!creative.layers.some(layer => layer.kind === 'product' && layer.assetId)) add('asset_missing', 'error', creative.layers.filter(layer => layer.kind === 'product').map(layer => layer.id), { kind: 'product' });
   for (const logo of visible.filter(layer => layer.kind === 'logo')) for (const headline of visible.filter(layer => layer.kind === 'headline')) if (intersects(logo, headline)) add('logo_overlap', 'warning', [logo.id, headline.id]);
-  if (dimensions.width !== 1080 || dimensions.height !== 1350) add('dimensions', 'error', [], dimensions);
+  if (dimensions.width !== dimensionsFor(creative.format).width || dimensions.height !== dimensionsFor(creative.format).height) add('dimensions', 'error', [], dimensions);
   const groups: Record<RuleResult['checks'][number]['key'], Finding['code'][]> = { bounds: ['bounds'], text: ['text_clipped', 'measurement_unavailable'], copy: ['copy_missing', 'mixed_scripts'], contrast: ['contrast', 'contrast_unavailable'], overlap: ['logo_overlap'], assets: ['asset_missing'], dimensions: ['dimensions'] };
   issues.push(...placementFindings(creative));
   for(const logo of visible.filter(layer=>layer.kind==='logo'))for(const product of visible.filter(layer=>layer.kind==='product'))if(intersects(logo,product))add('logo_product_overlap','warning',[logo.id,product.id]);
