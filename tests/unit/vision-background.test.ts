@@ -80,6 +80,8 @@ describe('vision-first background brief', () => {
     expect(visionBackgroundAnalysisSchema.safeParse({ ...analysis, extra: true }).success).toBe(false);
     expect(checkBackgroundSchema.safeParse({ hasProduct: true, found: 'a can' }).success).toBe(true);
     expect(checkBackgroundSchema.safeParse({ found: 'a can' }).success).toBe(false);
+    expect(checkBackgroundSchema.safeParse({ hasProduct: false, found: '', hasPlatform: true, platformFound: 'a slab' }).success).toBe(true);
+    expect(checkBackgroundSchema.safeParse({ hasProduct: false, found: '', hasPlatform: 'yes' }).success).toBe(false);
   });
 
   it('round-trips blobs through base64', async () => {

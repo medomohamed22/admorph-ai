@@ -653,7 +653,8 @@
     "bgReviewTextFixed": "Text color adjusted to the lightest brand color for readability (undoable).",
     "bgReviewGrade": "Lighten background grade",
     "bgReviewFailed": "The background review could not run on this image, so no contrast verdict is shown.",
-    "bgReviewIntegrated": "Integration polish applied automatically (contact shadow, undoable)."
+    "bgReviewIntegrated": "Integration polish applied automatically (contact shadow, undoable).",
+    "visionPlatformFound": "The generated background contained a raised platform, so it was not applied. Try generating again."
   },
   "critic": {
     "open": "Review design",

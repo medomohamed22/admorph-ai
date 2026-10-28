@@ -109,6 +109,26 @@ describe('background brief', () => {
     expect(prompt).not.toContain('base64');
   });
 
+  it('carries measured product colors into the prompt for harmony', () => {
+    const withColors = buildBackgroundBrief({
+      productCategory: 'canned cold brew',
+      typeHint: 'can',
+      brandColors: PALETTE,
+      stylePreset: 'hero',
+      productColors: ['#1f5f6b', '#7ed3e0'],
+    });
+    const colored = buildBackgroundPrompt(withColors);
+    expect(colored).toContain('Product colors: #1f5f6b, #7ed3e0');
+    expect(colored).toContain('Echo these product tones');
+    const plain = buildBackgroundBrief({
+      productCategory: 'canned cold brew',
+      typeHint: 'can',
+      brandColors: PALETTE,
+      stylePreset: 'hero',
+    });
+    expect(buildBackgroundPrompt(plain)).not.toContain('Product colors:');
+  });
+
   it('accepts legacy background payloads and rejects pixel smuggling', () => {
     const base = legacyPayload();
     expect(backgroundRequestSchema.safeParse(base).success).toBe(true);

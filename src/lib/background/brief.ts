@@ -37,6 +37,11 @@ export const backgroundBriefSchema = z
     scene: z.string().trim().max(200).optional(),
     sceneReason: z.string().trim().max(200).optional(),
     productScale: z.enum(['large-center', 'medium-left', 'medium-right']).optional(),
+    /** Measured dominant colors of the cutout product (up to 3 hex). The
+     * background model never sees product pixels, so without this field
+     * it can only harmonize with the brand palette — which is how a blue
+     * can ended up on warm sand. Optional: older briefs still parse. */
+    productColors: z.array(hexSchema).max(3).optional(),
   })
   .strict();
 
@@ -86,11 +91,16 @@ export const visionBackgroundAnalysisSchema = z
   .strict();
 export type VisionBackgroundAnalysis = z.infer<typeof visionBackgroundAnalysisSchema>;
 
-/** Product-presence check on a generated background image. */
+/** Product-presence check on a generated background image. The platform
+ * fields are optional so a model answer that only reports the product
+ * still parses: a missing platform report means "not detected", never a
+ * reason to drop the product signal with it. */
 export const checkBackgroundSchema = z
   .object({
     hasProduct: z.boolean(),
     found: z.string().trim().max(120),
+    hasPlatform: z.boolean().optional(),
+    platformFound: z.string().trim().max(120).optional(),
   })
   .strict();
 export type CheckBackgroundResult = z.infer<typeof checkBackgroundSchema>;
@@ -124,6 +134,7 @@ export function buildVisionBrief(
   analysis: VisionBackgroundAnalysis,
   sceneIndex: number,
   brandPalette: [string, string, string],
+  productColors?: string[],
 ): BackgroundBrief {
   const scene = analysis.sceneIdeas[sceneIndex] ?? analysis.sceneIdeas[0];
   const geometry = SCALE_GEOMETRY[analysis.productScale];
@@ -141,6 +152,7 @@ export function buildVisionBrief(
     scene: scene.scene,
     sceneReason: scene.reason,
     productScale: analysis.productScale,
+    productColors,
   });
 }
 
@@ -189,6 +201,8 @@ export interface AnalyzeInput {
   stylePreset?: BackgroundStyle;
   lighting?: string;
   cameraAngle?: string;
+  /** Measured dominant colors of the cutout product (hex, up to 3). */
+  productColors?: string[];
 }
 
 /** Deterministic local analyzer: no model call, no invented product claims. */
@@ -206,13 +220,14 @@ export function buildBackgroundBrief(input: AnalyzeInput): BackgroundBrief {
     reservedTextRects: geometry.textRects,
     stylePreset,
     negativeConstraints: [...BACKGROUND_NEGATIVE_CONSTRAINTS],
+    productColors: input.productColors,
   });
 }
 
 /** Most frequent exact opaque colors, as lowercase hex, ties broken by first
  *  appearance. Fully transparent pixels are ignored. */
 export function dominantColors(
-  data: Uint8ClampedArray,
+  data: ArrayLike<number>,
   width: number,
   height: number,
   count = 3,
@@ -256,6 +271,7 @@ export function buildBackgroundPrompt(brief: BackgroundBrief): string {
     `Product context (metadata only, do not render it): ${brief.productCategory}, ${brief.material}. ` +
     `Mood: ${brief.sceneMood}. Lighting: ${brief.lighting}. Camera: ${brief.cameraAngle}. ` +
     `Palette: ${brief.brandPalette.join(', ')}. ` +
+    (brief.productColors?.length ? `Product colors: ${brief.productColors.join(', ')}. Echo these product tones in the background so the scene feels made for this product, while keeping the product clearly readable against it. ` : '') +
     (brief.scene ? `Scene: ${brief.scene}. ` : '') +
     (brief.sceneReason ? `Why this scene fits: ${brief.sceneReason}. ` : '') +
     (scaleNote ? `${scaleNote} ` : '') +
