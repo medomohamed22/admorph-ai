@@ -51,6 +51,8 @@ export const BACKGROUND_NEGATIVE_CONSTRAINTS = [
   'no people',
   'no objects cropped by the frame edges',
   'no scattered piles of props',
+  'no pedestal or raised platform',
+  'no visible table edge',
 ] as const;
 
 /** Retry set: everything above, plus explicit container/object bans. */
@@ -259,7 +261,7 @@ export function buildBackgroundPrompt(brief: BackgroundBrief): string {
     (scaleNote ? `${scaleNote} ` : '') +
     `Keep this product zone empty and calm: x ${product.x}–${product.x + product.width}, ` +
     `y ${product.y}–${product.y + product.height}. ` +
-    `The product zone needs a clear surface for the product to stand on; show a matching table or floor beneath it. ` +
+    `The product stands on one continuous ground surface that extends to the frame edges; never a raised platform, pedestal, slab, or table with a visible edge. ` +
     `Keep the background minimal and uncluttered: only a few props, never a scattered pile of objects. ` +
     `The background tone must contrast with the product: a dark product needs a noticeably lighter backdrop, and a light product a darker one. ` +
     `Keep the background's color temperature consistent with the product lighting. ` +

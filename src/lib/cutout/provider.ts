@@ -26,6 +26,11 @@ export interface CutoutResult {
   warnings: SegmentWarning[];
 }
 
+/** SAM prompt for every product cutout: the product alone, with props,
+ * garnish, leaves, fruit or anything touching it explicitly excluded —
+ * props at the base used to tear the bottom edge of the mask. */
+export const SAM_PRODUCT_PROMPT = 'product only, excluding any props, garnish, leaves, fruit, or objects touching the product';
+
 export async function localCutout(blob: Blob): Promise<CutoutResult> {
   const image = await decodeToImageData(blob);
   const segment = segmentImageData(image.data, image.width, image.height);

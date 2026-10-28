@@ -4,7 +4,7 @@ import { useMessages } from './workspace';
 import { useProviderSession } from './provider-session';
 import { validateProduct } from '@/lib/campaign/client';
 import { ProviderError } from '@/lib/ai/errors';
-import { cutoutImage, type CutoutProviderId, type CutoutResult } from '@/lib/cutout/provider';
+import { cutoutImage, SAM_PRODUCT_PROMPT, type CutoutProviderId, type CutoutResult } from '@/lib/cutout/provider';
 import { getDatabase } from '@/lib/db/dexie';
 
 const checkerboard = {
@@ -60,7 +60,7 @@ export function CutoutTool() {
     setSamFailed(false);
     try {
       const result = useProvider === 'meta-sam'
-        ? await cutoutImage(original.blob, 'meta-sam', { apiKey: key, modelId: segmentModel, prompt: 'product' })
+        ? await cutoutImage(original.blob, 'meta-sam', { apiKey: key, modelId: segmentModel, prompt: SAM_PRODUCT_PROMPT })
         : await cutoutImage(original.blob, 'local');
       if (cutout) URL.revokeObjectURL(cutout.url);
       setCutout({ result, url: URL.createObjectURL(result.cutoutBlob) });

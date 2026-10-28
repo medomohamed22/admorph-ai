@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { layerSchema } from '../../src/lib/editor/schema';
-import { compose } from '../../src/lib/editor/composition';
+import { compose, resolveTextOverlap } from '../../src/lib/editor/composition';
 import { fitContain } from '../../src/lib/editor/fit';
 import { logoBox, defaultLogoPlacement } from '../../src/lib/editor/logo-placement';
 import { checkCreative } from '../../src/lib/critic/rules';
@@ -118,5 +118,42 @@ describe('contain fit', () => {
   it('rejects invalid dimensions', () => {
     expect(() => fitContain({ width: 640, height: 590 }, 0, 400)).toThrow('invalid_dimensions');
     expect(() => fitContain({ width: 0, height: 590 }, 400, 400)).toThrow('invalid_dimensions');
+  });
+});
+
+describe('resolveTextOverlap', () => {
+  const mk = (kind: 'background' | 'product' | 'headline' | 'brand' | 'cta', x: number, y: number, width: number, height: number) => ({
+    id: crypto.randomUUID(), kind, x, y, width, height, text: '', color: '#000000',
+    fontFamily: 'Inter' as const, fontSize: 48, visible: true, assetId: null, fill: 'transparent' as const,
+  });
+  const size = { width: 1080, height: 1350 };
+  const hits = (a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) =>
+    a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+
+  it('moves an overlapping headline above the product', () => {
+    const layers = [mk('background', 0, 0, 1080, 1350), mk('headline', 75, 400, 930, 265), mk('product', 220, 510, 640, 590)];
+    const out = resolveTextOverlap(layers, size);
+    const headline = out.find(l => l.kind === 'headline')!;
+    const product = out.find(l => l.kind === 'product')!;
+    expect(headline.y).toBe(510 - 16 - 265);
+    expect(hits(headline, product)).toBe(false);
+  });
+
+  it('leaves non-overlapping layers untouched', () => {
+    const layers = [mk('background', 0, 0, 1080, 1350), mk('headline', 75, 205, 930, 265), mk('product', 220, 510, 640, 590), mk('cta', 180, 1180, 720, 100)];
+    const out = resolveTextOverlap(layers, size);
+    expect(out.map(l => [l.kind, l.x, l.y])).toEqual(layers.map(l => [l.kind, l.x, l.y]));
+  });
+
+  it('slides to the nearest edge when no free strip fits', () => {
+    const layers = [
+      mk('background', 0, 0, 1080, 1350), mk('brand', 75, 60, 700, 90),
+      mk('headline', 75, 205, 930, 265), mk('product', 190, 360, 700, 780),
+    ];
+    const out = resolveTextOverlap(layers, size);
+    const headline = out.find(l => l.kind === 'headline')!;
+    const product = out.find(l => l.kind === 'product')!;
+    expect(headline.y).toBe(360 - 16 - 265);
+    expect(hits(headline, product)).toBe(false);
   });
 });

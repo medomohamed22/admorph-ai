@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shadowBox, reflectionBox, visibleProductBox, contactShadow, castShadow, resolveShadowDirection } from '../../src/lib/editor/polish';
+import { shadowBox, visibleProductBox, contactShadow, castShadow, resolveShadowDirection } from '../../src/lib/editor/polish';
 import { compose } from '../../src/lib/editor/composition';
 import { newCampaign } from '../../src/lib/campaign/schema';
 import { samplePlan } from '../../src/lib/campaign/sample';
@@ -20,18 +20,9 @@ describe('polish geometry', () => {
     expect(shadow.cy + shadow.ry).toBeLessThanOrEqual(size.height);
   });
 
-  it('returns no shadow or reflection when the product touches the bottom', () => {
+  it('returns no shadow when the product touches the bottom', () => {
     const bottom = { x: 100, y: 1000, width: 400, height: 350 };
     expect(shadowBox(bottom, size)).toBeNull();
-    expect(reflectionBox(bottom, size)).toBeNull();
-  });
-
-  it('places a 35% reflection strip below the product, clamped to the canvas', () => {
-    const reflection = reflectionBox(product, size)!;
-    expect(reflection).toEqual({ x: product.x, y: product.y + product.height + 8, width: product.width, height: product.height * 0.35 });
-    const low = { x: 100, y: 1000, width: 400, height: 300 };
-    const clamped = reflectionBox(low, size)!;
-    expect(clamped.y + clamped.height).toBe(size.height);
   });
 
   it('hugs the visible can, not the wide layer box', () => {
@@ -46,9 +37,6 @@ describe('polish geometry', () => {
     const shadow = shadowBox(visible, size)!;
     expect(shadow.cx).toBe(visible.x + visible.width / 2);
     expect(shadow.rx).toBeLessThan(wideBox.width * 0.55);
-    const reflection = reflectionBox(visible, size)!;
-    expect(reflection.y).toBe(visible.y + visible.height + 8);
-    expect(reflection.width).toBe(visible.width);
   });
 
   it('builds a three-layer shadow: contact at the touch line, skewed cast, resolved direction', () => {
