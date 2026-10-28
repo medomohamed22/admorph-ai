@@ -99,3 +99,44 @@ export function oneshotScore(result: VerifyResult, logoExpected: boolean): numbe
   const possible = 40 + 20 + (logoExpected ? 15 : 0) + 25;
   return Math.round((earned / possible) * 100);
 }
+
+/** Canvas-side element: the server layout plus the local render payload. */
+export type OneshotCanvasElement = OneshotElement & {
+  blob?: Blob;
+  color?: string;
+  fontSize?: number;
+};
+
+/** Keep a dragged/resized element inside the frame (min 24px a side). */
+export function clampOneshotElement(element: OneshotElement): OneshotElement {
+  const width = Math.min(Math.max(24, element.width), ONESHOT_WIDTH);
+  const height = Math.min(Math.max(24, element.height), ONESHOT_HEIGHT);
+  return {
+    ...element,
+    width,
+    height,
+    x: Math.min(Math.max(0, element.x), ONESHOT_WIDTH - width),
+    y: Math.min(Math.max(0, element.y), ONESHOT_HEIGHT - height),
+  };
+}
+
+/** Strip canvas-only fields before sending a layout to the server. */
+export function toServerLayout(elements: OneshotCanvasElement[]): OneshotElement[] {
+  return elements.map((element) => {
+    const layout = { ...element };
+    delete layout.blob;
+    delete layout.color;
+    delete layout.fontSize;
+    return layout;
+  });
+}
+
+/** Starter arrangement: product centered, logo top-right, headline top-center. */
+export function initialOneshotLayout(hasLogo: boolean): OneshotElement[] {
+  const layout: OneshotElement[] = [
+    { id: 'product', kind: 'product', x: 340, y: 380, width: 400, height: 600 },
+    { id: 'headline', kind: 'text', x: 140, y: 120, width: 800, height: 120, text: '' },
+  ];
+  if (hasLogo) layout.push({ id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 });
+  return layout;
+}
