@@ -3,7 +3,7 @@ import { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Circle, Ellipse, Text, Image as KonvaImage, Group, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { clampLayer, type EditableLayer, type Polish } from '@/lib/editor/schema';
-import { shadowBox, reflectionBox } from '@/lib/editor/polish';
+import { shadowBox, reflectionBox, visibleProductBox } from '@/lib/editor/polish';
 import { resolveLayerDirection } from '@/lib/editor/direction';
 import { fitContain } from '@/lib/editor/fit';
 import type { Asset } from '@/lib/db/schema';
@@ -59,8 +59,23 @@ export default function DesignCanvas({ layers, assets, selected, select, patch, 
   // them (see renderLayers) so a repair judges geometry, not polish.
   const productLayer = layers.find(item => item.kind === 'product' && item.visible);
   const productAsset = productLayer?.assetId ? assets.find(item => item.id === productLayer.assetId) : undefined;
-  const shadow = polish?.shadow && productLayer ? shadowBox(productLayer, dimensions) : null;
-  const reflection = polish?.reflection && productLayer && productAsset ? reflectionBox(productLayer, dimensions) : null;
+  // The shadow and reflection hug the can's visible rect, not the layer
+  // box: the photo is contain-fitted inside the box, so the layer box is
+  // wider (and sometimes taller) than the can itself. Until the photo
+  // decodes, the layer box is the fallback — same as before.
+  const polishOn = !!(polish?.shadow || polish?.reflection);
+  const productImageUrl = useObjectUrl(polishOn ? productAsset?.blob ?? null : null);
+  const [loadedProduct, setLoadedProduct] = useState<{ url: string; size: { width: number; height: number } } | null>(null);
+  useEffect(() => {
+    if (!productImageUrl) return;
+    let alive = true; const img = new window.Image(); img.src = productImageUrl;
+    img.decode().then(() => { if (alive) setLoadedProduct({ url: productImageUrl, size: { width: img.width, height: img.height } }); }).catch(() => {});
+    return () => { alive = false; };
+  }, [productImageUrl]);
+  const productSize = loadedProduct?.url === productImageUrl ? loadedProduct.size : null;
+  const productBox = productLayer && productSize ? visibleProductBox(productLayer, productSize) : productLayer;
+  const shadow = polish?.shadow && productBox ? shadowBox(productBox, dimensions) : null;
+  const reflection = polish?.reflection && productBox && productAsset ? reflectionBox(productBox, dimensions) : null;
   useEffect(() => {
     const node = selected ? stage.current?.findOne(`#${selected}`) : null;
     transformer.current?.nodes(node?.isVisible() ? [node] : []);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shadowBox, reflectionBox } from '../../src/lib/editor/polish';
+import { shadowBox, reflectionBox, visibleProductBox } from '../../src/lib/editor/polish';
 import { compose } from '../../src/lib/editor/composition';
 import { newCampaign } from '../../src/lib/campaign/schema';
 import { samplePlan } from '../../src/lib/campaign/sample';
@@ -32,6 +32,23 @@ describe('polish geometry', () => {
     const low = { x: 100, y: 1000, width: 400, height: 300 };
     const clamped = reflectionBox(low, size)!;
     expect(clamped.y + clamped.height).toBe(size.height);
+  });
+
+  it('hugs the visible can, not the wide layer box', () => {
+    // A tall can photo (portrait) contain-fitted into a wide layer box:
+    // the visible can is narrower and shorter than the box, so the shadow
+    // must be narrower and sit at the can's true bottom, not the box's.
+    const wideBox = { x: 190, y: 360, width: 700, height: 780 };
+    const visible = visibleProductBox(wideBox, { width: 600, height: 1200 });
+    expect(visible.width).toBeLessThan(wideBox.width);
+    expect(visible.x).toBeGreaterThan(wideBox.x);
+    expect(visible.y + visible.height).toBeLessThanOrEqual(wideBox.y + wideBox.height);
+    const shadow = shadowBox(visible, size)!;
+    expect(shadow.cx).toBe(visible.x + visible.width / 2);
+    expect(shadow.rx).toBeLessThan(wideBox.width * 0.55);
+    const reflection = reflectionBox(visible, size)!;
+    expect(reflection.y).toBe(visible.y + visible.height + 8);
+    expect(reflection.width).toBe(visible.width);
   });
 });
 
