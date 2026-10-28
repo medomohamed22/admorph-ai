@@ -294,6 +294,7 @@
     "logo": "Logo (optional)",
     "logoHint": "PNG, JPEG or WebP · up to 2 MB · maximum 4096 × 4096 px. Files remain in this browser.",
     "removeLogo": "Remove logo",
+    "wordmarkLogo": "Generate wordmark logo",
     "logoAlt": "Brand logo",
     "palette": "Your three colors",
     "primary": "Primary color",

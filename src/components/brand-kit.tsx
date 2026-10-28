@@ -11,6 +11,8 @@ import { themeColors } from '@/lib/brand/theme';
 import {LogoOptions} from './logo-options';
 import {defaultLogoPlacement} from '@/lib/editor/logo-placement';
 import {BrandExtraction} from './brand-extraction';
+import { renderWordmarkLogo } from '@/lib/brand/wordmark';
+import { darkestBrandColor } from '@/lib/editor/brand-colors';
 
 export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () => void }) {
   const m = useMessages(), s = m.brands; const workspace = useWorkspace(); const router = useRouter();
@@ -42,6 +44,17 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
     catch (failure) { if (version === logoVersion.current) setError(failure instanceof BrandError ? failure.code : 'invalidLogo'); }
     finally { if (version === logoVersion.current) setLogoBusy(false); }
   }
+  async function generateWordmark() {
+    if (!name.trim()) return;
+    const version = ++logoVersion.current; setLogoBusy(true); setError(null);
+    try {
+      const blob = await renderWordmarkLogo(name.trim(), { bold: identity.wordmarkBold, family: /[\u0600-\u06FF]/.test(name) ? 'Cairo' : 'Inter', color: darkestBrandColor(colors) });
+      await validateLogoDimensions(blob);
+      if (version === logoVersion.current) setLogo(blob);
+    }
+    catch (failure) { if (version === logoVersion.current) setError(failure instanceof BrandError ? failure.code : 'invalidLogo'); }
+    finally { if (version === logoVersion.current) setLogoBusy(false); }
+  }
   function values() {
     const parsed = brandInputSchema.safeParse({ name, description, colors, logoPlacement, logoAspectRatio, ...identity });
     if (!parsed.success) throw new BrandError('invalidBrand');
@@ -69,7 +82,7 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
       <BrandExtraction onAccept={value=>{setName(value.suggestedName);setDescription(workspace.locale==='ar'?value.shortDescriptionAr:value.shortDescriptionEn);setColors([value.primaryHex,value.secondaryHex,value.accentHex]);setIdentity({brandTone:value.brandTone,shortDescriptionEn:value.shortDescriptionEn,shortDescriptionAr:value.shortDescriptionAr,recommendedFontEn:value.recommendedFontEn,recommendedFontAr:value.recommendedFontAr,wordmarkStyle:value.wordmarkStyle??'',wordmarkBold:value.wordmarkBold??false});}}/>
       <label htmlFor="brand-name">{s.name}</label><input id="brand-name" value={name} maxLength={80} placeholder={s.namePlaceholder} onChange={event => setName(event.target.value)}/>
       <label htmlFor="brand-description">{s.descriptionLabel}</label><textarea id="brand-description" value={description} maxLength={500} rows={4} placeholder={s.descriptionPlaceholder} onChange={event => setDescription(event.target.value)}/>
-      <label htmlFor="brand-logo">{s.logo}</label><input ref={logoInput} id="brand-logo" hidden tabIndex={-1} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void chooseLogo(event.target.files?.[0]); event.target.value = ''; }}/><button type="button" className="button secondary" onClick={() => logoInput.current?.click()}>{s.chooseLogo}</button><p className="input-hint">{s.logoHint}</p>
+      <label htmlFor="brand-logo">{s.logo}</label><input ref={logoInput} id="brand-logo" hidden tabIndex={-1} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { void chooseLogo(event.target.files?.[0]); event.target.value = ''; }}/><button type="button" className="button secondary" onClick={() => logoInput.current?.click()}>{s.chooseLogo}</button><button type="button" className="button secondary" disabled={!name.trim() || logoBusy} onClick={() => void generateWordmark()}>{s.wordmarkLogo}</button><p className="input-hint">{s.logoHint}</p>
       {logo && <div className="logo-row"><Logo blob={logo} alt={s.logoAlt}/><button type="button" className="text-button" onClick={() => { logoVersion.current++; setLogo(null); setLogoBusy(false); }}>{s.removeLogo}</button></div>}
       <LogoOptions value={logoPlacement} onChange={setLogoPlacement} blob={logo} onAspect={setLogoAspectRatio}/>
       {(['brandTone','shortDescriptionEn','shortDescriptionAr'] as const).map(field=><label key={field}>{m.meta[field]}<textarea maxLength={field==='brandTone'?120:500} value={identity[field]} onChange={e=>setIdentity(current=>({...current,[field]:e.target.value}))}/></label>)}<p>{m.meta.fonts}: Inter / Cairo</p>{identity.wordmarkStyle&&<p>{m.meta.wordmark}: {identity.wordmarkStyle} · {identity.wordmarkBold?m.meta.wordmarkBold:m.meta.wordmarkRegular}</p>}
