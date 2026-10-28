@@ -51,6 +51,9 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const samReady = !!samKey && !!segmentModel;
   const [cutoutState, setCutoutState] = useState<'idle' | 'cutting' | 'done' | 'sam-fallback' | 'error'>('idle');
   const [cutoutNote, setCutoutNote] = useState('');
+  // Which method produced the applied cutout, so a successful cut is no
+  // longer silent about it (previously only failures showed a note).
+  const [cutoutMethod, setCutoutMethod] = useState<'meta-sam' | 'local' | null>(null);
   const cutoutAttempted = useRef<string | null>(null);
   const visionModel = provider.taskModel('vision');
   const visionKey = visionModel ? provider.configs[visionModel.provider].apiKey.trim() : '';
@@ -62,6 +65,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     if (!creative || !product || cutoutState === 'cutting') return;
     setCutoutState('cutting');
     setCutoutNote('');
+    setCutoutMethod(null);
     try {
       let result;
       if (mode === 'sam' && samReady) {
@@ -81,7 +85,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       }
       const asset: Asset = { id: crypto.randomUUID(), kind: 'cutout', blob: result.cutoutBlob, createdAt: new Date().toISOString(), meta: { derivedFrom: product.id, provider: result.provider, sourceWidth: result.sourceWidth, sourceHeight: result.sourceHeight, reliable: result.reliable } };
       try { await getDatabase().assets.put(asset); } catch { /* library save is best-effort; the creative still holds it */ }
-      if (studio.replaceProductLayer(asset)) setCutoutState((previous) => previous === 'sam-fallback' ? previous : 'done');
+      if (studio.replaceProductLayer(asset)) { setCutoutState((previous) => previous === 'sam-fallback' ? previous : 'done'); setCutoutMethod(result.provider); }
     } catch {
       setCutoutState('error');
       setCutoutNote(m.cutout.cutoutFailed);
@@ -127,7 +131,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   useEffect(() => { let alive = true; Promise.all([document.fonts.load('48px Inter'), document.fonts.load('48px Cairo')]).then(() => { if (alive) setFontsReady(true); }); return () => { alive = false; }; }, []);
   useEffect(() => () => { requestId.current++; abort.current?.abort(); }, []);
   useEffect(() => () => { if (visionWatchdog.current) clearTimeout(visionWatchdog.current); }, []);
-  useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) { setBusy(false); setConsent(false); setSelected(null); setError(null); } }); return () => { alive = false; }; }, [campaignId, concept?.id, provider.keyEpoch]);
+  useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) { setBusy(false); setConsent(false); setSelected(null); setError(null); setCutoutMethod(null); } }); return () => { alive = false; }; }, [campaignId, concept?.id, provider.keyEpoch]);
   useEffect(() => () => { requestId.current++; abort.current?.abort(); }, [campaignId, concept?.id, provider.keyEpoch]);
   const imageModel = provider.taskModel('image');
   const imageReady = imageModel?.provider === 'meta' ;
@@ -279,10 +283,10 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const dimensions = dimensionsFor(creative.format);
   const patch = (values: Partial<EditableLayer>) => { if (layer) studio.patch(layer.id, values); };
   const productLayerAsset = creative.layers.find((item) => item.kind === 'product') ? studio.assets.find((item) => item.id === creative.layers.find((item) => item.kind === 'product')?.assetId) : undefined;
-  const revertToOriginal = () => { const owned = studio.assets.find((item) => item.kind === 'product'); if (owned) studio.replaceProductLayer(owned); };
+  const revertToOriginal = () => { const owned = studio.assets.find((item) => item.kind === 'product'); if (owned) studio.replaceProductLayer(owned); setCutoutMethod(null); };
   return <section className="studio-page">
     <div className="studio-heading"><div><Link href="/campaigns/new">← {s.back}</Link><span className="eyebrow">{s.eyebrow}</span><h1>{s.title}</h1><p>{concept.title} · <bdi>{dimensions.width} × {dimensions.height}</bdi></p></div><div className="studio-actions"><button onClick={studio.undo} disabled={!studio.canUndo || busy}>{s.undo}</button><button onClick={studio.redo} disabled={!studio.canRedo || busy}>{s.redo}</button>{productLayerAsset?.kind === 'cutout' ? <button className="button secondary" onClick={revertToOriginal}>{m.cutout.useOriginal}</button> : <button className="button secondary" disabled={cutoutState === 'cutting'} onClick={() => void runCutout(samReady ? 'sam' : 'local')}>{cutoutState === 'cutting' ? m.cutout.cutting : m.cutout.cut}</button>}<button className="button secondary" onClick={() => { setTab('review'); requestAnimationFrame(() => document.getElementById('creative-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>{m.critic.open}</button><button className="button primary" onClick={download} disabled={!ready}>{s.download} ↗</button></div></div>
-    <div className="studio-status"><span role="status" data-testid="studio-save">{m.campaign.save[studio.saveState]}</span><button className="text-button" onClick={() => void studio.flush()}>{m.campaign.saveNow}</button><span>{s.sources[creative.source]}</span>{cutoutState === 'cutting' && <span>{m.cutout.cutting}</span>}{cutoutNote && <span role="status">{cutoutNote}</span>}</div>
+    <div className="studio-status"><span role="status" data-testid="studio-save">{m.campaign.save[studio.saveState]}</span><button className="text-button" onClick={() => void studio.flush()}>{m.campaign.saveNow}</button><span>{s.sources[creative.source]}</span>{cutoutState === 'cutting' && <span>{m.cutout.cutting}</span>}{cutoutMethod && <span>{cutoutMethod === 'meta-sam' ? m.cutout.providerSam : m.cutout.providerLocal}</span>}{cutoutNote && <span role="status">{cutoutNote}</span>}</div>
     <nav className="creative-switcher" aria-label={m.creativeSet.switcher}>{campaign.concepts.map((item, index) => item.approved && campaign.planRevision === campaign.inputRevision ? <Link key={item.id} aria-current={item.id === concept.id ? 'page' : undefined} onClick={() => { requestId.current++; abort.current?.abort(); void studio.flush(); }} href={`/studio/${campaign.id}?concept=${item.id}`}>{m.creativeSet.open.replace('{number}', String(index + 1))} · {m.campaign.angles[item.angle]}</Link> : <span key={item.id}>{m.creativeSet.open.replace('{number}', String(index + 1))} · {m.campaign.pending}</span>)}</nav>
     {exportNotice&&exportNotice.signature===fingerprint(creative)&&<p role="status" data-testid="export-preflight">{exportNotice.text}</p>}<StudioTools creative={creative} campaign={campaign} handle={handle} ready={ready} markers={markers} setMarkers={setMarkers}/>
     {activeIssue&&<IssueFix key={activeIssue.id} issue={activeIssue} creative={creative} handle={handle} onClose={()=>setActiveIssue(null)}/>}
