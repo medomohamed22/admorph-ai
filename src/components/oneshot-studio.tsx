@@ -71,6 +71,8 @@ export default function OneshotStudio() {
   const [loaded, setLoaded] = useState<Set<string>>(new Set());
   const canvasHandle = useRef<OneshotCanvasHandle | null>(null);
   const resultUrl = useObjectUrl(resultBlob);
+  const originalUrl = useObjectUrl(originalBlob);
+  const currentUrl = useObjectUrl(currentBlob);
 
   const imageModel = provider.taskModel('image');
   const visionModel = provider.taskModel('vision');
@@ -164,14 +166,14 @@ export default function OneshotStudio() {
       return;
     }
     const model = provider.taskModel('image_edit') ?? imageModel;
-    if (!model || !key || !consent) return;
+    if (!model || !key || !consent) { setEnhanceNote(t.enhanceNeedsSetup); return; }
     setEnhanceBusy(true); setError('');
     try {
       const response = await metaFetch('image_edit', '/api/ai/product-makeover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', apiKey: key, modelId: model.modelId, consent: true, imageConsent: true, image: await encodeProduct(originalBlob), mode: 'enhance', preset: 'clean', prompt: 'Improve this product photo: cleaner materials, nicer lighting and finish. Keep the exact product shape, proportions, colors, packaging and identity. Do not add, remove, or re-render any text, lettering, or logos.' }), signal: AbortSignal.timeout(65000) });
       await requireMetaSuccess(response);
       const improved = await response.blob(); await validateGeneratedImage(improved);
       const fitted = await fitProductImage(improved);
-      setCurrentBlob(fitted); await runCutout(fitted); setEnhance(true);
+      setCurrentBlob(fitted); await runCutout(fitted); setEnhance(true); setEnhanceNote(t.enhanceDone);
     } catch (cause) { setEnhanceNote(t.enhanceFailed); setError(metaErrorMessage(cause, errorText)); }
     finally { setEnhanceBusy(false); setConsent(false); }
   }
@@ -251,6 +253,10 @@ export default function OneshotStudio() {
       {selected && <button type="button" className="button secondary" onClick={() => { setElements(previous => previous.filter(item => item.id !== selected)); setSelected(null); }}>{t.deleteSelected}</button>}
       <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? t.enhanceBusy : t.enhance}</label>
       {enhanceNote && <p role="status">{enhanceNote}</p>}
+      {enhance && originalUrl && currentUrl && <div data-testid="oneshot-enhance-compare" style={{ display: 'flex', gap: 12 }}>
+        <figure style={{ margin: 0 }}><img src={originalUrl} alt={t.enhanceOriginal} width={120} /><figcaption>{t.enhanceOriginal}</figcaption></figure>
+        <figure style={{ margin: 0 }}><img src={currentUrl} alt={t.enhanceImproved} width={120} /><figcaption>{t.enhanceImproved}</figcaption></figure>
+      </div>}
     </section>
 
     <section className="feature-card">
