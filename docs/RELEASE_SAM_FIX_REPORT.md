@@ -92,3 +92,17 @@ Unit tests prove both server paths plus the client's error-body mapping;
 a third one-shot E2E proves the no-mask message appears on upload
 instead of a generic error. The next live run will therefore report
 exactly which sub-cause failed, which is what the retest needs.
+
+## Addendum 2 — SAM prompt reverted to `product` (same day)
+
+The diagnostics retest failed twice with `sam_no_mask`: Meta's reply
+had a text lane but zero mask records. Git history showed the timeline:
+before PR #43 the studio sent the single word `product` and SAM worked
+live (including the same blue can); PR #43 replaced it at all call
+sites with a longer "excluding props/garnish/..." wording, and every
+live SAM run since has returned zero masks. Same photo, same account,
+different prompt — so the prompt was reverted to `product`. Trade-off,
+stated openly: the prop-exclusion benefit is lost, but the PR #43
+bottom-roughness detector still warns when a cutout bottom looks torn.
+Whether the revert restores live SAM can only be proven by the next
+live retest with a real key.

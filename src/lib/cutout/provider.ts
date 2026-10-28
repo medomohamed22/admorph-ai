@@ -26,10 +26,13 @@ export interface CutoutResult {
   warnings: SegmentWarning[];
 }
 
-/** SAM prompt for every product cutout: the product alone, with props,
- * garnish, leaves, fruit or anything touching it explicitly excluded —
- * props at the base used to tear the bottom edge of the mask. */
-export const SAM_PRODUCT_PROMPT = 'product only, excluding any props, garnish, leaves, fruit, or objects touching the product';
+/** SAM prompt for every product cutout. Kept to the single word that SAM
+ * answered with mask records live (Oct 28, before PR #43): the longer
+ * "excluding props/garnish/..." wording introduced in PR #43 correlates
+ * exactly with every live SAM run returning zero mask records, so it was
+ * reverted. The bottom-roughness detector remains the guard for torn
+ * bottom edges. */
+export const SAM_PRODUCT_PROMPT = 'product';
 
 export async function localCutout(blob: Blob): Promise<CutoutResult> {
   const image = await decodeToImageData(blob);
