@@ -222,6 +222,7 @@
       "plan_truncated": "The response reached its output limit. Your previous concepts have been kept; try a shorter brief or another model.",
       "image_input": "Approve the concept, choose a compatible image model and confirm consent before requesting a background.",
       "image_response": "The provider did not return a usable supported image. Your existing design has been kept.",
+      "image_shape": "The provider returned the image in a format this app cannot read yet. The response shape was recorded for diagnosis — please report it and try again.",
       "image_model": "This model or image request is not supported. Check image output capability and your account access.",
       "export_error": "The PNG could not be exported. Wait for fonts/images to load and try again.",
       "review_input": "Check the preview, saved Critic and explicit image-sharing consent.",

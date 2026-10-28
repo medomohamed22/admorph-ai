@@ -65,7 +65,12 @@ describe('background adapter', () => {
   });
   it('does not follow file URLs, accept corrupt images or return provider error strings', async () => {
     for (const json of [{ candidates: [{ content: { parts: [{ fileData: { fileUri: 'http://localhost/private' } }] } }] }, { candidates: [{ content: { parts: [{ inlineData: { mimeType: 'image/png', data: Buffer.from('not png').toString('base64') } }] } }] }]) {
-      const result = await handleBackgroundRequest(request(input()), { fetcher: async () => Response.json(json) }); expect(result.status).toBe(502); expect(await result.json()).toEqual({ error: { code: 'image_response' } });
+      const fetcher = vi.fn(async () => Response.json(json));
+      const result = await handleBackgroundRequest(request(input()), { fetcher }); expect(result.status).toBe(502);
+      const body = await result.json() as { error: { code: string; details?: { fields?: string[] } } };
+      // Unknown image-bearing envelopes now report the diagnostic shape code
+      // (the safety properties are unchanged: nothing is fetched or accepted).
+      expect(body.error.code).toBe('image_shape'); expect(body.error.details?.fields).toContain('top:candidates'); expect(fetcher).toHaveBeenCalledTimes(1);
     }
     const result = await handleBackgroundRequest(request(input()), { fetcher: async () => Response.json({ error: { message: input().apiKey } }, { status: 401 }) }); expect(await result.text()).not.toContain(input().apiKey);
   });
