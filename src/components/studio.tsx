@@ -63,7 +63,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const [selectedScene, setSelectedScene] = useState(0);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionNote, setVisionNote] = useState('');
-  type BackgroundReview = { productRatio: number | null; textLow: { id: string; ratio: number }[]; resized: boolean; textFixed: boolean };
+  type BackgroundReview = { productRatio: number | null; textLow: { id: string; ratio: number }[]; resized: boolean; textFixed: boolean; failed?: boolean };
   const [bgReview, setBgReview] = useState<BackgroundReview | null>(null);
   async function runCutout(mode: 'sam' | 'local') {
     if (!creative || !product || cutoutState === 'cutting') return;
@@ -220,8 +220,9 @@ export default function Studio({ campaignId }: { campaignId: string }) {
    * background, and each transparent-fill text layer vs the background
    * behind it. Two fixes apply automatically in one undoable update: the
    * product layer follows the vision scale rect, and unreadable text moves
-   * to the lightest brand color. Any decode failure skips the review silently
-   * — generation already succeeded, and the review must never block it.
+   * to the lightest brand color. Any decode failure still shows the box
+   * with an unavailable note instead of vanishing silently — generation
+   * already succeeded, and the review must never block it.
    */
   async function reviewBackground(blob: Blob, fresh: Creative, scale: VisionBackgroundAnalysis['productScale'] | undefined) {
     if (!campaign) return;
@@ -259,7 +260,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       }
       if (resized || textFixed) studio.update(next);
       setBgReview({ productRatio, textLow, resized, textFixed });
-    } catch { /* fail-open: no review box */ }
+    } catch { /* fail-open: the box still appears, saying the review could not run */ setBgReview({ productRatio: null, textLow: [], resized: false, textFixed: false, failed: true }); }
   }
   async function generate() {
     if (!creative || !campaign || !concept || !approved || !imageReady || !imageModel || !key || !consent || busy) return;
@@ -391,16 +392,18 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           <label className="studio-consent"><input type="checkbox" checked={consent} disabled={busy || !approved || !imageReady || !key} onChange={event => setConsent(event.target.checked)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{s.consent}</p></details><p>{s.billing}</p><button className="button primary" disabled={busy || !approved || !imageReady || !key || !consent} onClick={() => void generate()}>{busy ? s.generating : s.generate}</button>
           {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); requestId.current++; setBusy(false); setError('cancelled'); }}>{m.campaign.cancel}</button>}
           {bgReview && <div className="background-review" data-testid="background-review"><h3>{s.bgReviewTitle}</h3>
-            {bgReview.productRatio === null && bgReview.textLow.length === 0 && !bgReview.resized && !bgReview.textFixed ? <p>{s.bgReviewOk}</p> : <>
+            {bgReview.failed && <p>{s.bgReviewFailed}</p>}
+            {!bgReview.failed && (bgReview.productRatio === null && bgReview.textLow.length === 0 && !bgReview.resized && !bgReview.textFixed ? <p>{s.bgReviewOk}</p> : <>
               {bgReview.productRatio !== null && <p>{bgReview.productRatio >= PRODUCT_CONTRAST_MIN ? s.bgReviewProductOk.replace('{ratio}', bgReview.productRatio.toFixed(2)) : s.bgReviewProductLow.replace('{ratio}', bgReview.productRatio.toFixed(2))}</p>}
               {bgReview.textLow.length > 0 && <p>{s.bgReviewTextLow.replace('{ratio}', Math.min(...bgReview.textLow.map(t => t.ratio)).toFixed(2))}</p>}
               {bgReview.resized && <p>{s.bgReviewResized}</p>}
               {bgReview.textFixed && <p>{s.bgReviewTextFixed}</p>}
               {bgReview.productRatio !== null && bgReview.productRatio < PRODUCT_CONTRAST_MIN && <button className="button secondary" onClick={() => { if (!creative || !campaign) return; const lightest = lightestBrandColor(campaign.brandSnapshot.colors); studio.update({ ...creative, polish: { shadow: creative.polish?.shadow ?? false, reflection: creative.polish?.reflection ?? false, grade: lightest } }); }}>{s.bgReviewGrade}</button>}
-            </>}
+            </>)}
           </div>}
           <div className="reference-block"><h3>{s.referenceTitle}</h3><p>{s.referenceHelp}</p>
           <button className="button secondary" disabled={referenceBusy || busy || !approved || !imageReady || !key || !consent || !product} onClick={() => void generateReference()}>{referenceBusy ? s.referenceGenerating : s.referenceGenerate}</button>
+          {!consent && !referenceBusy && !busy && approved && imageReady && key !== '' && product && <p className="field-help">{s.referenceNeedsConsent}</p>}
           {referenceAsset && referenceUrl && <div className="reference-side">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={referenceUrl} alt={s.referenceAlt} className="reference-image"/>
