@@ -134,4 +134,21 @@ describe('vision background routes', () => {
     expect(response.status).toBe(400);
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it('aborts a hung vision call with a clean timeout error', async () => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn(
+      (_url: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')));
+        }),
+    );
+    const response = await handleMetaRoute(
+      request({ ...base(), imageConsent: true, image }, 'vision-background'),
+      'vision-background',
+      { fetcher, timeoutMs: 50 },
+    );
+    expect(response.status).toBe(504);
+    expect((await response.json() as { error: { code: string } }).error.code).toBe('timeout');
+  });
 });
