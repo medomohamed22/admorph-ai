@@ -111,3 +111,19 @@ describe('paid adapters', () => {
     const fetcher = vi.fn((_url: unknown, options?: RequestInit) => new Promise<Response>((_, reject) => options?.signal?.addEventListener('abort', () => reject(new Error('abort'))))); expect((await handleMetaSmoke(request(body, '/api/providers/meta-smoke'), { fetcher, timeoutMs:100 })).status).toBe(504); expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('direction repair', () => {
+  it('proposes resetting a forced opposite direction to automatic without regression', () => {
+    const creative = fixture(), headline = creative.layers.find(layer => layer.kind === 'headline')!;
+    Object.assign(headline, { text: 'ساقعة على طول', dir: 'ltr' });
+    const assets = new Set(creative.layers.flatMap(layer => layer.assetId ? [layer.assetId] : []));
+    const actions = proposeLocal(creative, measure, assets);
+    expect(actions).toContainEqual({ type: 'set_direction', layerId: headline.id, dir: 'auto' });
+    const after = applyActions(creative, actions);
+    expect(after.layers.find(layer => layer.id === headline.id)!.dir).toBe('auto');
+    const result = verifyRepair(creative, after, measure, assets);
+    expect(result.before.issues.some(issue => issue.code === 'direction_mismatch')).toBe(true);
+    expect(result.after.issues.some(issue => issue.code === 'direction_mismatch')).toBe(false);
+    expect(result.regression).toBe(false);
+  });
+});
