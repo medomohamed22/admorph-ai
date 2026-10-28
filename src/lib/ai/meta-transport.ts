@@ -30,8 +30,37 @@ export async function metaJson<T>(model:string,key:string,prompt:string,schema:z
 export async function metaImage(model:string,key:string,prompt:string,signal:AbortSignal,options:TransportOptions={},image?:z.infer<typeof inputImage>){
  if(image)await validateRaster(image);
  const json=await metaCall(image?'images/edits':'images/generations',{model,prompt,n:1,response_format:'b64_json',output_format:'png',...(image?{images:[{image_url:`data:${image.mimeType};base64,${image.data}`}]}:{})},key,signal,options);
- const parsed=z.object({data:z.array(z.object({b64_json:z.string().max(4*1024*1024).regex(/^[A-Za-z0-9+/]+={0,2}$/)})).length(1)}).safeParse(json);if(!parsed.success)throw new ProviderError('image_response',502);const bytes=Buffer.from(parsed.data.data[0].b64_json,'base64');if(bytes.length>3*1024*1024)throw new ProviderError('image_response',502);
+ const strict=z.object({data:z.array(z.object({b64_json:z.string().max(4*1024*1024).regex(/^[A-Za-z0-9+/]+={0,2}$/)})).length(1)}).safeParse(json);
+ let bytes:Buffer;
+ if(strict.success){bytes=Buffer.from(strict.data.data[0].b64_json,'base64');if(bytes.length>3*1024*1024)throw new ProviderError('image_response',502);}
+ else {
+   const first=Array.isArray((json as {data?:unknown})?.data)?(json as {data:unknown[]}).data[0] as Record<string,unknown>|undefined:undefined;
+   if(typeof first?.b64_json==='string')throw new ProviderError('image_response',502);
+   const url=typeof first?.url==='string'?first.url:undefined;
+   if(url&&isFetchableImageUrl(url)){
+     const fetched=await (options.fetcher??fetch)(url,{signal,redirect:'error',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
+     if(!fetched.ok)throw new ProviderError('image_response',502);
+     bytes=Buffer.from(await fetched.arrayBuffer());if(bytes.length>3*1024*1024)throw new ProviderError('image_response',502);
+   } else if(url)throw new ProviderError('image_response',502);
+   else throw new ProviderError('image_shape',502,{source:'meta',fields:responseShape(json)});
+ }
  const {default:sharp}=await import('sharp');try{const raster=sharp(bytes,{limitInputPixels:4096*4096}),meta=await raster.metadata();if(!meta.width||!meta.height||meta.width>4096||meta.height>4096||!['png','jpeg','webp'].includes(meta.format??'')||(meta.pages??1)>1)throw new Error();await raster.stats();return {bytes,mimeType:`image/${meta.format}`};}catch{throw new ProviderError('image_response',502);}
+}
+/** Only an https URL on a public host may be fetched server-side. The URL
+ * itself is never returned to the client — only the validated bytes. */
+function isFetchableImageUrl(value:string):boolean{
+ let parsed:URL;try{parsed=new URL(value);}catch{return false;}
+ if(parsed.protocol!=='https:')return false;
+ const host=parsed.hostname.toLowerCase();
+ if(host==='localhost'||host.endsWith('.localhost')||host==='[::1]'||host==='::1')return false;
+ return !/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host);
+}
+/** Shape metadata only (key names and counts) — never response content — so a
+ * future unknown envelope can be diagnosed from the server log. */
+function responseShape(value:unknown):string[]{
+ if(!value||typeof value!=='object'||Array.isArray(value))return ['<non-object>'];
+ const data=(value as {data?:unknown}).data,first=Array.isArray(data)&&data.length>0&&data[0]&&typeof data[0]==='object'?Object.keys(data[0] as Record<string,unknown>):[];
+ return [...Object.keys(value as Record<string,unknown>).map(key=>`top:${key}`),...first.map(key=>`item:${key}`),`items:${Array.isArray(data)?data.length:'not-array'}`];
 }
 /**
  * SAM 3.1 segmentation through Meta's OpenAI-compatible Responses endpoint.
