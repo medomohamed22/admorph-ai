@@ -100,19 +100,29 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   // SAM failure is never silent: it falls back to local with a visible note.
   useEffect(() => {
     if (!creative || !campaign || !product) return;
+    const layer = creative.layers.find((item) => item.kind === 'product');
+    const layerAsset = studio.assets.find((item) => item.id === layer?.assetId);
+    // The method line must survive reopening a creative whose layer is
+    // already a cutout, whatever the auto-cutout mode — the cut is applied
+    // work, not a new cut. Both the layer asset and a reused library asset
+    // carry their provider in meta.
+    if (layerAsset?.kind === 'cutout') {
+      const method = layerAsset.meta?.provider;
+      if (method) void Promise.resolve().then(() => setCutoutMethod(method));
+      return;
+    }
     const mode = campaign.autoCutout ?? 'off';
     if (mode === 'off' || cutoutState === 'cutting') return;
     const attemptKey = `${campaign.id}:${product.id}:${creative.id}`;
     if (cutoutAttempted.current === attemptKey) return;
-    const layer = creative.layers.find((item) => item.kind === 'product');
-    const layerAsset = studio.assets.find((item) => item.id === layer?.assetId);
-    if (!layer || layerAsset?.kind === 'cutout') return;
+    if (!layer) return;
     cutoutAttempted.current = attemptKey;
     void (async () => {
       const library = await getDatabase().assets.where('kind').equals('cutout').toArray().catch(() => [] as Asset[]);
       const existing = findCutoutAsset(library, product.id);
       if (existing) {
         studio.replaceProductLayer(existing);
+        if (existing.meta?.provider) setCutoutMethod(existing.meta.provider);
         return;
       }
       await runCutout(mode);
