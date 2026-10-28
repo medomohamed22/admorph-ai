@@ -614,6 +614,7 @@
     "referenceHelp": "Generate a full AI ad as a style target only — never exported, never a layer. Then analyze its layout and apply the closest template with your approval.",
     "referenceGenerate": "Generate reference",
     "referenceGenerating": "Generating reference…",
+    "referenceNeedsConsent": "Check the consent box above to enable reference generation.",
     "referenceAlt": "AI-generated reference image",
     "referenceOnly": "Reference only — never exported, never used as the product.",
     "referenceAnalyze": "Analyze layout",
@@ -636,7 +637,8 @@
     "bgReviewTextLow": "Some text is hard to read on this background (lowest contrast {ratio}).",
     "bgReviewResized": "Product enlarged to fit the scene.",
     "bgReviewTextFixed": "Text color adjusted to the lightest brand color for readability (undoable).",
-    "bgReviewGrade": "Lighten background grade"
+    "bgReviewGrade": "Lighten background grade",
+    "bgReviewFailed": "The background review could not run on this image, so no contrast verdict is shown."
   },
   "critic": {
     "open": "Review design",
