@@ -14,6 +14,7 @@ import {ProductMakeover} from './product-makeover';
 import {CopyShifter} from './copy-shifter';
 import {measureCopy} from '@/lib/editor/measure-copy';
 import {compose} from '@/lib/editor/composition';
+import { SIZE_FORMATS, formatLabel } from '@/lib/editor/sizes';
 import {spatialSchema} from '@/lib/editor/spatial';
 import { CreativeSet } from './creative-set';
 
@@ -105,7 +106,8 @@ export function CampaignWorkspace() {
       <p className="field-help">{c.briefHelp} · {draft.brief.length}/2000</p>
       <div className="campaign-fields"><div><label htmlFor="campaign-goal">{c.goal}</label><select id="campaign-goal" disabled={busy} value={draft.goal} onChange={event => updateInput({ goal: event.target.value as Campaign['goal'] })}>{Object.entries(c.goals).map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></div>
         <div><label htmlFor="creative-language">{c.language}</label><select id="creative-language" disabled={busy} value={draft.creativeLanguage} onChange={event => updateInput({ creativeLanguage: event.target.value as 'en' | 'ar' })}><option value="en">{c.english}</option><option value="ar">{c.arabic}</option></select></div></div>
-      <p className="format-chip">{c.format}: <bdi>1080 × 1350 · 4:5</bdi></p>
+      <p className="format-chip">{c.format}: <bdi>{formatLabel(draft.format)}</bdi></p>
+      <label htmlFor="campaign-format">{c.format}</label><select id="campaign-format" disabled={busy} value={draft.format} onChange={event => updateInput({ format: event.target.value as Campaign['format'] })}>{SIZE_FORMATS.map(value => <option key={value} value={value}>{formatLabel(value)}</option>)}</select><p className="field-help">{c.formatHelp}</p>
     </div><aside className="campaign-planner panel"><span className="eyebrow">{c.planner}</span><h2>{c.plannerTitle}</h2>
       <div className="planner-selection"><strong>{selection ? providers[selection.provider].name : c.noPlanner}</strong><code>{selection?.modelId ?? c.chooseModel}</code></div>
       <p>{c.modelHelp}</p><Link href="/settings">{c.openSettings} ↗</Link>

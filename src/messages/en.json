@@ -508,7 +508,8 @@
     "autoCutoutOff": "Off",
     "autoCutoutSam": "With Meta (SAM)",
     "autoCutoutLocal": "Local in browser",
-    "autoCutoutHelp": "When a new design is created, the product is cut out automatically. Choosing SAM sends the product photo to Meta."
+    "autoCutoutHelp": "When a new design is created, the product is cut out automatically. Choosing SAM sends the product photo to Meta.",
+    "formatHelp": "Applies to newly created creatives only; saved creatives keep their size."
   },
   "studio": {
     "open": "Open design editor",
@@ -598,7 +599,15 @@
     "direction": "Text direction",
     "directionAuto": "Auto by content",
     "directionLtr": "Left to right",
-    "directionRtl": "Right to left"
+    "directionRtl": "Right to left",
+    "template": "Layout template",
+    "templateChoose": "Choose a layout…",
+    "templateHelp": "Rearranges layers into the chosen layout, keeping text, images and colors.",
+    "templates": {
+      "hero-center": "Hero center",
+      "split": "Split",
+      "minimal": "Minimal"
+    }
   },
   "critic": {
     "open": "Review design",

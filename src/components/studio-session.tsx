@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { compose } from '@/lib/editor/composition';
 import { creativeSchema, clampLayer, type Creative, type EditableLayer } from '@/lib/editor/schema';
+import { dimensionsFor } from '@/lib/editor/sizes';
 import { loadCreative, saveCreative } from '@/lib/editor/repository';
 import type { Campaign, EditableConcept } from '@/lib/campaign/schema';
 import type { Asset } from '@/lib/db/schema';
@@ -70,7 +71,7 @@ function useStudioState() {
     cache.current.set(`${valid.campaignId}:${valid.conceptId}`, { creative: valid, assets: nextAssets });
     setCreative(valid); setAssets(nextAssets); version.current++; setRevision(version.current); setSaveState('saving');
   }
-  function patch(id: string, values: Partial<EditableLayer>) { if (creative) update({ ...creative, layers: creative.layers.map(layer => layer.id === id ? clampLayer(layer, values) : layer) }); }
+  function patch(id: string, values: Partial<EditableLayer>) { if (creative) update({ ...creative, layers: creative.layers.map(layer => layer.id === id ? clampLayer(layer, values, dimensionsFor(creative.format)) : layer) }); }
   function persist(snapshot: Creative, snapshotAssets: Asset[], captured: number) {
     const write = writes.current.catch(() => {}).then(() => saveCreative(snapshot, snapshotAssets)); writes.current = write;
     return write.then(() => { if (version.current === captured) setSaveState('saved'); return true; })

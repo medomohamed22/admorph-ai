@@ -2,6 +2,7 @@ import {metaModelId} from '../ai/model-id';
 import { z } from 'zod';
 import { brandInputSchema } from '../db/schema';
 import { selectionSchema } from '../db/schema';
+import { SIZE_FORMATS } from '../editor/sizes';
 
 export const MAX_PRODUCT_BYTES = 2 * 1024 * 1024;
 export const goalSchema = z.enum(['awareness', 'consideration', 'conversion']);
@@ -28,7 +29,7 @@ export type ConceptField = 'title' | 'audienceAngle' | 'headline' | 'caption' | 
 export const campaignSchema = z.object({
   id: z.string().uuid(), brandId: z.string().uuid().nullable(), brandSnapshot: brandInputSchema,
   productAssetId: z.string().uuid().nullable(), brief: z.string().max(2000), goal: goalSchema,
-  creativeLanguage: z.enum(['en', 'ar']), format: z.literal('1080x1350'),
+  creativeLanguage: z.enum(['en', 'ar']), format: z.enum(SIZE_FORMATS),
   concepts: z.array(editableConceptSchema).max(3), source: z.enum(['draft', 'sample', 'gemini', 'meta']),
   inputRevision: z.number().int().nonnegative(), planRevision: z.number().int().nonnegative().nullable(),
   originalProductAssetId: z.string().uuid().optional(), activeVariantId: z.string().uuid().nullable().optional(), planner: selectionSchema.nullable(), createdAt: z.string().datetime(), updatedAt: z.string().datetime(),
@@ -42,7 +43,7 @@ export const planRequestSchema = z.object({
   providerId: z.literal('meta'), apiKey: z.string().trim().min(1).max(4096).refine(value => !/[\x00-\x1f\x7f]/.test(value)),
   modelId:metaModelId,
   consent: z.literal(true), imageConsent: z.literal(true), brand: brandInputSchema,
-  brief: z.string().trim().min(8).max(2000), goal: goalSchema, creativeLanguage: z.enum(['en', 'ar']), format: z.literal('1080x1350'),
+  brief: z.string().trim().min(8).max(2000), goal: goalSchema, creativeLanguage: z.enum(['en', 'ar']), format: z.enum(SIZE_FORMATS),
   product: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     data: z.string().min(4).max(4 * Math.ceil(MAX_PRODUCT_BYTES / 3)).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
 }).strict();

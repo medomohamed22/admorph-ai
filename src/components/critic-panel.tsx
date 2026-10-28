@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { aiReviewSchema, type ReviewRecord, type RuleResult } from '@/lib/critic/schema';
 import { checkCreative, fingerprint } from '@/lib/critic/rules';
+import { dimensionsFor } from '@/lib/editor/sizes';
 import { loadReview, saveReview } from '@/lib/critic/repository';
 import { ProviderError, errorCode, errorCodes, type ErrorCode } from '@/lib/ai/errors';
 import { readJsonLimited } from '@/lib/ai/transport';
@@ -44,7 +45,7 @@ export function CriticPanel({ creative, creativeLanguage, assets, handleRef, rea
     if (!fontsReady) return;
     const timer = setTimeout(() => {
       if (!handleRef.current) return;
-      setLocal({ signature, result: checkCreative(creative, handleRef.current.measureText(), new Set(assets.map(asset => asset.id))) });
+      setLocal({ signature, result: checkCreative(creative, handleRef.current.measureText(), new Set(assets.map(asset => asset.id)), dimensionsFor(creative.format)) });
     }, 180);
     return () => clearTimeout(timer);
   }, [signature, creative, assets, handleRef, fontsReady]);
