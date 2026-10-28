@@ -1,3 +1,33 @@
+## Compliance and completion record — 28 October 2026
+
+This section is the current record. Everything below it is the historical record from 26–27 October 2026.
+
+### Dates established from the repository history (all times Cairo, UTC+3)
+
+- **26 October 2026, 14:09** — repository created (initial commit, README stub).
+- **26 October 2026, 14:49** — initial working baseline uploaded: application source, plan and documentation.
+- **26 October 2026, 15:35–15:36** — campaign workflow update; merge of PR #1.
+- **26 October 2026, 19:00** — official kickoff session. Everything above this line on 26 October is the pre-kickoff baseline; everything below was built after the kickoff.
+- **27 October 2026, 18:10–22:18** — Meta-only expansion (PR #2), audit fix (PR #3), auto-ads program (PRs #4–#12).
+- **27 October 2026, evening** — live Meta verification with the owner's own key and explicit consent: planner, image background generation and critic each succeeded in one studio campaign; the auto-ads no-key run completed with quality Verified.
+- **27 October 2026, 23:08–23:26** — quality fixes A–C merged (PRs #13–#15).
+- **28 October 2026, 06:46–07:29** — quality fixes D–G merged (PRs #16–#19). Main HEAD: `22ce8c2`.
+
+### What is completed
+
+- Bilingual (English-first + Arabic RTL) creative studio: Brand Kits with logo placement; campaigns from a product upload or a local sample; three brand-consistent concepts the user approves before generation; an editable-layer editor (Konva) with content-detected text direction and per-layer override, layout templates, platform sizes 1:1 / 4:5 / 9:16, and polish overlays (shadow, reflection, background grade) that never touch product pixels.
+- SAM product segmentation wired to the studio auto-cutout, with a visible local fallback; vision-first background briefs with a product-presence re-check; an AI reference image shown side-by-side as a style target only — never a layer, never exported.
+- Explainable local Critic plus optional Meta Critic; user-approved repairs with before/after comparison and undo/redo.
+- Auto-ads: a one-click no-key run (cutout, analysis, backgrounds, composition, copy, review) with a results set, captions and ZIP export.
+- Exact-size PNG export, project backup and restore, a public repository and a Vercel production deployment; 238 unit tests and E2E coverage (auto-ads 15/15, quality 15/15) on a local production build.
+- No code was imported from any earlier project; this repository contains only work from 26–28 October 2026.
+
+### What is not completed or not verified
+
+- First live SAM segmentation, vision-first background generation and AI reference generation: implemented and deployed, but not yet live-verified — they need the owner's key at test time.
+- Demo video: not recorded yet. It must open with: "This project started with an initial baseline uploaded on the afternoon of October 26, before the evening kickoff; all further development shown here was built during the hackathon, October 26 to November 4, 2026."
+- Submission: not submitted yet. Deadline: 4 November 2026, 9:00 PM ET (5 November 2026, 4:00 AM Cairo).
+
 > Current source: 1.0.0, Meta-only expansion integrated on 27 October 2026. Earlier sections below record the historical baseline. See [current verification](META_ONLY_VERIFICATION.md); live Meta account access and remote publication remain unverified.
 
 # AdMorph AI — Hackathon development record
