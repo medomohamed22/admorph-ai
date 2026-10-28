@@ -25,6 +25,7 @@ export function CampaignWorkspace() {
   const url = useObjectUrl(asset?.blob ?? null);
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [productMode, setProductMode] = useState<'ready' | 'improve'>('ready');
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<ErrorCode | null>(null);
   const controller = useRef<AbortController | null>(null);
@@ -104,7 +105,8 @@ export function CampaignWorkspace() {
         <img src={url} alt={c.productAlt} className="campaign-product"/> : <div className="product-placeholder" aria-hidden="true">✳</div>}
         <input id="product-image" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void upload(file); }}/><p className="field-help">{c.productHelp}</p></div>
       <label htmlFor="campaign-autocutout">{c.autoCutout}</label><select id="campaign-autocutout" disabled={busy} value={draft.autoCutout ?? 'off'} onChange={event => { const value = event.target.value as 'off' | 'sam' | 'local'; setConsent(false); setError(null); void session.update({ ...draft, autoCutout: value }); }}><option value="off">{c.autoCutoutOff}</option><option value="sam">{c.autoCutoutSam}</option><option value="local">{c.autoCutoutLocal}</option></select><p className="field-help">{c.autoCutoutHelp}</p>
-      <ProductMakeover/><label htmlFor="campaign-brief">{c.brief}</label><textarea id="campaign-brief" rows={4} maxLength={2000} disabled={busy} value={draft.brief} onChange={event => updateInput({ brief: event.target.value })} placeholder={c.briefPlaceholder}/>
+      <fieldset><legend>{c.productModeLabel}</legend><label><input type="radio" checked={productMode === 'ready'} onChange={() => setProductMode('ready')} />{c.productModeReady}</label><label><input type="radio" checked={productMode === 'improve'} onChange={() => setProductMode('improve')} />{c.productModeImprove}</label></fieldset>
+      <ProductMakeover startOpen={productMode === 'improve'} /><label htmlFor="campaign-brief">{c.brief}</label><textarea id="campaign-brief" rows={4} maxLength={2000} disabled={busy} value={draft.brief} onChange={event => updateInput({ brief: event.target.value })} placeholder={c.briefPlaceholder}/>
       <p className="field-help">{c.briefHelp} · {draft.brief.length}/2000</p>
       <div className="campaign-fields"><div><label htmlFor="campaign-goal">{c.goal}</label><select id="campaign-goal" disabled={busy} value={draft.goal} onChange={event => updateInput({ goal: event.target.value as Campaign['goal'] })}>{Object.entries(c.goals).map(([id, text]) => <option key={id} value={id}>{text}</option>)}</select></div>
         <div><label htmlFor="creative-language">{c.language}</label><select id="creative-language" disabled={busy} value={draft.creativeLanguage} onChange={event => updateInput({ creativeLanguage: event.target.value as 'en' | 'ar' })}><option value="en">{c.english}</option><option value="ar">{c.arabic}</option></select></div></div>
