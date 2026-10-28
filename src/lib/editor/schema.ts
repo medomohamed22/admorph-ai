@@ -22,6 +22,8 @@ export const creativeSchema = z.object({
   // Derived stage nodes only (shadow/reflection/grade); never a layer kind,
   // so product pixels stay untouched and no rule or repair flow changes.
   polish: polishSchema.optional(),
+  // Style target only: shown side-by-side, never a layer, never exported.
+  referenceAssetId: z.string().uuid().nullable().optional(),
   // Denormalized at compose time; old creatives without it are 4:5. The layer
   // schema above only guards the union of all sizes (1080x1920); this refine
   // is what keeps a creative inside its own platform size.
