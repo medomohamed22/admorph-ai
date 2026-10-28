@@ -236,7 +236,9 @@
       "meta_only": "Only Meta is active. Inactive provider records were preserved.",
       "unsupported_task": "Meta explicitly rejected support for this task. Choose another model.",
       "unverified_task": "Verify this task with the current key/model before using it.",
-      "sam_unavailable": "SAM cutout needs a Meta key and the sam-3.1 segment model in Settings. No cutout was applied."
+      "sam_unavailable": "SAM cutout needs a Meta key and the sam-3.1 segment model in Settings. No cutout was applied.",
+      "sam_no_text": "SAM returned no text output for this photo. The segment request reached Meta but came back empty — try again.",
+      "sam_no_mask": "SAM returned text but no usable mask for this photo. Try a clearer product photo."
     },
     "connectionFailed": "Action needs attention — see message below",
     "lastSuccess": "Last successful catalog · not a fresh access check",

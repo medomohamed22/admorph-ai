@@ -70,3 +70,25 @@ there costs nothing.
   visible error with its real code instead of a silent local cutout.
 - The enhance preview compares the photos before cutout; a subtle
   makeover on an already-clean photo can still look near-identical.
+
+## Addendum — precise SAM diagnostics (same day, after the retest)
+
+The first live retest after PRs #49–#52 failed at the cutout with the
+generic `invalid_response` message — twice, on the same blue can. That
+message hid two different failures (Meta's reply had no text lane, or
+its text parsed to zero mask records), so the diagnosis now names the
+sub-cause:
+
+- `sam_no_text`: Meta's Responses reply carried no `output_text` lane;
+  the server attaches the envelope's top-level key names (never content)
+  for the log.
+- `sam_no_mask`: the reply's text parsed to zero mask records; the
+  server attaches the parser's diagnostic codes.
+- The browser SAM client now preserves the server's error code +
+  details instead of dropping them, and its own empty-mask case throws
+  `sam_no_mask` with an explanatory detail.
+
+Unit tests prove both server paths plus the client's error-body mapping;
+a third one-shot E2E proves the no-mask message appears on upload
+instead of a generic error. The next live run will therefore report
+exactly which sub-cause failed, which is what the retest needs.

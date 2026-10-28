@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { handleSegmentRequest } from '../../src/lib/ai/segment-server';
 import { handleMetaRoute } from '../../src/lib/ai/meta-runtime';
 import { verifyProof } from '../../src/lib/ai/meta-transport';
-import { parseSegmentResponse } from '../../src/lib/cutout/sam-client';
+import { parseSegmentResponse, segmentErrorBody } from '../../src/lib/cutout/sam-client';
 import { findCutoutAsset } from '../../src/lib/cutout/provenance';
 import type { Asset } from '../../src/lib/db/schema';
 
@@ -55,15 +55,15 @@ describe('SAM segment route', () => {
     expect(String(init.body)).not.toContain(base().apiKey);
   });
 
-  it('returns an empty mask list when SAM finds nothing', async () => {
+  it('reports sam_no_mask instead of an empty mask list when SAM finds nothing', async () => {
     const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
     const fetcher = vi.fn(async () => Response.json(responsesEnvelope('no objects here')));
     const response = await handleSegmentRequest(
       request({ ...base(), imageConsent: true, image, prompt: 'product' }),
       { fetcher },
     );
-    expect(response.status).toBe(200);
-    expect((await response.json()).masks).toEqual([]);
+    expect(response.status).toBe(502);
+    expect((await response.json()).error.code).toBe('sam_no_mask');
   });
 
   it('rejects a segment request without image consent', async () => {
@@ -126,5 +126,46 @@ describe('cutout provenance reuse', () => {
     expect(findCutoutAsset([assets[0]], 'product-1')?.id).toBe('local-1');
     expect(findCutoutAsset(assets, 'product-9')).toBeNull();
     expect(findCutoutAsset([], 'product-1')).toBeNull();
+  });
+});
+
+describe('SAM diagnostic errors', () => {
+  const segmentBody = async (fetcherBody: unknown) => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn(async () => Response.json(fetcherBody));
+    const response = await handleSegmentRequest(
+      request({ ...base(), imageConsent: true, image, prompt: 'product' }),
+      { fetcher },
+    );
+    return { status: response.status, body: await response.json() as { error?: { code?: string; details?: { source?: string; fields?: string[] } } } };
+  };
+
+  it('reports sam_no_text when Meta returns no text lane', async () => {
+    const empty = await segmentBody({});
+    expect(empty.status).toBe(502);
+    expect(empty.body.error?.code).toBe('sam_no_text');
+    expect(empty.body.error?.details?.source).toBe('meta');
+    const wrongLane = await segmentBody({ output: [{ type: 'message', content: [{ type: 'text', text: 'hi' }] }] });
+    expect(wrongLane.status).toBe(502);
+    expect(wrongLane.body.error?.code).toBe('sam_no_text');
+    expect(wrongLane.body.error?.details?.fields).toContain('top:output');
+  });
+
+  it('reports sam_no_mask when SAM text parses to zero masks', async () => {
+    const plain = await segmentBody(responsesEnvelope('hello, no segmentation here'));
+    expect(plain.status).toBe(502);
+    expect(plain.body.error?.code).toBe('sam_no_mask');
+    expect(plain.body.error?.details?.source).toBe('meta');
+  });
+
+  it('maps segment error bodies, preserving well-formed details only', () => {
+    const kept = segmentErrorBody({ error: { code: 'sam_no_mask', details: { source: 'meta', message: 'm', fields: ['a'] } } }, 502);
+    expect(kept.code).toBe('sam_no_mask');
+    expect(kept.details).toEqual({ source: 'meta', message: 'm', fields: ['a'] });
+    expect(segmentErrorBody({ error: { code: 'bogus' } }, 502).code).toBe('invalid_response');
+    expect(segmentErrorBody(null, 502).code).toBe('invalid_response');
+    const dropped = segmentErrorBody({ error: { code: 'timeout', details: { source: 'weird' } } }, 504);
+    expect(dropped.code).toBe('timeout');
+    expect(dropped.details).toBeUndefined();
   });
 });

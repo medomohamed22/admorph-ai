@@ -1,10 +1,11 @@
 // SAM cutout client (browser): sends the product photo to the app's own
 // /api/ai/segment route (BYOK, consent-gated) and turns the largest returned
 // mask into a transparent PNG. Original RGB is never touched; only the
-// alpha channel comes from SAM. Empty masks are a plain Error('segment_empty')
-// so callers can offer the local fallback explicitly.
+// alpha channel comes from SAM. Empty masks throw sam_no_mask (never a
+// silent fallback), and server error bodies keep their code + details so a
+// live failure says exactly what went wrong.
 
-import { ProviderError } from '../ai/errors';
+import { ProviderError, errorCodes, type ErrorDetails } from '../ai/errors';
 import { decodeToImageData, encodePng, blobToBase64 } from './raster';
 import { applySamAlpha, maskToAlpha, pickLargestMask, type SamMask } from './sam';
 import type { CutoutResult } from './provider';
@@ -54,6 +55,28 @@ export function parseSegmentResponse(result: unknown): SamMask[] {
   return parsed;
 }
 
+/** Map a /api/ai/segment error body to a ProviderError, preserving the
+ * server's code + details when well-formed; anything else becomes the
+ * generic invalid_response so a malformed body cannot hide a failure. */
+export function segmentErrorBody(result: unknown, status: number): ProviderError {
+  const error = (result as { error?: unknown } | null)?.error;
+  const code = (error as { code?: unknown } | null)?.code;
+  const known = typeof code === 'string' && (errorCodes as readonly string[]).includes(code);
+  return new ProviderError(known ? (code as typeof errorCodes[number]) : 'invalid_response', status, segmentErrorDetails((error as { details?: unknown } | null)?.details));
+}
+
+function segmentErrorDetails(value: unknown): ErrorDetails | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const raw = value as Record<string, unknown>;
+  if (raw.source !== 'application' && raw.source !== 'meta' && raw.source !== 'internal') return undefined;
+  const details: ErrorDetails = { source: raw.source };
+  if (typeof raw.message === 'string') details.message = raw.message.slice(0, 500);
+  if (Array.isArray(raw.fields)) details.fields = raw.fields.filter((field): field is string => typeof field === 'string').slice(0, 12);
+  if (typeof raw.parameter === 'string') details.parameter = raw.parameter.slice(0, 100);
+  if (typeof raw.upstreamStatus === 'number') details.upstreamStatus = raw.upstreamStatus;
+  return details;
+}
+
 export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<CutoutResult> {
   const image = await decodeToImageData(blob);
   const data = await blobToBase64(blob);
@@ -72,10 +95,10 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
     signal: options.signal,
   });
   const result = await response.json().catch(() => null);
-  if (!response.ok) throw new ProviderError(result?.error?.code ?? 'invalid_response', response.status);
+  if (!response.ok) throw segmentErrorBody(result, response.status);
   const masks = parseSegmentResponse(result);
   const picked = pickLargestMask(masks);
-  if (!picked) throw new Error('segment_empty');
+  if (!picked) throw new ProviderError('sam_no_mask', 502, { source: 'application', message: 'segment response had no masks' });
   const alpha = maskToAlpha(picked, image.width, image.height);
   const cutoutData = applySamAlpha(image.data, alpha);
   const maskData = new Uint8ClampedArray(alpha.length * 4);

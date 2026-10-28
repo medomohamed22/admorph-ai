@@ -82,7 +82,10 @@ export async function metaSegment(model:string,key:string,image:z.infer<typeof i
   }
   if(texts.length)return texts.join('\n');
  }
- throw new ProviderError('invalid_response',502);
+ // No text lane at all: say exactly that, with the envelope's top-level key
+ // names only (never content) so the next failure is diagnosable.
+ const keys=json&&typeof json==='object'&&!Array.isArray(json)?Object.keys(json as Record<string,unknown>).slice(0,12).map(key=>`top:${key}`):['<non-object>'];
+ throw new ProviderError('sam_no_text',502,{source:'meta',message:'SAM response had no text output',fields:keys});
 }
 const proofGlobal=globalThis as typeof globalThis&{__admorphTaskProofSecret?:string};
 // A shared server-only secret is needed across serverless instances; local receipts
