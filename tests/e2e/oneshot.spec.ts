@@ -65,3 +65,48 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   expect(captured.verify?.layout?.some(item => item.kind === 'product')).toBe(true);
   expect(errors).toEqual([]);
 });
+
+test('One-shot enhance shows a success note and a before/after preview', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
+
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  const { readFileSync } = await import('node:fs');
+  const sample = readFileSync('public/demo/sora-product.png');
+  await page.route('**/api/ai/product-makeover', async (route) => { await route.fulfill({ body: sample, contentType: 'image/png' }); });
+
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await page.getByLabel('Brand name').fill('Sora');
+  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
+  await expect(consentBox).toBeEnabled({ timeout: 30000 });
+  await consentBox.check();
+  // The enhance checkbox only flips to checked after the async makeover +
+  // re-cutout finish, so click (not check) and wait for the success note.
+  await page.getByRole('checkbox', { name: /Improve product/ }).click();
+  await expect(page.getByText('Product improved — compare it with the original below.')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByTestId('oneshot-enhance-compare')).toBeVisible();
+  await expect(page.getByTestId('oneshot-enhance-compare').getByRole('img')).toHaveCount(2);
+  expect(errors).toEqual([]);
+});
