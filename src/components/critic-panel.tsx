@@ -18,8 +18,8 @@ import { useProviderSession } from './provider-session';
 import { RepairPanel } from './repair-panel';
 import { previewJpeg } from '@/lib/critic/preview';
 const sessionReviews = new Map<string, ReviewRecord>();
-export function CriticPanel({ creative, creativeLanguage, assets, handleRef, ready, fontsReady, active, selectLayer,onFix }: {
-  creative: Creative; creativeLanguage: 'en' | 'ar'; assets: Asset[]; handleRef: React.RefObject<CanvasHandle | null>; ready: boolean; fontsReady: boolean; active: boolean; selectLayer: (id: string) => void;onFix?:(issue:import('@/lib/critic/schema').Finding)=>void;
+export function CriticPanel({ creative, creativeLanguage, assets, handleRef, ready, fontsReady, active, selectLayer, onFix, brandColors }: {
+  creative: Creative; creativeLanguage: 'en' | 'ar'; assets: Asset[]; handleRef: React.RefObject<CanvasHandle | null>; ready: boolean; fontsReady: boolean; active: boolean; selectLayer: (id: string) => void; onFix?: (issue: import('@/lib/critic/schema').Finding) => void; brandColors?: readonly string[];
 }) {
   const m = useMessages(), c = m.critic; const { locale } = useWorkspace(); const provider = useProviderSession();
   const signature = fingerprint(creative), selection = provider.taskModel('critic');
@@ -45,10 +45,10 @@ export function CriticPanel({ creative, creativeLanguage, assets, handleRef, rea
     if (!fontsReady) return;
     const timer = setTimeout(() => {
       if (!handleRef.current) return;
-      setLocal({ signature, result: checkCreative(creative, handleRef.current.measureText(), new Set(assets.map(asset => asset.id)), dimensionsFor(creative.format)) });
+      setLocal({ signature, result: checkCreative(creative, handleRef.current.measureText(), new Set(assets.map(asset => asset.id)), dimensionsFor(creative.format), brandColors) });
     }, 180);
     return () => clearTimeout(timer);
-  }, [signature, creative, assets, handleRef, fontsReady]);
+  }, [signature, creative, assets, handleRef, fontsReady, brandColors]);
   const currentLocal = fontsReady && local?.signature === signature ? local.result : null;
   const stale = record && (record.fingerprint !== signature || record.language !== locale);
   async function review() {
