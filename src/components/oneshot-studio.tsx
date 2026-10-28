@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import OneshotCanvas, { type OneshotCanvasHandle } from './oneshot-canvas';
 import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
@@ -12,6 +14,7 @@ import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { useObjectUrl } from './logo';
 import UploadCard from './upload-card';
+import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
@@ -50,6 +53,7 @@ export default function OneshotStudio() {
   const [cutoutBlob, setCutoutBlob] = useState<Blob | null>(null);
   const [cutoutMethod, setCutoutMethod] = useState<'meta-sam' | null>(null);
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
+  const [selectedBrandId, setSelectedBrandId] = useState('');
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [brief, setBrief] = useState('');
   const [concepts, setConcepts] = useState<Concept[]>([]);
@@ -131,6 +135,41 @@ export default function OneshotStudio() {
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
 
+  /** Fill the studio from a saved brand kit: identity fields plus its logo. */
+  function applyBrand(saved: Brand) {
+    setBrand({ name: saved.name, description: saved.description, colors: saved.colors });
+    const blob = saved.logoAssetId ? workspace.assets.find(asset => asset.id === saved.logoAssetId)?.blob ?? null : null;
+    if (!blob) return;
+    setLogoBlob(blob);
+    setElements(previous => {
+      const logo = previous.find(item => item.kind === 'logo');
+      if (logo) return previous.map(item => item.kind === 'logo' ? { ...item, blob } : item);
+      if (!previous.some(item => item.kind === 'product')) return previous;
+      return [...previous, { id: crypto.randomUUID(), kind: 'logo', x: 830, y: 40, width: 200, height: 80, blob }];
+    });
+  }
+
+  // A brand created from the "new brand" link returns here with ?brand=<id>;
+  // apply it once, then drop the parameter so a reload stays on this page.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const applyBrandRef = useRef<(saved: Brand) => void>(() => {});
+  useEffect(() => { applyBrandRef.current = applyBrand; });
+  const appliedReturnBrand = useRef(false);
+  const returnBrandId = searchParams.get('brand');
+  useEffect(() => {
+    if (appliedReturnBrand.current || workspace.phase === 'loading' || !returnBrandId) return;
+    const found = workspace.brands.find(item => item.id === returnBrandId);
+    if (!found) return;
+    appliedReturnBrand.current = true;
+    // Deferred: the set-state-in-effect rule forbids sync setState here.
+    Promise.resolve().then(() => {
+      setSelectedBrandId(found.id);
+      applyBrandRef.current(found);
+    });
+    router.replace('/oneshot');
+  }, [returnBrandId, workspace.phase, workspace.brands, router]);
+
   async function extractBrand() {
     const model = visionModel ?? plannerModel;
     if (!model || !key || !consent || !currentBlob) return;
@@ -141,6 +180,7 @@ export default function OneshotStudio() {
       await requireMetaSuccess(response);
       const result = extractedSchema.parse(await response.json());
       setBrand({ name: result.suggestedName, description: (workspace.locale === 'ar' ? result.shortDescriptionAr : result.shortDescriptionEn) || result.suggestedName, colors: [result.primaryHex, result.secondaryHex, result.accentHex] });
+      setSelectedBrandId('');
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
     finally { setBusy(''); setConsent(false); }
   }
@@ -226,13 +266,21 @@ export default function OneshotStudio() {
 
     <section className="feature-card">
       <h2>{t.uploadProduct}</h2>
-      <UploadCard title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
-      <UploadCard title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
+      <UploadCard testId="upload-card-product" title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
+      <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
-      <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => setBrand(previous => ({ ...previous, name: event.target.value }))} /></label>
-      <label>{t.brandDescription}<textarea value={brand.description} maxLength={500} onChange={event => setBrand(previous => ({ ...previous, description: event.target.value }))} /></label>
-      <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] }))} />)}</div>
-      <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || !consent || busy !== ''} onClick={() => void extractBrand()}>{t.extractBrand}</button>
+      <label>{t.brandPick}<select aria-label={t.brandPick} value={selectedBrandId} onChange={event => { const found = workspace.brands.find(item => item.id === event.target.value); if (found) { setSelectedBrandId(found.id); applyBrand(found); } else setSelectedBrandId(''); }}>
+        <option value="">{t.brandCustom}</option>
+        {workspace.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select></label>
+      <Link className="button secondary" href="/brands/new?returnTo=/oneshot">{t.brandNew} ↗</Link>
+      <details>
+        <summary>{t.editBrand}</summary>
+        <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, name: event.target.value })); }} /></label>
+        <label>{t.brandDescription}<textarea value={brand.description} maxLength={500} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, description: event.target.value })); }} /></label>
+        <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] })); }} />)}</div>
+        <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || !consent || busy !== ''} onClick={() => void extractBrand()}>{t.extractBrand}</button>
+      </details>
       <label>{t.brief}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
       <button type="button" className="button secondary" disabled={!plannerModel || !key || !consent || !brandValid || brief.trim().length < 8 || busy !== ''} onClick={() => void suggestIdeas()}>{t.getIdeas}</button>
       {concepts.length > 0 && <div>
@@ -252,7 +300,7 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" disabled={!newText.trim() || !cutoutBlob} onClick={() => { addElement('text', undefined, newText.trim()); setNewText(''); }}>{t.addText}</button>
         <input aria-label={t.phonePlaceholder} value={newPhone} maxLength={40} placeholder={t.phonePlaceholder} dir="ltr" onChange={event => setNewPhone(event.target.value)} />
         <button type="button" className="button secondary" disabled={!newPhone.trim() || !cutoutBlob} onClick={() => { addElement('phone', undefined, newPhone.trim()); setNewPhone(''); }}>{t.addPhone}</button>
-        <UploadCard title={t.addIcon} hint={t.uploadHintIcon} preview={null} state={elements.some(item => item.kind === 'icon') ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.addIcon} disabled={!cutoutBlob} onFile={async file => { try { await validateProduct(file); addElement('icon', file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); } }} />
+        <UploadCard testId="upload-card-icon" title={t.addIcon} hint={t.uploadHintIcon} preview={null} state={elements.some(item => item.kind === 'icon') ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.addIcon} disabled={!cutoutBlob} onFile={async file => { try { await validateProduct(file); addElement('icon', file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); } }} />
       </div>
       {selectedTextElement && <label>{t.selectedText}<input value={selectedTextElement.text ?? ''} maxLength={200} onChange={event => setElements(previous => previous.map(item => item.id === selectedTextElement.id ? { ...item, text: event.target.value } : item))} /></label>}
       {selected && <button type="button" className="button secondary" onClick={() => { setElements(previous => previous.filter(item => item.id !== selected)); setSelected(null); }}>{t.deleteSelected}</button>}

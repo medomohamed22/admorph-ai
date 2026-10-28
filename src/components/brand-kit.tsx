@@ -14,7 +14,7 @@ import {BrandExtraction} from './brand-extraction';
 import { renderWordmarkLogo } from '@/lib/brand/wordmark';
 import { darkestBrandColor } from '@/lib/editor/brand-colors';
 
-export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () => void }) {
+export function BrandForm({ previous, onDone, returnTo }: { previous?: Brand; onDone?: () => void; returnTo?: string }) {
   const m = useMessages(), s = m.brands; const workspace = useWorkspace(); const router = useRouter();
   const {setPreviewColors, setBrandDraft} = workspace;
   const [name, setName] = useState(previous?.name ?? workspace.brandDraft?.name ?? '');
@@ -67,7 +67,7 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
       setDraftBrand(result.brand);
       setBrandDraft(null);
       setNotice(result.persisted ? 'saved' : 'savedEphemeral');
-      if (result.persisted) { if (onDone) onDone(); else router.push('/brands'); }
+      if (result.persisted) { if (returnTo) router.push(`${returnTo}${returnTo.includes('?') ? '&' : '?'}brand=${result.brand.id}`); else if (onDone) onDone(); else router.push('/brands'); }
     } catch (failure) { setError(failure instanceof BrandError ? failure.code : 'storageError'); }
     finally { setBusy(false); }
   }
@@ -76,7 +76,7 @@ export function BrandForm({ previous, onDone }: { previous?: Brand; onDone?: () 
     try { downloadBrand(await makeBrandBackup(values(), logo)); setNotice('exported'); }
     catch (failure) { setError(failure instanceof BrandError ? failure.code : 'invalidBrand'); }
   }
-  function cancel() { if (onDone) onDone(); else { setBrandDraft(null); router.push('/brands'); } }
+  function cancel() { if (returnTo) { setBrandDraft(null); router.push(returnTo); } else if (onDone) onDone(); else { setBrandDraft(null); router.push('/brands'); } }
   return <section className="brand-page"><div className="page-heading"><span className="eyebrow">{s.eyebrow}</span><h1>{previous ? s.editTitle : s.newTitle}</h1><p>{s.formNote}</p><p className="input-hint">{s.draftNote}</p></div>
     <div className="brand-builder"><form className="brand-fields settings-card" noValidate onSubmit={event => { event.preventDefault(); void save(); }}>
       <BrandExtraction onAccept={value=>{setName(value.suggestedName);setDescription(workspace.locale==='ar'?value.shortDescriptionAr:value.shortDescriptionEn);setColors([value.primaryHex,value.secondaryHex,value.accentHex]);setIdentity({brandTone:value.brandTone,shortDescriptionEn:value.shortDescriptionEn,shortDescriptionAr:value.shortDescriptionAr,recommendedFontEn:value.recommendedFontEn,recommendedFontAr:value.recommendedFontAr,wordmarkStyle:value.wordmarkStyle??'',wordmarkBold:value.wordmarkBold??false});}}/>
