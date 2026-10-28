@@ -1139,6 +1139,11 @@
     "noModels": "Meta returned an empty catalog for this account. You can still enter an authorised model ID manually.",
     "modelIdLabel": "Model ID",
     "localCheck": "Optional request check on app server · no Meta call",
-    "localCheckPassed": "Local image, model ID and output schema are valid. No Meta request was sent."
+    "localCheckPassed": "Local image, model ID and output schema are valid. No Meta request was sent.",
+    "polishShadow": "Soft shadow under product",
+    "polishReflection": "Product reflection",
+    "polishGrade": "Background grade",
+    "polishGradeOff": "Off",
+    "polishHelp": "Shadow, reflection and grade are derived overlays: product pixels never change."
   }
 }

@@ -10,7 +10,7 @@ function canonical(value: unknown): unknown {
   return value;
 }
 export function normalizeFingerprint(value: string): string { try { return JSON.stringify(canonical(JSON.parse(value))); } catch { return value; } }
-export function fingerprint(creative: Creative) { return JSON.stringify(canonical({ id: creative.id, layers: creative.layers, caption: creative.caption, ...(creative.placement?{placement:creative.placement}:{}), inputRevision: creative.inputRevision })); }
+export function fingerprint(creative: Creative) { return JSON.stringify(canonical({ id: creative.id, layers: creative.layers, caption: creative.caption, ...(creative.placement?{placement:creative.placement}:{}), ...(creative.polish?{polish:creative.polish}:{}), inputRevision: creative.inputRevision })); }
 export function intersects(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) {
   return Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > .5 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > .5;
 }

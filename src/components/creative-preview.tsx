@@ -17,7 +17,7 @@ export default function CreativePreview({ entry, rtl, number }: { entry: StudioD
       if (caption) setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setError(true); }
   }
-  return <><div className="creative-preview" aria-label={s.preview.replace('{number}', String(number))}>{fonts && <DesignCanvas layers={entry.creative.layers} assets={entry.assets} selected={null} select={() => {}} patch={() => {}} zoom={1} handle={handle} ready={ready} onReady={onReady} label={s.preview.replace('{number}', String(number))} rtl={rtl} disabled dimensions={dimensionsFor(entry.creative.format)}/>}</div>
+  return <><div className="creative-preview" aria-label={s.preview.replace('{number}', String(number))}>{fonts && <DesignCanvas layers={entry.creative.layers} assets={entry.assets} selected={null} select={() => {}} patch={() => {}} zoom={1} handle={handle} ready={ready} onReady={onReady} label={s.preview.replace('{number}', String(number))} rtl={rtl} disabled dimensions={dimensionsFor(entry.creative.format)} polish={entry.creative.polish}/>}</div>
     <p role="status">{ready ? <>{s.ready} · <bdi>{formatLabel(entry.creative.format)}</bdi></> : s.preparing}</p><button className="button secondary" disabled={!ready} onClick={() => download()}>{s.download.replace('{number}', String(number))}</button>
     <button className="text-button" onClick={() => download(true)}>{s.caption}</button>{error && <p role="alert">{m.settings.errors.export_error}</p>}</>;
 }
