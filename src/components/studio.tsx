@@ -11,7 +11,7 @@ import { useWorkspace, useMessages } from './workspace';
 import { cutoutImage } from '@/lib/cutout/provider';
 import { findCutoutAsset } from '@/lib/cutout/provenance';
 import { blobToBase64 } from '@/lib/cutout/raster';
-import { buildVisionBrief, withStrictNegatives, visionBackgroundAnalysisSchema, checkBackgroundSchema, type VisionBackgroundAnalysis, type CheckBackgroundResult } from '@/lib/background/brief';
+import { buildVisionBrief, withStrictNegatives, visionBackgroundAnalysisSchema, checkBackgroundSchema, SCALE_GEOMETRY, type VisionBackgroundAnalysis, type CheckBackgroundResult } from '@/lib/background/brief';
 import { useObjectUrl } from './logo';
 import { resolveLayerDirection } from '@/lib/editor/direction';
 import { dimensionsFor } from '@/lib/editor/sizes';
@@ -22,7 +22,9 @@ import type { Asset } from '@/lib/db/schema';
 import { useProviderSession } from './provider-session';
 import { errorCode, ProviderError, type ErrorCode } from '@/lib/ai/errors';
 import { conceptFieldsSchema } from '@/lib/campaign/schema';
-import type { EditableLayer } from '@/lib/editor/schema';
+import type { Creative, EditableLayer } from '@/lib/editor/schema';
+import { clampLayer } from '@/lib/editor/schema';
+import { luminanceOfHex, productBackgroundContrast, textBackgroundContrast, PRODUCT_CONTRAST_MIN, TEXT_CONTRAST_MIN, type RgbaImage } from '@/lib/critic/pixels';
 import { readJsonLimited } from '@/lib/ai/transport';
 import {StudioTools} from './studio-tools';
 import {IssueFix} from './issue-fix';
@@ -61,6 +63,8 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   const [selectedScene, setSelectedScene] = useState(0);
   const [visionBusy, setVisionBusy] = useState(false);
   const [visionNote, setVisionNote] = useState('');
+  type BackgroundReview = { productRatio: number | null; textLow: { id: string; ratio: number }[]; resized: boolean; textFixed: boolean };
+  const [bgReview, setBgReview] = useState<BackgroundReview | null>(null);
   async function runCutout(mode: 'sam' | 'local') {
     if (!creative || !product || cutoutState === 'cutting') return;
     setCutoutState('cutting');
@@ -131,7 +135,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   useEffect(() => { let alive = true; Promise.all([document.fonts.load('48px Inter'), document.fonts.load('48px Cairo')]).then(() => { if (alive) setFontsReady(true); }); return () => { alive = false; }; }, []);
   useEffect(() => () => { requestId.current++; abort.current?.abort(); }, []);
   useEffect(() => () => { if (visionWatchdog.current) clearTimeout(visionWatchdog.current); }, []);
-  useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) { setBusy(false); setConsent(false); setSelected(null); setError(null); setCutoutMethod(null); } }); return () => { alive = false; }; }, [campaignId, concept?.id, provider.keyEpoch]);
+  useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) { setBusy(false); setConsent(false); setSelected(null); setError(null); setCutoutMethod(null); setBgReview(null); } }); return () => { alive = false; }; }, [campaignId, concept?.id, provider.keyEpoch]);
   useEffect(() => () => { requestId.current++; abort.current?.abort(); }, [campaignId, concept?.id, provider.keyEpoch]);
   const imageModel = provider.taskModel('image');
   const imageReady = imageModel?.provider === 'meta' ;
@@ -185,9 +189,71 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       return checkBackgroundSchema.parse(await response.json());
     } catch { return null; }
   }
+  async function decodeImage(blob: Blob): Promise<HTMLImageElement> {
+    const url = URL.createObjectURL(blob);
+    try { const image = new Image(); image.src = url; await image.decode(); return image; }
+    finally { URL.revokeObjectURL(url); }
+  }
+  function drawToRgba(image: HTMLImageElement, width: number, height: number, dx = 0, dy = 0, dw = width, dh = height): RgbaImage {
+    const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(image, dx, dy, dw, dh);
+    const data = ctx.getImageData(0, 0, width, height).data;
+    return { width, height, data };
+  }
+  function lightestBrandColor(colors: [string, string, string]): string {
+    return colors.reduce((best, color) => luminanceOfHex(color) > luminanceOfHex(best) ? color : best);
+  }
+  /**
+   * Post-background review, run right after a background is applied. It
+   * measures real pixels (not text-box fills): product vs surrounding
+   * background, and each transparent-fill text layer vs the background
+   * behind it. Two fixes apply automatically in one undoable update: the
+   * product layer follows the vision scale rect, and unreadable text moves
+   * to the lightest brand color. Any decode failure skips the review silently
+   * — generation already succeeded, and the review must never block it.
+   */
+  async function reviewBackground(blob: Blob, fresh: Creative, scale: VisionBackgroundAnalysis['productScale'] | undefined) {
+    if (!campaign) return;
+    try {
+      const dims = dimensionsFor(fresh.format);
+      const bg = drawToRgba(await decodeImage(blob), dims.width, dims.height);
+      const productLayer = fresh.layers.find(item => item.kind === 'product' && item.visible);
+      const productAsset = productLayer?.assetId ? studio.assets.find(item => item.id === productLayer.assetId) : undefined;
+      let productRatio: number | null = null;
+      if (productLayer && productAsset) {
+        const prod = drawToRgba(await decodeImage(productAsset.blob), dims.width, dims.height, productLayer.x, productLayer.y, productLayer.width, productLayer.height);
+        productRatio = productBackgroundContrast(bg, prod, productLayer);
+      }
+      const textLow: { id: string; ratio: number }[] = [];
+      for (const layer of fresh.layers) {
+        if (!['headline', 'brand', 'cta'].includes(layer.kind) || !layer.visible || layer.fill !== 'transparent') continue;
+        const ratio = textBackgroundContrast(bg, layer, layer.color);
+        if (ratio !== null && ratio < TEXT_CONTRAST_MIN) textLow.push({ id: layer.id, ratio });
+      }
+      let next = fresh; let resized = false; let textFixed = false;
+      if (scale && productLayer) {
+        const target = SCALE_GEOMETRY[scale].productRect;
+        const rect = { x: target.x / 1080 * dims.width, y: target.y / 1350 * dims.height, width: target.width / 1080 * dims.width, height: target.height / 1350 * dims.height };
+        const same = Math.round(rect.x) === Math.round(productLayer.x) && Math.round(rect.y) === Math.round(productLayer.y) && Math.round(rect.width) === Math.round(productLayer.width) && Math.round(rect.height) === Math.round(productLayer.height);
+        if (!same) {
+          const resizedLayer = clampLayer(productLayer, rect, dims);
+          next = { ...next, layers: next.layers.map(item => item.id === productLayer.id ? resizedLayer : item) };
+          resized = true;
+        }
+      }
+      if (textLow.length) {
+        const lightest = lightestBrandColor(campaign.brandSnapshot.colors);
+        next = { ...next, layers: next.layers.map(item => textLow.some(t => t.id === item.id) ? { ...item, color: lightest } : item) };
+        textFixed = true;
+      }
+      if (resized || textFixed) studio.update(next);
+      setBgReview({ productRatio, textLow, resized, textFixed });
+    } catch { /* fail-open: no review box */ }
+  }
   async function generate() {
     if (!creative || !campaign || !concept || !approved || !imageReady || !imageModel || !key || !consent || busy) return;
-    const id = ++requestId.current; const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null); setVisionNote('');
+    const id = ++requestId.current; const controller = new AbortController(); abort.current = controller; setBusy(true); setError(null); setVisionNote(''); setBgReview(null);
     try {
       const brief = visionAnalysis ? buildVisionBrief(visionAnalysis, selectedScene, campaign.brandSnapshot.colors) : undefined;
       let blob: Blob | null = null;
@@ -219,7 +285,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
         }
       }
       if (blocked) { setVisionNote(s.visionProductFound); return; }
-      if (requestId.current === id && !controller.signal.aborted && blob) { studio.background(blob, 'meta', imageModel); setConsent(false); }
+      if (requestId.current === id && !controller.signal.aborted && blob) { const applied = studio.background(blob, 'meta', imageModel); setConsent(false); if (applied) void reviewBackground(blob, applied, brief?.productScale); }
     } catch (cause) { if (requestId.current === id) setError(controller.signal.aborted ? 'cancelled' : errorCode(cause)); }
     finally { if (requestId.current === id) { setBusy(false); abort.current = null; } }
   }
@@ -266,10 +332,10 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   }
   function localBackground() {
     if (!creative || !campaign || busy) return;
-    setError(null); const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
+    setError(null); setBgReview(null); const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
     const ctx = canvas.getContext('2d')!;
     paintLocalBackground(ctx, campaign.brandSnapshot.colors);
-    canvas.toBlob(blob => { if (blob) studio.background(blob, 'local', null); }, 'image/png');
+    canvas.toBlob(blob => { if (blob) { const applied = studio.background(blob, 'local', null); if (applied) void reviewBackground(blob, applied, undefined); } }, 'image/png');
   }
   async function download() {
     setError(null);
@@ -314,6 +380,15 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           {visionNote && <p role="status">{visionNote}</p>}</div>
           <label className="studio-consent"><input type="checkbox" checked={consent} disabled={busy || !approved || !imageReady || !key} onChange={event => setConsent(event.target.checked)}/><span>{m.common.consentShort}</span></label><details><summary>{m.common.consentDetails}</summary><p>{s.consent}</p></details><p>{s.billing}</p><button className="button primary" disabled={busy || !approved || !imageReady || !key || !consent} onClick={() => void generate()}>{busy ? s.generating : s.generate}</button>
           {busy && <button className="button secondary" onClick={() => { abort.current?.abort(); requestId.current++; setBusy(false); setError('cancelled'); }}>{m.campaign.cancel}</button>}
+          {bgReview && <div className="background-review" data-testid="background-review"><h3>{s.bgReviewTitle}</h3>
+            {bgReview.productRatio === null && bgReview.textLow.length === 0 && !bgReview.resized && !bgReview.textFixed ? <p>{s.bgReviewOk}</p> : <>
+              {bgReview.productRatio !== null && <p>{bgReview.productRatio >= PRODUCT_CONTRAST_MIN ? s.bgReviewProductOk.replace('{ratio}', bgReview.productRatio.toFixed(2)) : s.bgReviewProductLow.replace('{ratio}', bgReview.productRatio.toFixed(2))}</p>}
+              {bgReview.textLow.length > 0 && <p>{s.bgReviewTextLow.replace('{ratio}', Math.min(...bgReview.textLow.map(t => t.ratio)).toFixed(2))}</p>}
+              {bgReview.resized && <p>{s.bgReviewResized}</p>}
+              {bgReview.textFixed && <p>{s.bgReviewTextFixed}</p>}
+              {bgReview.productRatio !== null && bgReview.productRatio < PRODUCT_CONTRAST_MIN && <button className="button secondary" onClick={() => { if (!creative || !campaign) return; const lightest = lightestBrandColor(campaign.brandSnapshot.colors); studio.update({ ...creative, polish: { shadow: creative.polish?.shadow ?? false, reflection: creative.polish?.reflection ?? false, grade: lightest } }); }}>{s.bgReviewGrade}</button>}
+            </>}
+          </div>}
           <div className="reference-block"><h3>{s.referenceTitle}</h3><p>{s.referenceHelp}</p>
           <button className="button secondary" disabled={referenceBusy || busy || !approved || !imageReady || !key || !consent || !product} onClick={() => void generateReference()}>{referenceBusy ? s.referenceGenerating : s.referenceGenerate}</button>
           {referenceAsset && referenceUrl && <div className="reference-side">

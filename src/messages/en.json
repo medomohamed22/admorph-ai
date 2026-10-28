@@ -628,7 +628,15 @@
       "bottom": "Bottom"
     },
     "referenceTemplate": "Closest template: {template}",
-    "referenceApply": "Apply template"
+    "referenceApply": "Apply template",
+    "bgReviewTitle": "Background review",
+    "bgReviewOk": "Product and text contrast look good against this background.",
+    "bgReviewProductOk": "Product stands out from the background (contrast {ratio}).",
+    "bgReviewProductLow": "The product blends into the background (contrast {ratio}). Try a lighter grade or regenerate the background.",
+    "bgReviewTextLow": "Some text is hard to read on this background (lowest contrast {ratio}).",
+    "bgReviewResized": "Product enlarged to fit the scene.",
+    "bgReviewTextFixed": "Text color adjusted to the lightest brand color for readability (undoable).",
+    "bgReviewGrade": "Lighten background grade"
   },
   "critic": {
     "open": "Review design",

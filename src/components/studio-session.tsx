@@ -70,6 +70,7 @@ function useStudioState() {
     if (record && creative) { setHistory(previous => [...previous.slice(-29), creative]); setFuture([]); }
     cache.current.set(`${valid.campaignId}:${valid.conceptId}`, { creative: valid, assets: nextAssets });
     setCreative(valid); setAssets(nextAssets); version.current++; setRevision(version.current); setSaveState('saving');
+    return valid;
   }
   function patch(id: string, values: Partial<EditableLayer>) { if (creative) update({ ...creative, layers: creative.layers.map(layer => layer.id === id ? clampLayer(layer, values, dimensionsFor(creative.format)) : layer) }); }
   function persist(snapshot: Creative, snapshotAssets: Asset[], captured: number) {
@@ -99,9 +100,9 @@ function useStudioState() {
   }, []);
   function background(blob: Blob, source: 'gemini' | 'meta' | 'local', model: Creative['model']) {
     const active = currentKey.current ? cache.current.get(currentKey.current) : null;
-    if (!creative || active?.creative.id !== creative.id) return;
+    if (!creative || active?.creative.id !== creative.id) return undefined;
     const asset: Asset = { id: crypto.randomUUID(), kind: 'background', blob, createdAt: new Date().toISOString() };
-    update({ ...creative, source, model, layers: creative.layers.map(layer => layer.kind === 'background' ? { ...layer, assetId: asset.id } : layer) }, [...assets, asset]);
+    return update({ ...creative, source, model, layers: creative.layers.map(layer => layer.kind === 'background' ? { ...layer, assetId: asset.id } : layer) }, [...assets, asset]);
   }
   /** Swap the product layer to a cutout asset (original stays in assets). */
   function replaceProductLayer(asset: Asset) {

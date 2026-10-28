@@ -628,7 +628,15 @@
       "bottom": "الأسفل"
     },
     "referenceTemplate": "أقرب قالب: {template}",
-    "referenceApply": "طبّق القالب"
+    "referenceApply": "طبّق القالب",
+    "bgReviewTitle": "مراجعة الخلفية",
+    "bgReviewOk": "تباين المنتج والنصوص جيد على هذه الخلفية.",
+    "bgReviewProductOk": "المنتج واضح على الخلفية (التباين {ratio}).",
+    "bgReviewProductLow": "المنتج يندمج مع الخلفية (التباين {ratio}). جرّب درجة أفتح أو أعد توليد الخلفية.",
+    "bgReviewTextLow": "بعض النصوص صعبة القراءة على هذه الخلفية (أقل تباين {ratio}).",
+    "bgReviewResized": "كُبّر المنتج ليناسب المشهد.",
+    "bgReviewTextFixed": "ضُبط لون النص إلى أفتح لون في البراند ليُقرأ بسهولة (يمكن التراجع).",
+    "bgReviewGrade": "تفتيح درجة الخلفية"
   },
   "critic": {
     "open": "راجع التصميم",
