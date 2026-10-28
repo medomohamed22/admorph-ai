@@ -28,6 +28,10 @@ export const creativeSchema = z.object({
   // schema above only guards the union of all sizes (1080x1920); this refine
   // is what keeps a creative inside its own platform size.
   format: z.enum(SIZE_FORMATS).optional(),
+  // Last template applied to this creative (keep in sync with TEMPLATE_IDS).
+  // Optional so old creatives parse; the studio select shows it, so the
+  // applied layout stays visible instead of silently resetting to placeholder.
+  appliedTemplate: z.enum(['hero-center', 'split', 'minimal']).optional(),
 }).strict().refine(creative => {
   const size = dimensionsFor(creative.format);
   return creative.layers.every(layer => layer.x + layer.width <= size.width + 0.01 && layer.y + layer.height <= size.height + 0.01);

@@ -84,6 +84,19 @@ function useStudioState() {
     // A revision captures metadata and Blobs together. Writes are serialized.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [creative, assets, revision]);
+  // A reload or navigation inside the 400ms debounce window must not drop
+  // the latest edit: flush the pending snapshot on pagehide (reload/close)
+  // and on unmount (client-side navigation away from the studio). The manual
+  // Save-now button and concept switcher already flush; this covers the paths
+  // where the user never clicks them.
+  const latest = useRef<{ creative: Creative | null; assets: Asset[]; revision: number }>({ creative: null, assets: [], revision: 0 });
+  useEffect(() => { latest.current = { creative, assets, revision }; });
+  useEffect(() => {
+    const flush = () => { const snap = latest.current; if (snap.creative && snap.revision) void persist(snap.creative, snap.assets, snap.revision); };
+    window.addEventListener('pagehide', flush);
+    return () => { window.removeEventListener('pagehide', flush); flush(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   function background(blob: Blob, source: 'gemini' | 'meta' | 'local', model: Creative['model']) {
     const active = currentKey.current ? cache.current.get(currentKey.current) : null;
     if (!creative || active?.creative.id !== creative.id) return;

@@ -604,6 +604,7 @@
     "template": "Layout template",
     "templateChoose": "Choose a layout…",
     "templateHelp": "Rearranges layers into the chosen layout, keeping text, images and colors.",
+    "templateCurrent": "Current layout: {template}",
     "templates": {
       "hero-center": "Hero center",
       "split": "Split",
