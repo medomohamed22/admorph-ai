@@ -604,6 +604,7 @@
     "template": "قالب التركيب",
     "templateChoose": "اختر قالبًا…",
     "templateHelp": "يعيد ترتيب الطبقات حسب القالب المختار مع الحفاظ على النصوص والصور والألوان.",
+    "templateCurrent": "القالب الحالي: {template}",
     "templates": {
       "hero-center": "بطل في المنتصف",
       "split": "مقسّم",

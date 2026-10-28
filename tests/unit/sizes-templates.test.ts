@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dimensionsFor, formatLabel, SIZE_FORMATS } from '../../src/lib/editor/sizes';
 import { applyTemplate, TEMPLATE_IDS, type TemplateId } from '../../src/lib/editor/templates';
 import type { EditableLayer } from '../../src/lib/editor/schema';
+import { creativeSchema } from '../../src/lib/editor/schema';
 
 function fixtureLayers(): EditableLayer[] {
   const base = { fontFamily: 'Inter' as const, fontSize: 40, visible: true, assetId: null, color: '#111111', fill: '#ffffff', text: 'Test' };
@@ -71,5 +72,14 @@ describe('layout templates', () => {
     const minimalProduct = minimal.find((layer) => layer.kind === 'product')!;
     const minimalHeadline = minimal.find((layer) => layer.kind === 'headline')!;
     expect(minimalProduct.width * minimalProduct.height).toBeGreaterThan(minimalHeadline.width * minimalHeadline.height);
+  });
+});
+
+describe('applied template confirmation', () => {
+  it('accepts old creatives without it, records it, and rejects unknown ids', () => {
+    const base = { id: crypto.randomUUID(), campaignId: crypto.randomUUID(), conceptId: crypto.randomUUID(), layers: fixtureLayers(), caption: 'x', source: 'local' as const, model: null, inputRevision: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    expect(creativeSchema.parse(base).appliedTemplate).toBeUndefined();
+    expect(creativeSchema.parse({ ...base, appliedTemplate: 'split' }).appliedTemplate).toBe('split');
+    expect(creativeSchema.safeParse({ ...base, appliedTemplate: 'nope' }).success).toBe(false);
   });
 });
