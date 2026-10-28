@@ -1241,6 +1241,12 @@
     "missingKey": "Add your Meta key in Settings and pick an image model first.",
     "needProduct": "Upload a product photo and cut it out first.",
     "needScene": "Write a background scene first.",
-    "needBrand": "Write a brand name and description first."
+    "needBrand": "Write a brand name and description first.",
+    "uploadHintProduct": "A clear photo of one product, front-facing if possible.",
+    "uploadHintLogo": "PNG or JPG with a transparent or plain background works best.",
+    "uploadHintIcon": "A small flat graphic to place on the canvas.",
+    "uploadChoose": "Choose a file",
+    "uploadChange": "Change file",
+    "uploadCutting": "Cutting out your product…"
   }
 }

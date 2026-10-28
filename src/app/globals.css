@@ -49,3 +49,15 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
 .scene-card input{flex:none;margin-top:4px;accent-color:#52633c}
 .scene-card small{color:#5c6650}
 .scene-card.selected{border-color:#52633c;background:#eef1e2;box-shadow:0 0 0 1px #52633c55}
+
+.upload-card{border:1.5px dashed #a89a80;border-radius:16px;padding:16px;margin:12px 0;text-align:center;background:#fbf9f2;transition:border-color .2s,background .2s}
+.upload-card:hover,.upload-card:focus-within{border-color:#52633c;background:#fffef8}
+.upload-card.done{border-style:solid;border-color:#52633c}
+.upload-card.busy{animation:uploadPulse 1.2s ease-in-out infinite}
+.upload-card input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.upload-card .upload-glyph{font-size:2rem;display:block;line-height:1.2;color:#82785c}
+.upload-card .upload-preview{display:block;max-height:140px;max-width:100%;margin:0 auto 8px;object-fit:contain}
+.upload-card strong{display:block;font-size:1rem}
+.upload-card small{display:block;color:#64594e;font-size:.82rem;margin:4px 0 10px;line-height:1.5}
+@keyframes uploadPulse{0%,100%{opacity:1}50%{opacity:.55}}
+@media (prefers-reduced-motion:reduce){.upload-card.busy{animation:none}}

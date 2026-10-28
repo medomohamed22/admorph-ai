@@ -11,6 +11,7 @@ import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { useObjectUrl } from './logo';
+import UploadCard from './upload-card';
 import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
@@ -35,7 +36,7 @@ async function pinPhoneText(base: Blob, phone: OneshotCanvasElement): Promise<Bl
 }
 
 /**
- * One-shot ad studio (new mode; the layered studio editor stays untouched).
+ * One-shot ad studio (the site's single ad mode).
  * Flow: upload product (+optional logo) -> cutout -> optional brand extract
  * and 3 planner ideas -> arrange everything on the mockup canvas -> one
  * Meta images/edits call paints the finished ad -> a vision check scores
@@ -63,6 +64,7 @@ export default function OneshotStudio() {
   const [enhanceNote, setEnhanceNote] = useState('');
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState('');
+  const [cutting, setCutting] = useState(false);
   const [error, setError] = useState('');
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const [certificate, setCertificate] = useState<VerifyResult | null>(null);
@@ -73,6 +75,8 @@ export default function OneshotStudio() {
   const resultUrl = useObjectUrl(resultBlob);
   const originalUrl = useObjectUrl(originalBlob);
   const currentUrl = useObjectUrl(currentBlob);
+  const logoUrl = useObjectUrl(logoBlob);
+  const cutoutUrl = useObjectUrl(cutoutBlob);
 
   const imageModel = provider.taskModel('image');
   const visionModel = provider.taskModel('vision');
@@ -106,11 +110,12 @@ export default function OneshotStudio() {
   }
 
   async function uploadProduct(file: File) {
-    setError('');
+    setError(''); setCutting(true);
     try {
       await validateProduct(file); const blob = file; setOriginalBlob(blob); setCurrentBlob(blob); setEnhance(false); setEnhanceNote('');
       await runCutout(blob);
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    finally { setCutting(false); }
   }
 
   async function uploadLogo(file: File) {
@@ -221,8 +226,8 @@ export default function OneshotStudio() {
 
     <section className="feature-card">
       <h2>{t.uploadProduct}</h2>
-      <input aria-label={t.uploadProduct} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void uploadProduct(file); }} />
-      <input aria-label={t.uploadLogo} type="file" accept="image/png,image/jpeg,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void uploadLogo(file); }} />
+      <UploadCard title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
+      <UploadCard title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
       <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => setBrand(previous => ({ ...previous, name: event.target.value }))} /></label>
       <label>{t.brandDescription}<textarea value={brand.description} maxLength={500} onChange={event => setBrand(previous => ({ ...previous, description: event.target.value }))} /></label>
@@ -247,7 +252,7 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" disabled={!newText.trim() || !cutoutBlob} onClick={() => { addElement('text', undefined, newText.trim()); setNewText(''); }}>{t.addText}</button>
         <input aria-label={t.phonePlaceholder} value={newPhone} maxLength={40} placeholder={t.phonePlaceholder} dir="ltr" onChange={event => setNewPhone(event.target.value)} />
         <button type="button" className="button secondary" disabled={!newPhone.trim() || !cutoutBlob} onClick={() => { addElement('phone', undefined, newPhone.trim()); setNewPhone(''); }}>{t.addPhone}</button>
-        <input aria-label={t.addIcon} type="file" accept="image/png,image/jpeg,image/webp" onChange={async event => { const file = event.target.files?.[0]; if (!file || !cutoutBlob) return; try { await validateProduct(file); addElement('icon', file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); } }} />
+        <UploadCard title={t.addIcon} hint={t.uploadHintIcon} preview={null} state={elements.some(item => item.kind === 'icon') ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.addIcon} disabled={!cutoutBlob} onFile={async file => { try { await validateProduct(file); addElement('icon', file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); } }} />
       </div>
       {selectedTextElement && <label>{t.selectedText}<input value={selectedTextElement.text ?? ''} maxLength={200} onChange={event => setElements(previous => previous.map(item => item.id === selectedTextElement.id ? { ...item, text: event.target.value } : item))} /></label>}
       {selected && <button type="button" className="button secondary" onClick={() => { setElements(previous => previous.filter(item => item.id !== selected)); setSelected(null); }}>{t.deleteSelected}</button>}
