@@ -39,6 +39,10 @@ After a second live test found eight more problems (key wiped on reload, a nine-
 
 Alongside the layered editor, a new `/oneshot` mode lets the user arrange a product, logo, headline, extra text, phone number and icons on a mockup canvas (drag by touch or mouse), then one Meta images/edits call paints the finished ad from that mockup, with an optional enhance switch for poor phone photos and a vision fidelity certificate scoring product, logo, layout and text matches — with phone digits pinnable exactly instead of model-generated. Full detail, including what is not yet live-verified, is in [docs/RELEASE_ONESHOT_REPORT.md](docs/RELEASE_ONESHOT_REPORT.md).
 
+## SAM fix program (Oct 28, 2026)
+
+After the first live one-shot test showed a local cutout for the third run in a row and an invisible enhance result, the segment route got the vision timeout fix (55s + maxDuration 60), the one-shot cutout became SAM-only with visible errors instead of a silent local fallback, and the enhance switch gained a success note plus an original-vs-improved preview. The editor keeps its local fallback for the no-key demo. Full detail, including the honest limit that only a live retest proves the timeout fix, is in [docs/RELEASE_SAM_FIX_REPORT.md](docs/RELEASE_SAM_FIX_REPORT.md).
+
 ## Meta models and task verification
 
 Settings has separate Planner, Background generation, Critic, Edit command, Brand vision, Image editing and Copy roles. Fetch account models or enter an authorised model ID. Missing modality metadata means **unverified**, so it does not prevent selection.
