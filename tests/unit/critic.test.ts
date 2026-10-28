@@ -39,6 +39,18 @@ describe('local design rules', () => {
     creative.layers.find(layer => layer.kind === 'cta')!.text = ' ';
     expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).toEqual(expect.arrayContaining(['contrast', 'text_clipped', 'copy_missing']));
   });
+  it('flags a CTA wearing non-brand colors only when the palette is known', () => {
+    const { creative, metrics, assets } = fixture(), cta = creative.layers.find(layer => layer.kind === 'cta')!;
+    cta.fill = '#d9c97a'; cta.color = '#ffffff';
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).not.toContain('cta_off_brand');
+    const flagged = checkCreative(creative, metrics, assets, { width: 1080, height: 1350 }, ['#16100C', '#F5EEDF', '#7ED3E0']);
+    expect(flagged.issues.map(issue => issue.code)).toContain('cta_off_brand');
+    expect(flagged.checks.find(check => check.key === 'brand')!.status).toBe('fail');
+    cta.fill = '#16100C'; cta.color = '#F5EEDF';
+    const clean = checkCreative(creative, metrics, assets, { width: 1080, height: 1350 }, ['#16100C', '#F5EEDF', '#7ED3E0']);
+    expect(clean.issues.map(issue => issue.code)).not.toContain('cta_off_brand');
+    expect(clean.checks.find(check => check.key === 'brand')!.status).toBe('pass');
+  });
   it('detects out-of-bounds metadata, wrong dimensions, missing images and geometric overlap', () => {
     const { creative, metrics } = fixture(), logo = creative.layers.find(layer => layer.kind === 'logo')!, headline = creative.layers.find(layer => layer.kind === 'headline')!;
     logo.x = headline.x; logo.y = headline.y; creative.layers.find(layer => layer.kind === 'product')!.x = 2000;

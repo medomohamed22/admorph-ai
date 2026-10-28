@@ -14,8 +14,8 @@ export const reviewRecordSchema = z.object({
   source: z.enum(['gemini','meta']), review: aiReviewSchema,
 }).strict();
 export type ReviewRecord = z.infer<typeof reviewRecordSchema>;
-export const ruleCodes = ['bounds', 'text_clipped', 'copy_missing', 'contrast', 'logo_overlap', 'asset_missing', 'dimensions', 'measurement_unavailable', 'contrast_unavailable','meta_ui_occlusion','logo_product_overlap','mixed_scripts','direction_mismatch'] as const;
+export const ruleCodes = ['bounds', 'text_clipped', 'copy_missing', 'contrast', 'logo_overlap', 'asset_missing', 'dimensions', 'measurement_unavailable', 'contrast_unavailable','meta_ui_occlusion','logo_product_overlap','mixed_scripts','direction_mismatch','cta_off_brand'] as const;
 export type RuleCode = typeof ruleCodes[number];
 export type Finding = { id: string; code: RuleCode; severity: 'error' | 'warning' | 'info'; layerIds: string[]; evidence: Record<string, string | number> };
 export type TextMetrics = Record<string, { neededHeight: number; unrenderable: boolean }>;
-export type RuleResult = { issues: Finding[]; checks: { key: 'bounds' | 'text' | 'copy' | 'contrast' | 'overlap' | 'assets' | 'dimensions'; status: 'pass' | 'fail' | 'partial' }[] };
+export type RuleResult = { issues: Finding[]; checks: { key: 'bounds' | 'text' | 'copy' | 'contrast' | 'overlap' | 'assets' | 'dimensions' | 'brand'; status: 'pass' | 'fail' | 'partial' }[] };

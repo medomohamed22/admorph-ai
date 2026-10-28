@@ -656,7 +656,8 @@
       "contrast": "Text contrast",
       "overlap": "Logo / headline overlap",
       "assets": "Visible image assets",
-      "dimensions": "Output dimensions"
+      "dimensions": "Output dimensions",
+      "brand": "Brand"
     },
     "statuses": {
       "pass": "No issue found",
@@ -725,6 +726,10 @@
       "direction_mismatch": {
         "title": "Text direction conflicts with its content",
         "explanation": "This layer's forced direction does not match its text. Reset the direction to automatic so the content decides."
+      },
+      "cta_off_brand": {
+        "title": "CTA uses non-brand colors",
+        "explanation": "The CTA button uses {fill} / {color}, which are not brand colors. The fix recolors it to the darkest brand color with the lightest readable brand text."
       }
     },
     "aiTitle": "Optional Meta Critic",

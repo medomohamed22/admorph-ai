@@ -40,6 +40,18 @@ describe('repair safety', () => {
     const assets = new Set(creative.layers.flatMap(layer => layer.assetId ? [layer.assetId] : [])), actions = proposeLocal(creative, measure, assets), after = applyActions(creative, actions), result = verifyRepair(creative, after, measure, assets);
     expect(result.before.issues.some(issue => issue.code === 'text_clipped')).toBe(true); expect(result.after.issues.some(issue => issue.code === 'text_clipped' || issue.code === 'contrast')).toBe(false); expect(result.regression).toBe(false); expect(after.layers.find(layer => layer.id === headline.id)?.text).toBe(headline.text);
   });
+  it('recolors an off-brand CTA to the darkest/lightest brand pair', () => {
+    const creative = fixture(), cta = creative.layers.find(layer => layer.kind === 'cta')!;
+    Object.assign(cta, { fill: '#d9c97a', color: '#ffffff' });
+    const assets = new Set(creative.layers.flatMap(layer => layer.assetId ? [layer.assetId] : []));
+    const actions = proposeLocal(creative, measure, assets, ['#16100C', '#F5EEDF', '#7ED3E0']);
+    expect(actions).toEqual(expect.arrayContaining([
+      { type: 'add_backdrop', layerId: cta.id, color: '#16100C' },
+      { type: 'set_color', layerId: cta.id, color: '#F5EEDF' },
+    ]));
+    const after = applyActions(creative, actions);
+    expect(after.layers.find(layer => layer.id === cta.id)).toMatchObject({ fill: '#16100C', color: '#F5EEDF' });
+  });
   it('blocks regressions and does not invent missing copy or image assets', () => {
     const creative = fixture(), headline = creative.layers.find(layer => layer.kind === 'headline')!, assets = new Set(creative.layers.flatMap(layer => layer.assetId ? [layer.assetId] : []));
     const after = applyActions(creative, [{ type: 'set_text', layerId: headline.id, text: '' }]); expect(verifyRepair(creative, after, measure, assets).regression).toBe(true);

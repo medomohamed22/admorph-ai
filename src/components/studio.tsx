@@ -24,7 +24,8 @@ import { errorCode, ProviderError, type ErrorCode } from '@/lib/ai/errors';
 import { conceptFieldsSchema } from '@/lib/campaign/schema';
 import type { Creative, EditableLayer } from '@/lib/editor/schema';
 import { clampLayer } from '@/lib/editor/schema';
-import { luminanceOfHex, productBackgroundContrast, textBackgroundContrast, PRODUCT_CONTRAST_MIN, TEXT_CONTRAST_MIN, type RgbaImage } from '@/lib/critic/pixels';
+import { productBackgroundContrast, textBackgroundContrast, PRODUCT_CONTRAST_MIN, TEXT_CONTRAST_MIN, type RgbaImage } from '@/lib/critic/pixels';
+import { lightestBrandColor } from '@/lib/editor/brand-colors';
 import { readJsonLimited } from '@/lib/ai/transport';
 import {StudioTools} from './studio-tools';
 import {IssueFix} from './issue-fix';
@@ -211,9 +212,6 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     const data = ctx.getImageData(0, 0, width, height).data;
     return { width, height, data };
   }
-  function lightestBrandColor(colors: [string, string, string]): string {
-    return colors.reduce((best, color) => luminanceOfHex(color) > luminanceOfHex(best) ? color : best);
-  }
   /**
    * Post-background review, run right after a background is applied. It
    * measures real pixels (not text-box fills): product vs surrounding
@@ -372,7 +370,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     <div className="studio-status"><span role="status" data-testid="studio-save">{m.campaign.save[studio.saveState]}</span><button className="text-button" onClick={() => void studio.flush()}>{m.campaign.saveNow}</button><span>{s.sources[creative.source]}</span>{cutoutState === 'cutting' && <span>{m.cutout.cutting}</span>}{cutoutMethod && <span>{cutoutMethod === 'meta-sam' ? m.cutout.providerSam : m.cutout.providerLocal}</span>}{cutoutNote && <span role="status">{cutoutNote}</span>}</div>
     <nav className="creative-switcher" aria-label={m.creativeSet.switcher}>{campaign.concepts.map((item, index) => item.approved && campaign.planRevision === campaign.inputRevision ? <Link key={item.id} aria-current={item.id === concept.id ? 'page' : undefined} onClick={() => { requestId.current++; abort.current?.abort(); void studio.flush(); }} href={`/studio/${campaign.id}?concept=${item.id}`}>{m.creativeSet.open.replace('{number}', String(index + 1))} · {m.campaign.angles[item.angle]}</Link> : <span key={item.id}>{m.creativeSet.open.replace('{number}', String(index + 1))} · {m.campaign.pending}</span>)}</nav>
     {exportNotice&&exportNotice.signature===fingerprint(creative)&&<p role="status" data-testid="export-preflight">{exportNotice.text}</p>}<StudioTools creative={creative} campaign={campaign} handle={handle} ready={ready} markers={markers} setMarkers={setMarkers}/>
-    {activeIssue&&<IssueFix key={activeIssue.id} issue={activeIssue} creative={creative} handle={handle} onClose={()=>setActiveIssue(null)}/>}
+    {activeIssue&&<IssueFix key={activeIssue.id} issue={activeIssue} creative={creative} handle={handle} onClose={()=>setActiveIssue(null)} brandColors={campaign.brandSnapshot.colors}/>}
     {!approved && <p className="campaign-notice">{s.stale}</p>}
     <div className="studio-tabs" role="tablist" aria-label={s.panels}>{(['layers', 'edit', 'generate', 'review', 'export'] as const).map(id => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{s.tabs[id]}</button>)}</div>
     <div className="studio-layout"><aside className={`studio-layers studio-panel ${tab === 'layers' ? 'active' : ''}`}><h2>{s.layersTitle}</h2><ul>{[...creative.layers].reverse().map(item => <li key={item.id}><button aria-pressed={layer?.id === item.id} onClick={() => { setSelected(item.id); setTab('edit'); }}>{s.kinds[item.kind]}</button></li>)}</ul><label htmlFor="creative-template">{s.template}</label><select id="creative-template" value={creative.appliedTemplate ?? ''} onChange={event => { const value = event.target.value as TemplateId; if (value) studio.update({ ...creative, appliedTemplate: value, layers: applyTemplate(creative.layers, value, dimensions) }); }}><option value="">{s.templateChoose}</option>{TEMPLATE_IDS.map(id => <option key={id} value={id}>{s.templates[id]}</option>)}</select>{creative.appliedTemplate && <p>{s.templateCurrent.replace('{template}', s.templates[creative.appliedTemplate])}</p>}<p>{s.templateHelp}</p><p>{s.layerHelp}</p></aside>
@@ -421,7 +419,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
           </div>}</div>
           <ProductMakeover/><div className="local-plan"><h3>{s.localTitle}</h3><p>{s.localHelp}</p><button className="button secondary" disabled={busy} onClick={localBackground}>{s.localButton}</button></div>
         </section><section className={`studio-panel ${tab === 'export' ? 'active' : ''}`} data-panel="export"><h2>{s.exportTitle}</h2><p>{s.exportHelp}</p><button className="button primary" disabled={!ready} onClick={download}>{s.download} ↗</button><label htmlFor="creative-caption">{m.campaign.fields.caption}</label><textarea id="creative-caption" disabled={busy} rows={5} maxLength={1200} value={creative.caption} dir={campaign.creativeLanguage === 'ar' ? 'rtl' : 'ltr'} onChange={event => studio.update({ ...creative, caption: event.target.value })}/><p>{s.reviewLater}</p></section>
-        <CriticPanel onFix={setActiveIssue} key={creative.id} creative={creative} creativeLanguage={campaign.creativeLanguage} assets={studio.assets} handleRef={handle} ready={ready} fontsReady={fontsReady} active={tab === 'review'} selectLayer={id => { setSelected(id); setTab('edit'); }}/>
+        <CriticPanel onFix={setActiveIssue} key={creative.id} creative={creative} creativeLanguage={campaign.creativeLanguage} assets={studio.assets} handleRef={handle} ready={ready} fontsReady={fontsReady} active={tab === 'review'} selectLayer={id => { setSelected(id); setTab('edit'); }} brandColors={campaign.brandSnapshot.colors}/>
       </div></div>{error && <p className="request-error" role="alert">{m.settings.errors[error]}</p>}
   </section>;
 }

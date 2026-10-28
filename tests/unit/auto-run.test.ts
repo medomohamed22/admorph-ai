@@ -121,7 +121,8 @@ describe('auto-run hero composition', () => {
       brief.reservedProductRect,
     );
     expect(hero.layers.find((layer) => layer.kind === 'headline')!.fill).toBe('transparent');
-    expect(hero.layers.find((layer) => layer.kind === 'cta')!.fill).toBe('#253b2b');
+    expect(hero.layers.find((layer) => layer.kind === 'cta')!.fill).toBe('#16100C');
+    expect(hero.layers.find((layer) => layer.kind === 'cta')!.color).toBe('#F5EEDF');
     expect(hero.layers.every((layer) => layerSchema.safeParse(layer).success)).toBe(true);
   });
 

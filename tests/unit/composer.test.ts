@@ -49,7 +49,8 @@ describe('transparent text fill', () => {
     const cta = creative.layers.find((layer) => layer.kind === 'cta')!;
     expect(brand.fill).toBe('transparent');
     expect(headline.fill).toBe('transparent');
-    expect(cta.fill).toBe('#253b2b');
+    expect(cta.fill).toBe('#52633c');
+    expect(cta.color).toBe('#dce5bb');
     expect(layerSchema.safeParse(brand).success).toBe(true);
   });
 

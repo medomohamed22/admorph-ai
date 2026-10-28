@@ -6,6 +6,7 @@
 // uuids: the hero is an auto-run artifact, not a campaign creative.
 
 import { creativeSchema, type Creative } from '../editor/schema';
+import { ctaBrandPair } from '../editor/brand-colors';
 import type { BackgroundBrief } from '../background/brief';
 
 export function buildAutoCopy(
@@ -91,8 +92,8 @@ export function composeAutoAd(input: ComposeAutoAdInput): Creative {
       layer('cta', cta.x, cta.y, cta.width, cta.height, {
         text: input.cta,
         fontSize: 38,
-        color: '#ffffff',
-        fill: '#253b2b',
+        color: ctaBrandPair(input.brandColors).color,
+        fill: ctaBrandPair(input.brandColors).fill,
       }),
     ],
   };

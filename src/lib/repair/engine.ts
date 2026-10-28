@@ -3,6 +3,7 @@ import { dimensionsFor } from '../editor/sizes';
 import { checkCreative, intersects, fingerprint } from '../critic/rules';
 import type { RuleResult, TextMetrics } from '../critic/schema';
 import { contrastRatio } from '../editor/checks';
+import { ctaBrandPair } from '../editor/brand-colors';
 import { repairResponseSchema, repairReceiptSchema, type RepairAction, type RepairReceipt } from './schema';
 import {occlusion,safeZones} from '../editor/safe-zones';
 export type Measure = (layers: EditableLayer[]) => TextMetrics;
@@ -34,15 +35,20 @@ export function layerChanges(before: Creative, after: Creative) {
     return properties.flatMap(property => layer[property] === next[property] ? [] : [{ layerId: layer.id, kind: layer.kind, property, before: layer[property], after: next[property] }]);
   });
 }
-export function proposeLocal(creative: Creative, measure: Measure, assetIds: Set<string>): RepairAction[] {
+export function proposeLocal(creative: Creative, measure: Measure, assetIds: Set<string>, brandColors?: readonly string[]): RepairAction[] {
   let draft = structuredClone(creative); const actions: RepairAction[] = [];
   const dims = dimensionsFor(draft.format);
   const add = (action: RepairAction) => { if (actions.length < 16) { draft = applyActions(draft, [action]); actions.push(action); } };
-  const initial = checkCreative(draft, measure(draft.layers), assetIds, dims);
+  const initial = checkCreative(draft, measure(draft.layers), assetIds, dims, brandColors);
   for (const issue of initial.issues) {
     const layer = draft.layers.find(item => item.id === issue.layerIds[0]); if (!layer) continue;
     if (issue.code === 'copy_missing' && layer.text.trim() && !layer.visible) add({ type: 'show_layer', layerId: layer.id });
     if (issue.code === 'direction_mismatch' && layer.dir && layer.dir !== 'auto') add({ type: 'set_direction', layerId: layer.id, dir: 'auto' });
+    if (issue.code === 'cta_off_brand' && brandColors) {
+      const pair = ctaBrandPair(brandColors);
+      if (pair.fill !== layer.fill) add({ type: 'add_backdrop', layerId: layer.id, color: pair.fill });
+      if (pair.color !== layer.color) add({ type: 'set_color', layerId: layer.id, color: pair.color });
+    }
     if (issue.code === 'text_clipped') {
       const width = Math.max(layer.width, Math.min(930, dims.width - layer.x - 24));
       const blockers = draft.layers.filter(other => other.visible && other.id !== layer.id && other.kind !== 'background' && other.y >= layer.y + 24 && intersects({ ...layer, width, height: dims.height - layer.y }, other));
