@@ -83,6 +83,10 @@ describe('polish schema and critic invariance', () => {
     expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: true, grade: '#16100C' } }).success).toBe(true);
     expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: false, grade: 'red' } }).success).toBe(false);
     expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: false, grade: null } }).success).toBe(true);
+    expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: true, grade: null, lightDirection: 'left', shadowDirection: 'right', shadowIntensity: 1.2 } }).success).toBe(true);
+    expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: true, grade: null, shadowIntensity: 0.4 } }).success).toBe(false);
+    expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: true, grade: null, shadowIntensity: 1.6 } }).success).toBe(false);
+    expect(creativeSchema.safeParse({ ...creative, polish: { shadow: true, reflection: true, grade: null, shadowDirection: 'sideways' } }).success).toBe(false);
   });
 
   it('adds no critic findings: polish is display-only, product pixels untouched', () => {
