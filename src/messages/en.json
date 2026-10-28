@@ -540,6 +540,16 @@
       "review": "Review"
     },
     "layersTitle": "Your layers",
+    "swapTitle": "Swap product on this background",
+    "swapHelp": "Upload another product photo. It is cut out and placed on this same background; text, logo and buttons stay.",
+    "swapButton": "Swap product",
+    "swapUpload": "New product photo",
+    "swapBusy": "Cutting the new product…",
+    "swapFailed": "Could not cut the new product. Try another photo.",
+    "swapRecent": "Recent products",
+    "swapSnapshot": "Snapshot this look",
+    "swapSnapshotSaved": "Look saved.",
+    "swapZip": "Download variants ZIP",
     "kinds": {
       "background": "Background",
       "product": "Product photo",
