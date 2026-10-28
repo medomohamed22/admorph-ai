@@ -66,6 +66,7 @@ describe('background brief', () => {
       'no text',
       'no watermark',
       'no people',
+      'no objects cropped by the frame edges',
     ]);
   });
 
@@ -96,6 +97,8 @@ describe('background brief', () => {
     expect(prompt).toContain('#16100C');
     expect(prompt).toContain('no text');
     expect(prompt).toContain('x 200–880');
+    expect(prompt).toContain('clear surface');
+    expect(prompt).toContain('cropped by the frame edges');
     expect(prompt).not.toContain('data:image');
     expect(prompt).not.toContain('base64');
   });

@@ -102,7 +102,12 @@ function useStudioState() {
     const active = currentKey.current ? cache.current.get(currentKey.current) : null;
     if (!creative || active?.creative.id !== creative.id) return undefined;
     const asset: Asset = { id: crypto.randomUUID(), kind: 'background', blob, createdAt: new Date().toISOString() };
-    return update({ ...creative, source, model, layers: creative.layers.map(layer => layer.kind === 'background' ? { ...layer, assetId: asset.id } : layer) }, [...assets, asset]);
+    // Return the asset list explicitly: a review update that runs right
+    // after this must not fall back to the pre-background assets state,
+    // or the save would fail its missing-asset check.
+    const nextAssets = [...assets, asset];
+    const applied = update({ ...creative, source, model, layers: creative.layers.map(layer => layer.kind === 'background' ? { ...layer, assetId: asset.id } : layer) }, nextAssets);
+    return { creative: applied, assets: nextAssets };
   }
   /** Swap the product layer to a cutout asset (original stays in assets). */
   function replaceProductLayer(asset: Asset) {

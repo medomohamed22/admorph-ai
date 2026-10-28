@@ -49,6 +49,7 @@ export const BACKGROUND_NEGATIVE_CONSTRAINTS = [
   'no text',
   'no watermark',
   'no people',
+  'no objects cropped by the frame edges',
 ] as const;
 
 /** Retry set: everything above, plus explicit container/object bans. */
@@ -256,6 +257,8 @@ export function buildBackgroundPrompt(brief: BackgroundBrief): string {
     (scaleNote ? `${scaleNote} ` : '') +
     `Keep this product zone empty and calm: x ${product.x}–${product.x + product.width}, ` +
     `y ${product.y}–${product.y + product.height}. ` +
+    `The product zone needs a clear surface for the product to stand on; show a matching table or floor beneath it. ` +
+    `Keep the background's color temperature consistent with the product lighting. ` +
     `Keep these text zones empty: ${texts}. ` +
     `Negative constraints: ${brief.negativeConstraints.join(', ')}.`
   );
