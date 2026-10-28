@@ -95,7 +95,9 @@ export function CampaignWorkspace() {
       <div className="section-heading"><span className="eyebrow">{c.setup}</span><button className="text-button" disabled={busy} onClick={() => void fillSample()}>{c.fillSample} ↗</button></div>
       <label htmlFor="campaign-brand">{c.brand}</label><select id="campaign-brand" disabled={busy} value={draft.brandId ?? 'sample'} onChange={event => {
         const brand = workspace.brands.find(item => item.id === event.target.value);
-        updateInput({ brandId: brand?.id ?? null, brandSnapshot: brand ? { name: brand.name, description: brand.description, colors: brand.colors, logoPlacement:brand.logoPlacement,logoAspectRatio:brand.logoAspectRatio } : structuredClone(SAMPLE_BRAND) });
+        // The snapshot is the full brand identity: a hand-picked subset
+        // would silently drop fields like the extracted wordmark weight.
+        updateInput({ brandId: brand?.id ?? null, brandSnapshot: brand ? { name: brand.name, description: brand.description, colors: brand.colors, logoPlacement: brand.logoPlacement, logoAspectRatio: brand.logoAspectRatio, brandTone: brand.brandTone, shortDescriptionEn: brand.shortDescriptionEn, shortDescriptionAr: brand.shortDescriptionAr, recommendedFontEn: brand.recommendedFontEn, recommendedFontAr: brand.recommendedFontAr, wordmarkStyle: brand.wordmarkStyle, wordmarkBold: brand.wordmarkBold } : structuredClone(SAMPLE_BRAND) });
       }}><option value="sample">{c.sampleBrand}</option>{draft.brandId && !workspace.brands.some(item => item.id === draft.brandId) && <option value={draft.brandId}>{draft.brandSnapshot.name} · {c.brandSnapshot}</option>}{workspace.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
       <p className="field-help"><Link href="/brands/new">{c.createBrand} ↗</Link> · {c.snapshotHelp}</p>
       <label htmlFor="product-image">{c.product}</label><div className="product-upload">{url ? /* eslint-disable-next-line @next/next/no-img-element */

@@ -1185,6 +1185,9 @@
     "polishReflection": "Product reflection",
     "polishGrade": "Background grade",
     "polishGradeOff": "Off",
-    "polishHelp": "Shadow, reflection and grade are derived overlays: product pixels never change."
+    "polishHelp": "Shadow, reflection and grade are derived overlays: product pixels never change.",
+    "wordmark": "Wordmark font",
+    "wordmarkBold": "bold",
+    "wordmarkRegular": "regular"
   }
 }

@@ -54,6 +54,19 @@ describe('transparent text fill', () => {
     expect(layerSchema.safeParse(brand).success).toBe(true);
   });
 
+  it('applies the extracted wordmark weight to brand and headline layers only', () => {
+    const campaign = newCampaign();
+    campaign.brandSnapshot.wordmarkBold = true;
+    campaign.brandSnapshot.wordmarkStyle = 'Bold geometric sans';
+    const concept = { ...samplePlan(campaign).concepts[0], id: crypto.randomUUID(), approved: true };
+    const creative = compose(campaign, concept, crypto.randomUUID(), null);
+    expect(creative.layers.find((layer) => layer.kind === 'brand')!.fontStyle).toBe('bold');
+    expect(creative.layers.find((layer) => layer.kind === 'headline')!.fontStyle).toBe('bold');
+    expect(creative.layers.find((layer) => layer.kind === 'cta')!.fontStyle).not.toBe('bold');
+    const plain = compose(newCampaign(), concept, crypto.randomUUID(), null);
+    expect(plain.layers.find((layer) => layer.kind === 'brand')!.fontStyle).toBe('normal');
+    expect(plain.layers.find((layer) => layer.kind === 'headline')!.fontStyle).toBe('normal');
+  });
   it('picks the brand-kit font by language', () => {
     const arabic = composed({ creativeLanguage: 'ar' });
     const english = composed({ creativeLanguage: 'en' });
