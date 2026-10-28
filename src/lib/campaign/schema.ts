@@ -43,7 +43,7 @@ export const planRequestSchema = z.object({
   providerId: z.literal('meta'), apiKey: z.string().trim().min(1).max(4096).refine(value => !/[\x00-\x1f\x7f]/.test(value)),
   modelId:metaModelId,
   consent: z.literal(true), imageConsent: z.literal(true), brand: brandInputSchema,
-  brief: z.string().trim().min(8).max(2000), goal: goalSchema, creativeLanguage: z.enum(['en', 'ar']), format: z.enum(SIZE_FORMATS),
+  brief: z.string().trim().max(2000).default(''), goal: goalSchema, creativeLanguage: z.enum(['en', 'ar']), format: z.enum(SIZE_FORMATS),
   product: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     data: z.string().min(4).max(4 * Math.ceil(MAX_PRODUCT_BYTES / 3)).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
 }).strict();

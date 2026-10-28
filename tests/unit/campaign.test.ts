@@ -44,6 +44,17 @@ describe('campaign planner', () => {
     expect(payload.response_format.json_schema.schema.properties.concepts.minItems).toBe(3); expect(init.redirect).toBe('error');
     expect(JSON.stringify(buildPlanningPayload(input()))).not.toContain(input().apiKey);
   });
+  it('accepts an empty brief and tells the model to derive ideas from the photo and brand', async () => {
+    const body = input(); body.brief = '';
+    expect(planRequestSchema.safeParse(body).success).toBe(true);
+    const fetcher = vi.fn(async () => Response.json(response()));
+    const result = await handlePlanRequest(request(body), { fetcher });
+    expect(result.status).toBe(200); expect(fetcher).toHaveBeenCalledTimes(1);
+    const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    const payload = JSON.parse(init.body as string);
+    expect(payload.messages[1].content[0].text).toContain('No written brief was supplied');
+    expect(payload.messages[1].content[1].image_url.url).toBe(`data:image/png;base64,${png}`);
+  });
   it('never retries paid posts and maps quota without returning raw errors', async () => {
     const fetcher = vi.fn(async () => Response.json({ error: { code: 'insufficient_quota', message: input().apiKey } }, { status: 429 }));
     const result = await handlePlanRequest(request(input()), { fetcher }); expect(result.status).toBe(429);

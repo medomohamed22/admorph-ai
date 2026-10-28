@@ -186,7 +186,7 @@ export default function OneshotStudio() {
   }
 
   async function suggestIdeas() {
-    if (!plannerModel || !key || !consent || !currentBlob || !brandValid || brief.trim().length < 8) return;
+    if (!plannerModel || !key || !consent || !currentBlob || !brandValid) return;
     setBusy('ideas'); setError('');
     try {
       const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: brief.trim(), goal: 'awareness', creativeLanguage: workspace.locale === 'ar' ? 'ar' : 'en', format: '1080x1350', product: await encodeProduct(currentBlob) }, AbortSignal.timeout(65000));
@@ -281,8 +281,8 @@ export default function OneshotStudio() {
         <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] })); }} />)}</div>
         <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || !consent || busy !== ''} onClick={() => void extractBrand()}>{t.extractBrand}</button>
       </details>
-      <label>{t.brief}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
-      <button type="button" className="button secondary" disabled={!plannerModel || !key || !consent || !brandValid || brief.trim().length < 8 || busy !== ''} onClick={() => void suggestIdeas()}>{t.getIdeas}</button>
+      <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
+      <button type="button" className="button secondary" disabled={!plannerModel || !key || !consent || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{t.getIdeas}</button>
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
         {concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary" aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}

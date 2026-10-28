@@ -178,3 +178,48 @@ test('brand picker fills identity and logo from a saved brand kit', async ({ pag
   await expect(page.getByLabel('color-3')).toHaveValue('#336699');
   await expect(page.getByTestId('upload-card-logo').locator('img')).toBeVisible();
 });
+
+test('ideas generate from the product photo and brand with no written brief', async ({ page }) => {
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  let planBody: Record<string, unknown> | null = null;
+  await page.route('**/api/ai/plan', async (route) => {
+    planBody = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ body: JSON.stringify({ concepts: [
+      { angle: 'offer', title: 'Cold Offer', audienceAngle: 'thirsty youth', headline: 'Ice Cold One', caption: 'First caption', visualDirection: 'Icy scene one' },
+      { angle: 'benefit', title: 'Fresh Benefit', audienceAngle: 'busy workers', headline: 'Fresh All Day', caption: 'Second caption', visualDirection: 'Icy scene two' },
+      { angle: 'lifestyle', title: 'Chill Lifestyle', audienceAngle: 'friends out', headline: 'Chill With Friends', caption: 'Third caption', visualDirection: 'Icy scene three' },
+    ] }), contentType: 'application/json' });
+  });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await page.getByText('Edit brand details', { exact: true }).click();
+  await page.getByLabel('Brand name').fill('Sora');
+  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
+  await expect(consentBox).toBeEnabled({ timeout: 30000 });
+  await consentBox.check();
+  await expect(page.getByLabel('Extra direction (optional)')).toHaveValue('');
+  await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Cold Offer — Ice Cold One', exact: true })).toBeVisible();
+  await expect(planBody).toMatchObject({ brief: '' });
+  expect(planBody).toHaveProperty('product');
+  await expect(page.getByLabel('Background scene')).toHaveValue('Icy scene one');
+});

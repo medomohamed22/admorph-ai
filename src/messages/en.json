@@ -1251,6 +1251,7 @@
     "brandPick": "Choose your brand",
     "brandCustom": "Custom brand",
     "brandNew": "Create a new brand",
-    "editBrand": "Edit brand details"
+    "editBrand": "Edit brand details",
+    "briefOptional": "Extra direction (optional)"
   }
 }
