@@ -24,8 +24,12 @@ Open [the local app](http://localhost:3000). For a production build use `npm run
 - Adjust actual text/image/logo layers, use local or explicitly requested Meta backgrounds, run measured local checks and optionally request Meta Critic/repair proposals. Repairs require review and acceptance and remain undoable.
 - Expand **Creative safety and versions** to choose approximate Feed/Reels zones, logo overrides, seven dialect/tone choices, export preflight and recoverable checkpoints. Dialect proposals are measured with the intended Inter/Cairo font before acceptance; changed design context invalidates a proposal.
 - Click numbered canvas markers or a finding's **Fix this element** button for an actual before/after proposal. Desktop comparisons show both images; phones have Original/Variant or Before/After toggles. HUD zones, review markers and selection handles are excluded from PNGs.
-- Download exact 1080 × 1350 PNGs and captions. Download runs local preflight; warnings remain warnings, rather than fabricated performance scores.
+- Download exact-size PNGs (1080×1080, 1080×1350 or 1080×1920, by campaign format) and captions. Download runs local preflight; warnings remain warnings, rather than fabricated performance scores.
 - In Settings, export a binary `.admorph` project backup and restore it into a fresh browser. It includes project records, image Blobs, variants, versions, reviews and repair snapshots. Settings and credential stores are excluded. Conflicting IDs are rejected without overwriting current edits.
+
+## Quality program (Oct 27–28, 2026)
+
+After a live test ad showed real defects (a product inside the generated background, the product keeping its old background, inconsistent copy, wrong text direction, unprofessional look), the studio gained: SAM product segmentation for the studio auto-cutout (with a visible local fallback), vision-first background briefs with a product-presence re-check, content-detected text direction with per-layer override, platform sizes (1:1, 4:5, 9:16) and three layout templates, polish overlays (shadow, reflection, background grade) that never touch product pixels, and an AI reference image shown side-by-side as a style target only — never a layer, never exported. Full detail, including what is not yet live-verified, is in [docs/RELEASE_QUALITY_REPORT.md](docs/RELEASE_QUALITY_REPORT.md).
 
 ## Meta models and task verification
 
