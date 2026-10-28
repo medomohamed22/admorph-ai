@@ -35,6 +35,10 @@ After a live test ad showed real defects (a product inside the generated backgro
 
 After a second live test found eight more problems (key wiped on reload, a nine-minute vision hang with no error, a failed first reference generation, a template select that never confirmed the applied layout, a silent cutout method, invisible dark-on-dark product and text, a small can, Arabic text forced to LTR passing the critic), the studio gained: an auto-opening encrypted key vault so one passphrase unlock survives reloads, a 65s vision watchdog with an inline timeout error, tolerant reference/edits parsing with shape-only diagnostics, a durable applied-template display, a visible cutout-method line, a pixel post-background review that measures real product/text contrast and auto-applies the vision scale size and a readable text color in one undoable update (plus a grade repair), and a direction-mismatch critic rule with a one-click reset to automatic. Full detail, including what is not yet live-verified, is in [docs/RELEASE_SMART_FIXES_REPORT.md](docs/RELEASE_SMART_FIXES_REPORT.md).
 
+## One-shot ad mode (Oct 28, 2026)
+
+Alongside the layered editor, a new `/oneshot` mode lets the user arrange a product, logo, headline, extra text, phone number and icons on a mockup canvas (drag by touch or mouse), then one Meta images/edits call paints the finished ad from that mockup, with an optional enhance switch for poor phone photos and a vision fidelity certificate scoring product, logo, layout and text matches — with phone digits pinnable exactly instead of model-generated. Full detail, including what is not yet live-verified, is in [docs/RELEASE_ONESHOT_REPORT.md](docs/RELEASE_ONESHOT_REPORT.md).
+
 ## Meta models and task verification
 
 Settings has separate Planner, Background generation, Critic, Edit command, Brand vision, Image editing and Copy roles. Fetch account models or enter an authorised model ID. Missing modality metadata means **unverified**, so it does not prevent selection.
