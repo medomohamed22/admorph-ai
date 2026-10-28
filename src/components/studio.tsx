@@ -149,7 +149,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
   async function analyzeProduct() {
     if (!product || !visionModel || !visionKey || !consent || visionBusy) return;
     setVisionBusy(true); setVisionNote(''); setError(null);
-    // The fetch below already aborts at 55s, but a promise that never
+    // The fetch below already aborts at 65s, but a promise that never
     // settles (or post-fetch work that hangs) would still leave the button
     // stuck on "Analyzing…". This watchdog guarantees recovery with a clear
     // timeout message even then; the run id keeps a stale timer from
@@ -158,12 +158,12 @@ export default function Studio({ campaignId }: { campaignId: string }) {
     if (visionWatchdog.current) clearTimeout(visionWatchdog.current);
     visionWatchdog.current = setTimeout(() => {
       if (visionRunId.current === runId) { setVisionBusy(false); setError('timeout'); }
-    }, 65000);
+    }, 75000);
     try {
       const data = await blobToBase64(product.blob);
       const response = await metaFetch('vision', '/api/ai/vision-background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: product.blob.type, data } }),
-        signal: AbortSignal.timeout(55000), cache: 'no-store' });
+        signal: AbortSignal.timeout(65000), cache: 'no-store' });
       if (!response.ok) {
         const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
         throw new ProviderError(body.error?.code && body.error.code in m.settings.errors ? body.error.code : 'image_response', response.status);
@@ -184,7 +184,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       const data = await blobToBase64(blob);
       const response = await metaFetch('vision', '/api/ai/check-background', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: blob.type, data } }),
-        signal: AbortSignal.timeout(55000), cache: 'no-store' });
+        signal: AbortSignal.timeout(65000), cache: 'no-store' });
       if (!response.ok) return null;
       return checkBackgroundSchema.parse(await response.json());
     } catch { return null; }
@@ -321,7 +321,7 @@ export default function Studio({ campaignId }: { campaignId: string }) {
       const data = await blobToBase64(referenceAsset.blob);
       const response = await metaFetch('vision', '/api/ai/reference-layout', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: visionKey, consent: true, imageConsent: true, image: { mimeType: referenceAsset.blob.type, data } }),
-        signal: AbortSignal.timeout(55000), cache: 'no-store' });
+        signal: AbortSignal.timeout(65000), cache: 'no-store' });
       if (!response.ok) {
         const body = await readJsonLimited(response, 32768) as { error?: { code?: ErrorCode } };
         throw new ProviderError(body.error?.code && body.error.code in m.settings.errors ? body.error.code : 'image_response', response.status);
