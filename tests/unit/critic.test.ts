@@ -112,3 +112,24 @@ describe('saved reviews', () => {
     } finally { await db.delete(); }
   });
 });
+
+describe('direction mismatch rule', () => {
+  it('flags Arabic text forced LTR and Latin text forced RTL, and clears on auto', () => {
+    const { creative, metrics, assets } = fixture();
+    const headline = creative.layers.find(layer => layer.kind === 'headline')!;
+    headline.text = 'ساقعة على طول'; headline.dir = 'ltr';
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).toContain('direction_mismatch');
+    headline.dir = 'auto';
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).not.toContain('direction_mismatch');
+    headline.text = 'Ice-cold. Always.'; headline.dir = 'rtl';
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).toContain('direction_mismatch');
+  });
+  it('ignores matching directions and directionless text', () => {
+    const { creative, metrics, assets } = fixture();
+    const headline = creative.layers.find(layer => layer.kind === 'headline')!;
+    headline.text = 'ساقعة على طول'; headline.dir = 'rtl';
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).not.toContain('direction_mismatch');
+    headline.text = '12345'; headline.dir = 'rtl';
+    expect(checkCreative(creative, metrics, assets).issues.map(issue => issue.code)).not.toContain('direction_mismatch');
+  });
+});

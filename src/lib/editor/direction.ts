@@ -36,6 +36,14 @@ export function hasMixedScripts(text: string): boolean {
   return false;
 }
 
+/** True when the text has at least one strong directional character. Digits, spaces and punctuation alone must not trigger a direction rule. */
+export function hasStrongDirection(text: string): boolean {
+  for (const char of text) {
+    if (RTL_RANGE.test(char) || LTR_LETTER.test(char)) return true;
+  }
+  return false;
+}
+
 /** Explicit setting wins; otherwise content wins; empty text keeps the font hint. */
 export function resolveLayerDirection(layer: {
   dir?: LayerDirSetting;

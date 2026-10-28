@@ -11,6 +11,8 @@ export const repairActionSchema = z.discriminatedUnion('type', [
   // Text layers already have an opaque rectangle; this changes that existing fill.
   z.object({ type: z.literal('add_backdrop'), layerId: id, color }).strict(),
   z.object({ type: z.literal('show_layer'), layerId: id }).strict(),
+  // Resetting a forced direction to automatic is a text-layer-only repair.
+  z.object({ type: z.literal('set_direction'), layerId: id, dir: z.enum(['auto', 'ltr', 'rtl']) }).strict(),
 ]);
 export type RepairAction = z.infer<typeof repairActionSchema>;
 export const repairResponseSchema = z.object({ rationale: z.string().trim().min(1).max(1200), actions: z.array(repairActionSchema).max(16) }).strict();

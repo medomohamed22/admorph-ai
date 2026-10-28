@@ -16,8 +16,8 @@ export function applyActions(creative: Creative, actions: RepairAction[]): Creat
     if (index < 0) throw new Error('repair_invalid');
     const layer = next.layers[index];
     if (layer.kind === 'background' && ['move_layer', 'resize_layer'].includes(action.type)) throw new Error('repair_invalid');
-    if (['set_color', 'set_font_size', 'set_text', 'add_backdrop', 'show_layer'].includes(action.type) && !textKinds.includes(layer.kind)) throw new Error('repair_invalid');
-    const patch: Partial<EditableLayer> = action.type === 'move_layer' ? { x: action.x, y: action.y } : action.type === 'resize_layer' ? { width: action.width, height: action.height } : action.type === 'set_color' ? { color: action.color } : action.type === 'set_font_size' ? { fontSize: action.fontSize } : action.type === 'set_text' ? { text: action.text } : action.type === 'add_backdrop' ? { fill: action.color } : { visible: true };
+    if (['set_color', 'set_font_size', 'set_text', 'add_backdrop', 'show_layer', 'set_direction'].includes(action.type) && !textKinds.includes(layer.kind)) throw new Error('repair_invalid');
+    const patch: Partial<EditableLayer> = action.type === 'move_layer' ? { x: action.x, y: action.y } : action.type === 'resize_layer' ? { width: action.width, height: action.height } : action.type === 'set_color' ? { color: action.color } : action.type === 'set_font_size' ? { fontSize: action.fontSize } : action.type === 'set_text' ? { text: action.text } : action.type === 'add_backdrop' ? { fill: action.color } : action.type === 'set_direction' ? { dir: action.dir } : { visible: true };
     next.layers[index] = clampLayer(layer, patch, dimensionsFor(next.format));
   }
   return creativeSchema.parse(next);
@@ -42,6 +42,7 @@ export function proposeLocal(creative: Creative, measure: Measure, assetIds: Set
   for (const issue of initial.issues) {
     const layer = draft.layers.find(item => item.id === issue.layerIds[0]); if (!layer) continue;
     if (issue.code === 'copy_missing' && layer.text.trim() && !layer.visible) add({ type: 'show_layer', layerId: layer.id });
+    if (issue.code === 'direction_mismatch' && layer.dir && layer.dir !== 'auto') add({ type: 'set_direction', layerId: layer.id, dir: 'auto' });
     if (issue.code === 'text_clipped') {
       const width = Math.max(layer.width, Math.min(930, dims.width - layer.x - 24));
       const blockers = draft.layers.filter(other => other.visible && other.id !== layer.id && other.kind !== 'background' && other.y >= layer.y + 24 && intersects({ ...layer, width, height: dims.height - layer.y }, other));

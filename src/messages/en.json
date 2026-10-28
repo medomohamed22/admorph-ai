@@ -718,6 +718,10 @@
       "mixed_scripts": {
         "title": "Layer mixes two languages",
         "explanation": "This layer mixes Arabic-script and Latin letters. Each text layer must be in exactly one language; a Latin brand name stays in its own brand layer."
+      },
+      "direction_mismatch": {
+        "title": "Text direction conflicts with its content",
+        "explanation": "This layer's forced direction does not match its text. Reset the direction to automatic so the content decides."
       }
     },
     "aiTitle": "Optional Meta Critic",
