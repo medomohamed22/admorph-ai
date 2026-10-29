@@ -18,6 +18,7 @@ import { proposeOneshotRepairs, type RepairProposal } from '@/lib/oneshot/repair
 import { sha256Hex, buildManifest, mockupSignature } from '@/lib/evidence/manifest';
 import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
+import { saveAd } from '@/lib/db/repository';
 import UploadCard from './upload-card';
 import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
@@ -336,6 +337,10 @@ export default function OneshotStudio() {
       await requireMetaSuccess(response);
       const result = await response.blob(); await validateGeneratedImage(result);
       setResultBlob(result);
+      // Finished ads save to the gallery automatically, so the variants
+      // and themes pages can pick them up without re-uploading. A gallery
+      // failure must never break the ad itself.
+      void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString() }).catch(() => {});
       const verifyModel = visionModel ?? provider.taskModel('critic');
       if (verifyModel) {
         setBusy('verify');

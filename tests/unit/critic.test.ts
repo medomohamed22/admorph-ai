@@ -115,7 +115,7 @@ describe('saved reviews', () => {
     const name = `critic-migration-${crypto.randomUUID()}`, old = new Dexie(name), { creative } = fixture();
     old.version(3).stores({ settings: 'key', brands: 'id, updatedAt', assets: 'id, kind, createdAt', modelCatalogCache: 'providerId, fetchedAt', encryptedCredentials: 'providerId', campaigns: 'id, brandId, updatedAt', creatives: 'id, campaignId, conceptId, updatedAt' });
     await old.table('creatives').put(creative); await old.table('assets').put({ id: 'existing-asset', kind: 'product', blob: new Blob(['old']) }); await old.table('encryptedCredentials').put({ providerId: 'meta', ciphertext: [1, 2, 3] }); old.close();
-    const db = new AdMorphDB(name); try { await db.open(); expect(db.verno).toBe(7); expect(await db.creatives.get(creative.id)).toEqual(creative); expect(await db.assets.count()).toBe(1); expect(await db.encryptedCredentials.count()).toBe(1); expect(await db.creativeReviews.count()).toBe(0); } finally { await db.delete(); }
+    const db = new AdMorphDB(name); try { await db.open(); expect(db.verno).toBe(8); expect(await db.creatives.get(creative.id)).toEqual(creative); expect(await db.assets.count()).toBe(1); expect(await db.encryptedCredentials.count()).toBe(1); expect(await db.creativeReviews.count()).toBe(0); } finally { await db.delete(); }
   });
   it('stores review provenance and content without a key or preview image', async () => {
     const db = new AdMorphDB(`review-${crypto.randomUUID()}`), { creative } = fixture();
