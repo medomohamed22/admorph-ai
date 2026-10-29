@@ -1236,7 +1236,6 @@
     "retry": "Generate again",
     "download": "Download PNG",
     "result": "Finished ad",
-    "pinPhone": "Pin the phone number exactly (drawn, not generated)",
     "missingKey": "Add your Meta key in Settings and pick an image model first.",
     "needProduct": "Upload a product photo, then press Isolate background.",
     "needScene": "Write a background scene first.",

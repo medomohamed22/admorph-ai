@@ -63,6 +63,10 @@ Three fixes from live phone testing. First, idea generation now also suggests th
 
 The "Mockup check" panel used to only report problems. Now it closes the loop: each finding carries its own "Apply fix" button, and every fix is computed deterministically from the same rule set — move the overlapping item to the first clear position (the product and the logo never move for a finding), recolor low-contrast text to the highest-contrast brand color that passes 4.5, or pull text inside the 60px safe margin. A finding with no fitting fix says so plainly instead of guessing. Applying a fix is an ordinary canvas edit, so Undo reverses it, the applied fixes are listed under the panel, and the inspect re-runs on the new arrangement — that re-run is the verify step. No model is consulted anywhere in the loop, so the demo moment cannot fail on a model reply. Full detail is in [docs/RELEASE_REPAIR_LOOP_REPORT.md](docs/RELEASE_REPAIR_LOOP_REPORT.md).
 
+## Phone-number pinning removed (Oct 29, 2026)
+
+The generate step used to draw the phone digits over the finished ad a second time ("pinning"). Since the model already paints the number from the mockup layout, and layout preservation is never pixel-exact, the drawn copy landed on top of the model's own digits and ghosted — ruining the image. The pin step, its checkbox and its message key are removed: the result is now used exactly as the model returned it, and the vision certificate still reads the digits back and reports a mismatch as a failed text check instead of silently fixing it. Full detail is in [docs/RELEASE_PHONE_PIN_REMOVAL.md](docs/RELEASE_PHONE_PIN_REMOVAL.md).
+
 ## Meta models and task verification
 
 Settings has separate Planner, Background generation, Critic, Edit command, Brand vision, Image editing and Copy roles. Fetch account models or enter an authorised model ID. Missing modality metadata means **unverified**, so it does not prevent selection.
