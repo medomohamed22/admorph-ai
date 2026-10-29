@@ -1,5 +1,6 @@
 import {z} from 'zod';
 import {createHmac,timingSafeEqual,createHash,randomBytes} from 'node:crypto';
+import {buildObjectPrompt} from '@meta-sam/parser';
 import {ProviderError,httpError} from './errors';
 import {readJsonLimited,type TransportOptions} from './transport';
 import {inputImage} from './meta-contracts';
@@ -69,9 +70,21 @@ function responseShape(value:unknown):string[]{
  * Any upstream error surfaces verbatim through metaCall's mapping, so an
  * unverified shape fails loudly instead of pretending to work.
  */
-export async function metaSegment(model:string,key:string,image:z.infer<typeof inputImage>,prompt:string,signal:AbortSignal,options:TransportOptions={}):Promise<string>{
+export type SegmentBox={left:number;top:number;right:number;bottom:number};
+export type SegmentPoint={x:number;y:number};
+export type SegmentSize={width:number;height:number};
+/**
+ * How SAM is prompted. Text is the legacy noun-phrase path: SAM must guess
+ * what the word names, and a failed guess returns zero masks. Box and point
+ * are geometric prompts built with the parser's own formatter: SAM segments
+ * what is inside the box (or at the point) without needing to name it, so
+ * the grounding gamble disappears. A request carries exactly one kind.
+ */
+export type SegmentPrompt={kind:'text';text:string}|{kind:'box';box:SegmentBox;size:SegmentSize}|{kind:'point';point:SegmentPoint;size:SegmentSize};
+export async function metaSegment(model:string,key:string,image:z.infer<typeof inputImage>,prompt:SegmentPrompt,signal:AbortSignal,options:TransportOptions={}):Promise<string>{
  await validateRaster(image);
- const json=await metaCall('responses',{model,input:[{role:'user',content:[{type:'input_text',text:prompt},{type:'input_image',image_url:`data:${image.mimeType};base64,${image.data}`}]}]},key,signal,options);
+ const inputText=prompt.kind==='text'?prompt.text:buildObjectPrompt({size:prompt.size,objects:[{id:1,prompts:[{frame:0,...(prompt.kind==='box'?{box:prompt.box}:{points:[prompt.point]})}]}]});
+ const json=await metaCall('responses',{model,input:[{role:'user',content:[{type:'input_text',text:inputText},{type:'input_image',image_url:`data:${image.mimeType};base64,${image.data}`}]}]},key,signal,options);
  if(typeof (json as {output_text?:unknown})?.output_text==='string')return (json as {output_text:string}).output_text;
  const output=(json as {output?:unknown})?.output;
  if(Array.isArray(output)){

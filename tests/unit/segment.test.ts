@@ -169,3 +169,69 @@ describe('SAM diagnostic errors', () => {
     expect(dropped.details).toBeUndefined();
   });
 });
+
+describe('SAM geometric prompts', () => {
+  const segmentWith = async (body: Record<string, unknown>) => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn(async () => Response.json(responsesEnvelope(README_OUTPUT)));
+    const response = await handleSegmentRequest(
+      request({ ...base(), imageConsent: true, image, ...body }),
+      { fetcher },
+    );
+    const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    return { response, sent: JSON.parse(String(init.body)) as { input: { content: { type: string; text?: string }[] }[] } };
+  };
+
+  it('sends a box object prompt instead of a noun phrase', async () => {
+    const { response, sent } = await segmentWith({ box: { left: 10, top: 20, right: 300, bottom: 320 }, size: { width: 300, height: 330 } });
+    expect(response.status).toBe(200);
+    const text = sent.input[0].content[0].text ?? '';
+    expect(text.startsWith('<0f>1<|box;')).toBe(true);
+    expect(text).not.toContain('product');
+    expect((await response.json()).masks).toHaveLength(2);
+  });
+
+  it('sends a point object prompt for a tap', async () => {
+    const { response, sent } = await segmentWith({ point: { x: 150, y: 165 }, size: { width: 300, height: 330 } });
+    expect(response.status).toBe(200);
+    const text = sent.input[0].content[0].text ?? '';
+    expect(text.startsWith('<0f>1<|point;')).toBe(true);
+  });
+
+  it('rejects a request combining a noun phrase with a box', async () => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn();
+    const response = await handleSegmentRequest(
+      request({ ...base(), imageConsent: true, image, prompt: 'product', box: { left: 0, top: 0, right: 10, bottom: 10 }, size: { width: 300, height: 330 } }),
+      { fetcher },
+    );
+    expect(response.status).toBe(400);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it('rejects a box without its image size', async () => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const fetcher = vi.fn();
+    const response = await handleSegmentRequest(
+      request({ ...base(), imageConsent: true, image, box: { left: 0, top: 0, right: 10, bottom: 10 } }),
+      { fetcher },
+    );
+    expect(response.status).toBe(400);
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+});
+
+describe('product-box route', () => {
+  it('returns the vision bounding box as fractions', async () => {
+    const image = { mimeType: 'image/png' as const, data: (await readFile('public/demo/sora-product.png')).toString('base64') };
+    const box = { left: 0.1, top: 0.2, right: 0.9, bottom: 0.8 };
+    const fetcher = vi.fn(async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(box), refusal: null } }] }));
+    const response = await handleMetaRoute(
+      request({ ...base(), imageConsent: true, image }),
+      'product-box',
+      { fetcher },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(box);
+  });
+});
