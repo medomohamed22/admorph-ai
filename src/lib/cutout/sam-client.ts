@@ -14,7 +14,27 @@ export interface SamCutoutOptions {
   apiKey: string;
   modelId: string;
   prompt: string;
+  /** Fractions of the image size (0..1). When present, SAM gets a geometric prompt instead of the noun phrase. */
+  box?: { left: number; top: number; right: number; bottom: number };
+  /** Fractions of the image size (0..1). A tap point; same geometric path as box. */
+  point?: { x: number; y: number };
   signal?: AbortSignal;
+}
+
+/** Fractions to half-open pixel box, clamped inside the image, never empty. */
+export function boxFractionsToPixels(box: { left: number; top: number; right: number; bottom: number }, width: number, height: number) {
+  const left = Math.max(0, Math.floor(box.left * width));
+  const top = Math.max(0, Math.floor(box.top * height));
+  let right = Math.min(width, Math.ceil(box.right * width));
+  let bottom = Math.min(height, Math.ceil(box.bottom * height));
+  if (right <= left) right = Math.min(width, left + 1);
+  if (bottom <= top) bottom = Math.min(height, top + 1);
+  return { left, top, right, bottom };
+}
+
+/** Fractions to a pixel point, clamped inside the image. */
+export function pointFractionsToPixels(point: { x: number; y: number }, width: number, height: number) {
+  return { x: Math.max(0, Math.min(width - 1, Math.floor(point.x * width))), y: Math.max(0, Math.min(height - 1, Math.floor(point.y * height))) };
 }
 
 function base64ToBytes(data: string): Uint8Array {
@@ -80,6 +100,12 @@ function segmentErrorDetails(value: unknown): ErrorDetails | undefined {
 export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<CutoutResult> {
   const image = await decodeToImageData(blob);
   const data = await blobToBase64(blob);
+  const size = { width: image.width, height: image.height };
+  const promptBody = options.box
+    ? { box: boxFractionsToPixels(options.box, image.width, image.height), size }
+    : options.point
+      ? { point: pointFractionsToPixels(options.point, image.width, image.height), size }
+      : { prompt: options.prompt };
   const response = await fetch('/api/ai/segment', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -90,7 +116,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
       consent: true,
       imageConsent: true,
       image: { mimeType: blob.type, data },
-      prompt: options.prompt,
+      ...promptBody,
     }),
     signal: options.signal,
   });
