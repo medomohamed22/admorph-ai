@@ -38,7 +38,29 @@ both pages pick their source from the project's generated images.
   `AdRemixStudio` component, the two pages, header links, and the
   `remix` message section in both locales.
 
-## Honest limits
+## Fix: oversized saved ads failed both pages (Oct 29, 2026, evening)
+
+- **Bug, reported by the owner with screenshots:** both remix pages
+  failed with "invalid_request" on a real saved ad, while fixtures
+  passed. Root cause from the code: the remix pages base64-encoded
+  the finished ad PNG as-is, but every server op enforces the 2 MB
+  image cap (`inputImage` data length) — a photographic 1080x1350
+  PNG is larger than 2 MB, so the planner, the remix and the verify
+  all failed schema validation before any model call. One-shot never
+  hit this because it fits its mockup and result first.
+- **Fix:** the remix pages now fit the source ad with
+  `fitProductImage` once per run (planner + remix) and fit each
+  variant before verification — the same pattern one-shot uses.
+  The gallery still keeps the original full-quality PNG for download;
+  only the request payload is fitted.
+- **Also in this fix:** the picked saved ad now shows a clear
+  selection ring plus a "selected" label, the picker / count / themes
+  / delete lock while a run is in progress, and the results area
+  shows empty slots (2 or 3) as soon as a source is picked, filling
+  in as each copy finishes — on both pages.
+- **Regression test:** a seeded noise PNG over 2 MB now generates 2
+  variants, and the planner request body stays under the 3 MB
+  request cap.
 
 - The headline is model-painted, by the owner's explicit choice, so a
   garbled headline is possible; the certificate reads it back and a
