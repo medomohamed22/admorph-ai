@@ -1252,6 +1252,13 @@
     "brandCustom": "براند مخصص",
     "brandNew": "أنشئ براندًا جديدًا",
     "editBrand": "تعديل تفاصيل البراند",
-    "briefOptional": "توجيه إضافي (اختياري)"
+    "briefOptional": "توجيه إضافي (اختياري)",
+    "stepperLabel": "إعلانك في ٥ خطوات",
+    "stepProduct": "المنتج",
+    "stepBrand": "البراند",
+    "stepIdea": "الفكرة",
+    "stepArrange": "الترتيب",
+    "stepGenerate": "التوليد",
+    "generatingNote": "بنرسم إعلانك النهائي…"
   }
 }

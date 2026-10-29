@@ -259,10 +259,32 @@ export default function OneshotStudio() {
 
   const canGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid && !busy;
   const selectedTextElement = selectedElement && (selectedElement.kind === 'text' || selectedElement.kind === 'phone') ? selectedElement : null;
+  const generating = busy === 'generate' || busy === 'verify';
+  const generateLabel = busy === 'generate' ? t.generating : busy === 'verify' ? t.verifying : resultBlob ? t.retry : t.generate;
+  // Stepper state: the current step is the first incomplete one; later steps
+  // read as locked until their prerequisites are done.
+  const readyToGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid;
+  const steps = [
+    { label: t.stepProduct, done: !!cutoutBlob },
+    { label: t.stepBrand, done: brandValid },
+    { label: t.stepIdea, done: concepts.length > 0 },
+    { label: t.stepArrange, done: readyToGenerate },
+    { label: t.stepGenerate, done: !!resultBlob },
+  ];
+  const currentStep = steps.findIndex(step => !step.done);
 
-  return <main>
+  return <main className="oneshot-studio">
     <h1>{t.title}</h1>
     <p>{t.subtitle}</p>
+    <ol className="oneshot-stepper" aria-label={t.stepperLabel}>
+      {steps.map((step, index) => {
+        const state = step.done ? 'done' : index === currentStep ? 'current' : 'locked';
+        return <li key={step.label} className={state} aria-current={state === 'current' ? 'step' : undefined}>
+          <span className="step-mark">{step.done ? '✓' : index + 1}</span>
+          <span>{step.label}</span>
+        </li>;
+      })}
+    </ol>
 
     <section className="feature-card">
       <h2>{t.uploadProduct}</h2>
@@ -294,7 +316,10 @@ export default function OneshotStudio() {
       <h2>{t.canvasTitle}</h2>
       <p>{t.canvasHelp}</p>
       {!cutoutBlob && <p>{t.needProduct}</p>}
-      {cutoutBlob && <OneshotCanvas elements={elements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />}
+      {cutoutBlob && <div className="oneshot-canvas-wrap">
+        <OneshotCanvas elements={elements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />
+        {generating && <div className="generating-overlay" data-testid="oneshot-generating" role="status"><span>{t.generatingNote}</span></div>}
+      </div>}
       <div>
         <input aria-label={t.textPlaceholder} value={newText} maxLength={200} placeholder={t.textPlaceholder} onChange={event => setNewText(event.target.value)} />
         <button type="button" className="button secondary" disabled={!newText.trim() || !cutoutBlob} onClick={() => { addElement('text', undefined, newText.trim()); setNewText(''); }}>{t.addText}</button>
@@ -318,13 +343,17 @@ export default function OneshotStudio() {
       {!brandValid && <p>{t.needBrand}</p>}
       <label className="check-label"><input type="checkbox" checked={consent} disabled={!canGenerate && !consent} onChange={event => setConsent(event.target.checked)} />{t.consent}</label>
       <label className="check-label"><input type="checkbox" checked={pinPhone} onChange={event => setPinPhone(event.target.checked)} />{t.pinPhone}</label>
-      <button type="button" className="button primary" disabled={!canGenerate || !consent} onClick={() => void generate()}>{busy === 'generate' ? t.generating : busy === 'verify' ? t.verifying : resultBlob ? t.retry : t.generate}</button>
+      <button type="button" className="button primary generate-main" disabled={!canGenerate || !consent} onClick={() => void generate()}>{generateLabel}</button>
       {error && <p role="alert">{error}</p>}
     </section>
 
+    <div className="sticky-generate">
+      <button type="button" className="button primary" disabled={!canGenerate || !consent} onClick={() => void generate()}>{generateLabel}</button>
+    </div>
+
     {resultBlob && resultUrl && <section className="feature-card">
       <h2>{t.result}</h2>
-      <img data-testid="oneshot-result" src={resultUrl} alt={t.result} style={{ maxWidth: '100%' }} />
+      <img data-testid="oneshot-result" className="oneshot-reveal" key={resultUrl} src={resultUrl} alt={t.result} style={{ maxWidth: '100%' }} />
       <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>
     </section>}
 
