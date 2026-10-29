@@ -44,6 +44,7 @@ export default function OneshotStudio() {
   const [cutoutMethod, setCutoutMethod] = useState<'meta-sam' | null>(null);
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [selectedBrandId, setSelectedBrandId] = useState('');
+  const [logoMissing, setLogoMissing] = useState(false);
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [headlineFont, setHeadlineFont] = useState<string | null>(null);
   const [brief, setBrief] = useState('');
@@ -192,7 +193,7 @@ export default function OneshotStudio() {
   async function uploadLogo(file: File) {
     setError('');
     try {
-      await validateProduct(file); const blob = file; setLogoBlob(blob);
+      await validateProduct(file); const blob = file; setLogoBlob(blob); setLogoMissing(false);
       setElements(previous => {
         const logo = previous.find(item => item.kind === 'logo');
         if (logo) return previous.map(item => item.kind === 'logo' ? { ...item, blob } : item);
@@ -202,13 +203,16 @@ export default function OneshotStudio() {
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
 
-  /** Fill the studio from a saved brand kit: identity fields plus its logo. */
+  /** Fill the studio from a saved brand kit: identity fields plus its logo.
+   *  A brand whose saved logo cannot be resolved must never keep the
+   *  previous brand's logo on screen: clear the logo slot and say so. */
   function applyBrand(saved: Brand) {
     setBrand({ name: saved.name, description: saved.description, colors: saved.colors });
     const blob = saved.logoAssetId ? workspace.assets.find(asset => asset.id === saved.logoAssetId)?.blob ?? null : null;
-    if (!blob) return;
+    setLogoMissing(!!saved.logoAssetId && !blob);
     setLogoBlob(blob);
     setElements(previous => {
+      if (!blob) return previous.filter(item => item.kind !== 'logo');
       const logo = previous.find(item => item.kind === 'logo');
       if (logo) return previous.map(item => item.kind === 'logo' ? { ...item, blob } : item);
       if (!previous.some(item => item.kind === 'product')) return previous;
@@ -499,10 +503,11 @@ export default function OneshotStudio() {
       </div>}
       <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
-      <label>{t.brandPick}<select aria-label={t.brandPick} value={selectedBrandId} onChange={event => { const found = workspace.brands.find(item => item.id === event.target.value); if (found) { setSelectedBrandId(found.id); applyBrand(found); } else setSelectedBrandId(''); }}>
+      <label>{t.brandPick}<select aria-label={t.brandPick} value={selectedBrandId} onChange={event => { const found = workspace.brands.find(item => item.id === event.target.value); if (found) { setSelectedBrandId(found.id); applyBrand(found); } else { setSelectedBrandId(''); setLogoMissing(false); } }}>
         <option value="">{t.brandCustom}</option>
         {workspace.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select></label>
+      {logoMissing && <p role="alert">{t.brandLogoMissing}</p>}
       <Link className="button secondary" href="/brands/new?returnTo=/oneshot">{t.brandNew} ↗</Link>
       {headlineFont && <p>{t.brandFont}: {headlineFont}</p>}
       <details>

@@ -71,6 +71,10 @@ The generate step used to draw the phone digits over the finished ad a second ti
 
 The cutout used to bet everything on SAM's text grounding of the single word "product": when the model could not ground the word — every electronic product in the diverse-product test — it returned zero masks and the whole ad stopped. Now the isolate step is geometric first: vision locates the product's bounding box, SAM segments what is inside that box (a box prompt built with the parser's own formatter), and only if both fail does the noun phrase run; if that fails too, the user taps the product in the photo and the tap point becomes SAM's prompt. A box or point prompt never combines with a noun phrase, and the segment route rejects mixed or sizeless requests. Full detail is in [docs/RELEASE_GEOMETRIC_CUTOUT_REPORT.md](docs/RELEASE_GEOMETRIC_CUTOUT_REPORT.md).
 
+## Brand fixes: stale logo, lagging preview, dead delete (Oct 29, 2026)
+
+Applying a saved brand whose logo asset was gone used to keep the previous brand's logo on screen (the early return in `applyBrand` never cleared the logo slot), logo previews and canvas images updated one render behind the blob (the object URL was created in an effect), and Delete hid behind a native confirm dialog that automated browsers dismiss silently. Now applying a brand always defines the logo slot and warns when its saved logo cannot be loaded, the object URL is derived during render, and delete is a two-step in-page confirm. Full detail is in [docs/RELEASE_BRAND_FIXES_REPORT.md](docs/RELEASE_BRAND_FIXES_REPORT.md).
+
 ## Meta models and task verification
 
 Settings has separate Planner, Background generation, Critic, Edit command, Brand vision, Image editing and Copy roles. Fetch account models or enter an authorised model ID. Missing modality metadata means **unverified**, so it does not prevent selection.
