@@ -67,6 +67,11 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
           draggable={!disabled} onClick={() => select(element.id)} onTap={() => select(element.id)}
           onDragEnd={event => { const safe = clampOneshotElement({ ...element, x: event.target.x(), y: event.target.y() }); event.target.position({ x: safe.x, y: safe.y }); change(element.id, safe); }}
           onTransformEnd={event => { const node = event.target; const safe = clampOneshotElement({ ...element, x: node.x(), y: node.y(), width: element.width * node.scaleX(), height: element.height * node.scaleY() }); node.setAttrs({ x: safe.x, y: safe.y, width: safe.width, height: safe.height, scaleX: 1, scaleY: 1 }); change(element.id, safe); }}>
+          {/* Invisible hit area: the image child below is non-listening, so
+              without this rect the group has nothing to grab — taps and
+              drags on product/logo/icon pixels passed through to the stage.
+              The rect is transparent, so exports and the model see nothing. */}
+          {element.blob && <Rect x={0} y={0} width={element.width} height={element.height} fill="rgba(0,0,0,0)" />}
           {element.blob ? <Raster blob={element.blob} id={element.id} width={element.width} height={element.height} onReady={onReady}/> : null}
           {isText && <Text text={element.text ?? ''} width={element.width} height={element.height} padding={8} fill={element.color ?? '#16100C'} fontFamily={element.fontFamily ? `${element.fontFamily}, ${rtl ? 'Cairo' : 'Inter'}` : rtl ? 'Cairo' : 'Inter'} fontSize={element.fontSize ?? 64} lineHeight={1.2} align="center" verticalAlign="middle" wrap="word" direction={rtl ? 'rtl' : 'ltr'}/>}
         </Group>;

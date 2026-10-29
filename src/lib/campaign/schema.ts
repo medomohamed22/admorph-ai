@@ -12,7 +12,7 @@ export const conceptFieldsSchema = z.object({
   audienceAngle: z.string().trim().min(1).max(240), headline: z.string().trim().min(1).max(120),
   caption: z.string().trim().min(1).max(1200), copyLocale:z.enum(['ar_msa','ar_eg','ar_gulf','ar_lev','en_direct','en_genz','en_luxury']).optional(),ctaText:z.string().max(40).optional(), visualDirection: z.string().trim().min(1).max(1000), spatialPreset: z.enum(['top_copy_center_product','rtl_right_copy_left_product','ltr_left_copy_right_product','bottom_banner_center_stage']).optional(), negativeSpaceInstruction: z.string().max(600).optional(),
 }).strict();
-export const planSchema = z.object({ concepts: z.array(conceptFieldsSchema).length(3) }).strict().superRefine((value, ctx) => {
+export const planSchema = z.object({ concepts: z.array(conceptFieldsSchema).length(3), fonts: z.array(z.string().trim().min(1).max(60)).max(3).optional() }).strict().superRefine((value, ctx) => {
   if (new Set(value.concepts.map(concept => concept.angle)).size !== 3) ctx.addIssue({ code: 'custom', message: 'distinct_angles' });
   const normalize = (text: string) => text.normalize('NFKC').toLowerCase().replace(/[\p{P}\p{Z}\s]/gu, '');
   for (const field of ['title', 'headline', 'caption', 'visualDirection'] as const) {
