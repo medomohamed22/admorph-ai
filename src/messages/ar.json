@@ -1280,6 +1280,10 @@
     "findingSafeZone": "النص قريب أوي من الحافة",
     "exportEvidence": "تصدير ملف الإثبات",
     "exportBusy": "جارٍ التصدير…",
-    "suggestedFonts": "خطوط مقترحة"
+    "suggestedFonts": "خطوط مقترحة",
+    "fixApply": "طبّق الإصلاح",
+    "fixNone": "مفيش إصلاح تلقائي.",
+    "fixesApplied": "إصلاحات مطبقة",
+    "fixUndoNote": "زر التراجع بيلغي الإصلاح."
   }
 }

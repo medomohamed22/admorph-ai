@@ -656,3 +656,44 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   expect(logo?.height).toBe(80);
   expect(errors).toEqual([]);
 });
+
+test('repair loop proposes a fix, applies it, and undo reverses it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  // The added line starts at (140, 500) 800x120, squarely over the product
+  // box (340, 380) 400x600.
+  await page.getByLabel('Your headline').fill('Hello');
+  await page.getByRole('button', { name: 'Add text', exact: true }).click();
+  await expect(page.getByText('Element overlaps the product')).toBeVisible();
+  // Inspect -> propose -> apply: the fix moves the line below the product
+  // (y = 380 + 600 + 16 = 996), and the re-run inspect must come back clean.
+  await page.getByRole('button', { name: 'Apply fix', exact: true }).click();
+  await expect(page.getByText('No issues found.')).toBeVisible();
+  await expect(page.getByText('Applied fixes')).toBeVisible();
+  await expect(page.getByText(/moved to \(140, 996\)/)).toBeVisible();
+  // The fix is an ordinary canvas edit, so Undo reverses it and the
+  // finding comes back — the loop is reversible, not destructive.
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(page.getByText('Element overlaps the product')).toBeVisible();
+});

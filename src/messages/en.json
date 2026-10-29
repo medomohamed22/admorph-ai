@@ -1280,6 +1280,10 @@
     "findingSafeZone": "Text is too close to the edge",
     "exportEvidence": "Export evidence ZIP",
     "exportBusy": "Exporting…",
-    "suggestedFonts": "Suggested fonts"
+    "suggestedFonts": "Suggested fonts",
+    "fixApply": "Apply fix",
+    "fixNone": "No automatic fix.",
+    "fixesApplied": "Applied fixes",
+    "fixUndoNote": "Undo reverses a fix."
   }
 }
