@@ -1203,6 +1203,7 @@
     "descriptionThemes": "Pick a finished ad from your gallery and restyle it for a season.",
     "needKey": "Add your Meta API key in Settings first.",
     "pickSource": "Pick a saved ad",
+    "selected": "Selected",
     "emptyGallery": "No saved ads yet.",
     "emptyGalleryHint": "Generate an ad in One-shot first — finished ads save to this gallery automatically.",
     "countLabel": "How many variants",
@@ -1222,6 +1223,7 @@
     "deleteFailed": "Could not delete the saved ad.",
     "score": "Certificate score",
     "failedSome": "Some copies failed; the ones below succeeded.",
+    "emptySlot": "Will appear here",
     "resultsVariants": "Variants",
     "resultsThemes": "Themed copies"
   },
