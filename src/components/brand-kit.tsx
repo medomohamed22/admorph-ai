@@ -124,8 +124,12 @@ export function BrandLibrary() {
       downloadBrand(await makeBrandBackup(input, logo)); setNotice('exported');
     } catch (failure) { setError(failure instanceof BrandError ? failure.code : 'storageError'); }
   }
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
   async function deleteBrand(brand: Brand) {
-    if (!window.confirm(s.deleteConfirm)) return;
+    // In-page two-step confirm, not window.confirm: automated browsers
+    // dismiss native dialogs silently, which made Delete look dead.
+    if (confirmingDelete !== brand.id) { setConfirmingDelete(brand.id); return; }
+    setConfirmingDelete(null);
     setError(null); setNotice(null);
     if (await workspace.deleteBrand(brand)) setNotice('deleted'); else setError('storageError');
   }
@@ -135,7 +139,7 @@ export function BrandLibrary() {
     </div>
     {busy && <p role="status">{m.common.saving}</p>}{error && <p className="request-error" role="alert">{error === 'storageError' ? m.common.storageError : s.errors[error]}</p>}{notice && <p className="request-status" role="status">{s[notice]}</p>}
     {workspace.phase !== 'loading' && !workspace.brands.length && <div className="empty-brands"><span className="shell-art" aria-hidden="true">✳</span><h2>{s.empty}</h2><p>{s.emptyNote}</p></div>}
-    <div className="brand-library">{workspace.brands.map(brand => <article className="brand-library-card" key={brand.id} data-testid="brand-card"><div className="brand-card-top"><Logo blob={workspace.assets.find(asset => asset.id === brand.logoAssetId)?.blob ?? null} alt={s.logoAlt}/>{workspace.activeBrand?.id === brand.id && <span className="active-badge">{s.active}</span>}</div><h2>{brand.name}</h2><p>{brand.description}</p><div className="brand-swatches" aria-label={s.colors}>{brand.colors.map((color, i) => <span key={i}><i style={{ background: color }}/><code dir="ltr">{color}</code></span>)}</div><div className="field-actions"><button className="button primary" disabled={workspace.activeBrand?.id === brand.id} onClick={() => void workspace.activateBrand(brand.id)}>{s.activate}</button><button className="button secondary" onClick={() => setEditing(brand)}>{s.edit}</button><button className="button secondary" onClick={() => void exportBrand(brand)}>{s.export}</button><button className="text-button danger" onClick={() => void deleteBrand(brand)}>{s.delete}</button></div></article>)}</div>
+    <div className="brand-library">{workspace.brands.map(brand => <article className="brand-library-card" key={brand.id} data-testid="brand-card"><div className="brand-card-top"><Logo blob={workspace.assets.find(asset => asset.id === brand.logoAssetId)?.blob ?? null} alt={s.logoAlt}/>{workspace.activeBrand?.id === brand.id && <span className="active-badge">{s.active}</span>}</div><h2>{brand.name}</h2><p>{brand.description}</p><div className="brand-swatches" aria-label={s.colors}>{brand.colors.map((color, i) => <span key={i}><i style={{ background: color }}/><code dir="ltr">{color}</code></span>)}</div><div className="field-actions"><button className="button primary" disabled={workspace.activeBrand?.id === brand.id} onClick={() => void workspace.activateBrand(brand.id)}>{s.activate}</button><button className="button secondary" onClick={() => setEditing(brand)}>{s.edit}</button><button className="button secondary" onClick={() => void exportBrand(brand)}>{s.export}</button><button className="text-button danger" onClick={() => void deleteBrand(brand)}>{confirmingDelete === brand.id ? s.confirmDelete : s.delete}</button></div></article>)}</div>
     <p className="input-hint">{s.scope}</p>
   </section>;
 }
