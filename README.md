@@ -67,6 +67,10 @@ The "Mockup check" panel used to only report problems. Now it closes the loop: e
 
 The generate step used to draw the phone digits over the finished ad a second time ("pinning"). Since the model already paints the number from the mockup layout, and layout preservation is never pixel-exact, the drawn copy landed on top of the model's own digits and ghosted — ruining the image. The pin step, its checkbox and its message key are removed: the result is now used exactly as the model returned it, and the vision certificate still reads the digits back and reports a mismatch as a failed text check instead of silently fixing it. Full detail is in [docs/RELEASE_PHONE_PIN_REMOVAL.md](docs/RELEASE_PHONE_PIN_REMOVAL.md).
 
+## Geometric SAM cutout (Oct 29, 2026)
+
+The cutout used to bet everything on SAM's text grounding of the single word "product": when the model could not ground the word — every electronic product in the diverse-product test — it returned zero masks and the whole ad stopped. Now the isolate step is geometric first: vision locates the product's bounding box, SAM segments what is inside that box (a box prompt built with the parser's own formatter), and only if both fail does the noun phrase run; if that fails too, the user taps the product in the photo and the tap point becomes SAM's prompt. A box or point prompt never combines with a noun phrase, and the segment route rejects mixed or sizeless requests. Full detail is in [docs/RELEASE_GEOMETRIC_CUTOUT_REPORT.md](docs/RELEASE_GEOMETRIC_CUTOUT_REPORT.md).
+
 ## Meta models and task verification
 
 Settings has separate Planner, Background generation, Critic, Edit command, Brand vision, Image editing and Copy roles. Fetch account models or enter an authorised model ID. Missing modality metadata means **unverified**, so it does not prevent selection.

@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+// Geometric cutout: isolate first asks vision for a product box. Tests
+// that do not override this get a full-frame box, so their segment
+// fixtures still cut exactly as before.
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/ai/product-box', async (route) => { await route.fulfill({ body: JSON.stringify({ left: 0, top: 0, right: 1, bottom: 1 }), contentType: 'application/json' }); });
+});
+
 test('One-shot studio generates from the arranged mockup and shows the fidelity certificate', async ({ page }) => {
   test.setTimeout(120_000);
   const errors: string[] = [];
@@ -696,4 +703,88 @@ test('repair loop proposes a fix, applies it, and undo reverses it', async ({ pa
   // finding comes back — the loop is reversible, not destructive.
   await page.getByRole('button', { name: 'Undo', exact: true }).click();
   await expect(page.getByText('Element overlaps the product')).toBeVisible();
+});
+
+test('Geometric cutout rescues a product the noun phrase cannot ground', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
+
+  // The noun phrase fails for this product, but the vision box cuts it.
+  const seen: { prompt?: string; box?: unknown; point?: unknown }[] = [];
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => {
+    const body = route.request().postDataJSON() as { prompt?: string; box?: unknown; point?: unknown };
+    seen.push(body);
+    if (body.box) await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' });
+    else await route.fulfill({ status: 502, body: JSON.stringify({ error: { code: 'sam_no_mask' } }), contentType: 'application/json' });
+  });
+  await page.route('**/api/ai/product-box', async (route) => { await route.fulfill({ body: JSON.stringify({ left: 0.05, top: 0.05, right: 0.95, bottom: 0.95 }), contentType: 'application/json' }); });
+
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
+  expect(seen.some((body) => body.box)).toBe(true);
+  expect(seen.some((body) => body.prompt)).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+test('Tap-to-cut rescues a product when automatic cutout fails twice', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
+
+  // Box and text both fail; only the tap point cuts.
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => {
+    const body = route.request().postDataJSON() as { point?: unknown };
+    if (body.point) await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' });
+    else await route.fulfill({ status: 502, body: JSON.stringify({ error: { code: 'sam_no_mask' } }), contentType: 'application/json' });
+  });
+  await page.route('**/api/ai/product-box', async (route) => { await route.fulfill({ body: JSON.stringify({ left: 0.05, top: 0.05, right: 0.95, bottom: 0.95 }), contentType: 'application/json' }); });
+
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByText(/Tap the product in the photo/)).toBeVisible({ timeout: 30000 });
+  await page.getByTestId('cutout-tap-photo').click();
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
+  expect(errors).toEqual([]);
 });
