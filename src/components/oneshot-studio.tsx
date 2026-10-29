@@ -23,33 +23,18 @@ import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
-const ARABIC = /[\u0600-\u06FF]/;
 
 type Concept = { angle: string; title: string; headline: string; caption: string; visualDirection: string };
-
-async function pinPhoneText(base: Blob, phone: OneshotCanvasElement): Promise<Blob> {
-  const url = URL.createObjectURL(base);
-  try {
-    const img = new window.Image(); img.src = url; await img.decode();
-    const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
-    const ctx = canvas.getContext('2d')!; ctx.drawImage(img, 0, 0, 1080, 1350);
-    const rtl = ARABIC.test(phone.text ?? '');
-    ctx.font = `${phone.fontSize ?? 44}px ${rtl ? 'Cairo' : 'Inter'}, sans-serif`;
-    ctx.fillStyle = phone.color ?? DEFAULT_TEXT_COLOR; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(phone.text ?? '', phone.x + phone.width / 2, phone.y + phone.height / 2, phone.width);
-    const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) throw new Error('pin_failed');
-    return blob;
-  } finally { URL.revokeObjectURL(url); }
-}
 
 /**
  * One-shot ad studio (the site's single ad mode).
  * Flow: upload product (+optional logo) -> cutout -> optional brand extract
  * and 3 planner ideas -> arrange everything on the mockup canvas -> one
  * Meta images/edits call paints the finished ad -> a vision check scores
- * the result against the mockup (the fidelity certificate). A phone-number
- * element is never trusted to the model alone: it can be pinned exactly.
+ * the result against the mockup (the fidelity certificate). The phone
+ * number is painted by the model like every other element and checked by
+ * the vision read-back only — no digits are drawn over the result, because
+ * a drawn copy on top of the model's own digits ghosts and ruins the ad.
  */
 export default function OneshotStudio() {
   const m = useMessages(), t = m.oneshot, workspace = useWorkspace(), provider = useProviderSession();
@@ -86,7 +71,6 @@ export default function OneshotStudio() {
   const [future, setFuture] = useState<OneshotCanvasElement[][]>([]);
   const prevElements = useRef(elements);
   const skipHistory = useRef(false);
-  const [pinPhone, setPinPhone] = useState(true);
   const [loaded, setLoaded] = useState<Set<string>>(new Set());
   const canvasHandle = useRef<OneshotCanvasHandle | null>(null);
   const resultUrl = useObjectUrl(resultBlob);
@@ -120,7 +104,6 @@ export default function OneshotStudio() {
   const canvasReady = elements.filter(item => item.blob).every(item => loaded.has(item.id));
   const brandValid = brand.name.trim().length > 0 && brand.description.trim().length > 0;
   const hasLogo = elements.some(item => item.kind === 'logo');
-  const phoneElement = elements.find(item => item.kind === 'phone');
   const selectedElement = elements.find(item => item.id === selected);
 
   async function runCutout(blob: Blob): Promise<Blob> {
@@ -311,8 +294,7 @@ export default function OneshotStudio() {
       const sanitizedBrand: BrandInput = { ...brand, colors: brand.colors.map(color => /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#16100C') as [string, string, string] };
       const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup: await encodeProduct(fittedMockup), brand: sanitizedBrand, scene: scene.trim(), language: workspace.locale === 'ar' ? 'ar' : 'en', layout }), signal: AbortSignal.timeout(65000) });
       await requireMetaSuccess(response);
-      let result = await response.blob(); await validateGeneratedImage(result);
-      if (pinPhone && phoneElement?.text) result = await pinPhoneText(result, phoneElement);
+      const result = await response.blob(); await validateGeneratedImage(result);
       setResultBlob(result);
       const verifyModel = visionModel ?? provider.taskModel('critic');
       if (verifyModel) {
@@ -581,7 +563,6 @@ export default function OneshotStudio() {
       {!imageModel || !key ? <p>{t.missingKey}</p> : null}
       {!scene.trim() && <p>{t.needScene}</p>}
       {!brandValid && <p>{t.needBrand}</p>}
-      <label className="check-label"><input type="checkbox" checked={pinPhone} onChange={event => setPinPhone(event.target.checked)} />{t.pinPhone}</label>
       <button type="button" className="button primary generate-main" disabled={!canGenerate} onClick={() => void generate()}>{generateLabel}</button>
       {error && <p role="alert">{error}</p>}
     </section>
