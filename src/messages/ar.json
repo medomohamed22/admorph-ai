@@ -1225,7 +1225,6 @@
     "enhanceDone": "تم تحسين المنتج — قارنه بالأصل أدناه.",
     "enhanceOriginal": "الأصل",
     "enhanceImproved": "المحسّن",
-    "consent": "أوافق على إرسال الماكيت إلى Meta",
     "generate": "ولّد الإعلان النهائي",
     "generating": "جارٍ التوليد…",
     "verifying": "جارٍ فحص المطابقة…",
@@ -1239,7 +1238,7 @@
     "result": "الإعلان النهائي",
     "pinPhone": "ثبّت رقم التليفون بدقة (مرسوم، مش مولّد)",
     "missingKey": "أضف مفتاح Meta من الإعدادات واختر موديل صور أولًا.",
-    "needProduct": "ارفع صورة منتج وقصّها أولًا.",
+    "needProduct": "ارفع صورة منتج، وبعدين دوس عزل الخلفية.",
     "needScene": "اكتب مشهد الخلفية أولًا.",
     "needBrand": "اكتب اسم البراند ووصفه أولًا.",
     "uploadHintProduct": "صورة واضحة لمنتج واحد، ويفضل تكون من الأمام.",
@@ -1268,6 +1267,18 @@
     "nudgeDown": "حرّك لتحت",
     "nudgeLeft": "حرّك للشمال",
     "nudgeRight": "حرّك لليمين",
-    "selectedControls": "حرّك وكبّر العنصر المختار"
+    "selectedControls": "حرّك وكبّر العنصر المختار",
+    "isolateBackground": "عزل الخلفية",
+    "undo": "تراجع",
+    "redo": "إعادة",
+    "inspectTitle": "فحص الماكيت",
+    "inspectOk": "مفيش مشاكل.",
+    "findingOverlapProduct": "عنصر فوق المنتج",
+    "findingOverlapText": "النصوص فوق بعضها",
+    "findingOverlapLogo": "اللوجو فوق النص",
+    "findingLowContrast": "تباين النص ضعيف على الماكيت",
+    "findingSafeZone": "النص قريب أوي من الحافة",
+    "exportEvidence": "تصدير ملف الإثبات",
+    "exportBusy": "جارٍ التصدير…"
   }
 }
