@@ -1,5 +1,5 @@
 import { getDatabase, type AdMorphDB } from './dexie';
-import { brandSchema, savedSettingsSchema, cacheSchema, encryptedCredentialSchema, type Brand, type Asset, type SavedSettings, type CatalogCache } from './schema';
+import { brandSchema, savedSettingsSchema, cacheSchema, encryptedCredentialSchema, type Brand, type Asset, type SavedSettings, type CatalogCache, type SavedAd } from './schema';
 
 export async function loadWorkspace(db: AdMorphDB = getDatabase()) {
   const [settings, rawBrands, assets] = await Promise.all([db.settings.toArray(), db.brands.toArray(), db.assets.toArray()]);
@@ -42,4 +42,15 @@ export async function saveProviderSettings(settings: SavedSettings, caches: Cata
     await db.settings.put({ key: 'providerSettings', value });
     await db.modelCatalogCache.bulkPut(validated);
   });
+}
+
+export async function saveAd(ad: SavedAd, db: AdMorphDB = getDatabase()) {
+  await db.savedAds.put(ad);
+  return ad;
+}
+export async function loadSavedAds(db: AdMorphDB = getDatabase()) {
+  return db.savedAds.orderBy('createdAt').reverse().toArray();
+}
+export async function deleteSavedAd(id: string, db: AdMorphDB = getDatabase()) {
+  await db.savedAds.delete(id);
 }

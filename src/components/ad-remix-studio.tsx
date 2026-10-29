@@ -1,0 +1,169 @@
+'use client';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useMessages, useWorkspace } from './workspace';
+import { useProviderSession } from './provider-session';
+import { metaFetch } from '@/lib/ai/meta-fetch';
+import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
+import { encodeProduct, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
+import { oneshotScore, verifyResultSchema, type OneshotElement, type VerifyResult } from '@/lib/ai/oneshot';
+import { REMIX_THEMES, type RemixThemeId } from '@/lib/ai/remix';
+import { loadSavedAds, saveAd, deleteSavedAd } from '@/lib/db/repository';
+import type { SavedAd, BrandInput } from '@/lib/db/schema';
+import { useObjectUrl } from './logo';
+
+type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null };
+
+function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, confirmLabel }: { ad: SavedAd; selected: boolean; onSelect: () => void; onDelete: () => void; armed: boolean; deleteLabel: string; confirmLabel: string }) {
+  const url = useObjectUrl(ad.blob);
+  return <article data-testid="remix-source-card">
+    <button type="button" aria-pressed={selected} onClick={onSelect}>
+      {url && <img src={url} alt="" style={{ maxWidth: '100%' }} />}
+      <span>{ad.brand.name} — {ad.headline || ad.source} — {ad.createdAt.slice(0, 10)}</span>
+    </button>
+    <button type="button" className="text-button danger" onClick={onDelete}>{armed ? confirmLabel : deleteLabel}</button>
+  </article>;
+}
+
+function ResultCard({ result, downloadLabel, scoreLabel }: { result: RemixResult; downloadLabel: string; scoreLabel: string }) {
+  const url = useObjectUrl(result.blob);
+  return <article data-testid="remix-result">
+    {url && <img src={url} alt="" style={{ maxWidth: '100%' }} />}
+    <p>{result.headline}</p>
+    {result.score !== null && <p>{scoreLabel}: {result.score}</p>}
+    {result.certificate && <ul>
+      <li>{result.certificate.productNote}</li>
+      <li>{result.certificate.logoNote}</li>
+      <li>{result.certificate.layoutNote}</li>
+    </ul>}
+    {url && <a className="button secondary" href={url} download="admorph-remix.png">{downloadLabel}</a>}
+  </article>;
+}
+
+/** Shared studio for the two remix pages: pick a saved ad, make new
+ *  versions of it. Variants change the angle; themes restyle it for a
+ *  season. Both reuse the planner, the remix image edit, and the
+ *  one-shot certificate — no new provider, no new model roles. */
+export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' }) {
+  const m = useMessages(), t = m.remix, workspace = useWorkspace(), provider = useProviderSession();
+  const [ads, setAds] = useState<SavedAd[]>([]);
+  const [selected, setSelected] = useState<SavedAd | null>(null);
+  const [count, setCount] = useState(2);
+  const [themes, setThemes] = useState<RemixThemeId[]>(['ramadan']);
+  const [results, setResults] = useState<RemixResult[]>([]);
+  const [busy, setBusy] = useState('');
+  const [error, setError] = useState('');
+  const [failed, setFailed] = useState(0);
+  const [notice, setNotice] = useState('');
+  const [armingDelete, setArmingDelete] = useState<string | null>(null);
+
+  const imageModel = provider.taskModel('image');
+  const plannerModel = provider.taskModel('planner');
+  const key = provider.configs.meta.apiKey.trim();
+  const errorText = { errors: m.settings.errors, aiError: m.meta.aiError };
+  const language = workspace.locale === 'ar' ? 'ar' : 'en';
+
+  useEffect(() => {
+    let alive = true;
+    loadSavedAds().then(items => { if (alive) setAds(items); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  async function refreshGallery() {
+    try { setAds(await loadSavedAds()); } catch { /* gallery is best-effort */ }
+  }
+
+  function remixLayout(headline: string): OneshotElement[] {
+    return [
+      { id: 'product', kind: 'product', x: 340, y: 400, width: 400, height: 550 },
+      { id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 },
+      { id: 'headline', kind: 'text', x: 90, y: 90, width: 900, height: 120, text: headline },
+    ];
+  }
+
+  async function runJob(source: SavedAd, headline: string, scene: string) {
+    if (!imageModel) return;
+    const remixResponse = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(source.blob), brand: source.brand, scene, headline, language }), signal: AbortSignal.timeout(65000) });
+    await requireMetaSuccess(remixResponse);
+    const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
+    let score: number | null = null, certificate: VerifyResult | null = null;
+    const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
+    if (verifyModel) {
+      const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(blob), layout: remixLayout(headline), language }), signal: AbortSignal.timeout(65000) });
+      await requireMetaSuccess(verifyResponse);
+      certificate = verifyResultSchema.parse(await verifyResponse.json());
+      score = oneshotScore(certificate, source.hasLogo);
+    }
+    const result: RemixResult = { id: crypto.randomUUID(), blob, headline, score, certificate };
+    setResults(previous => [...previous, result]);
+    try { await saveAd({ id: crypto.randomUUID(), blob, source: mode, brand: source.brand, headline, hasLogo: source.hasLogo, createdAt: new Date().toISOString() }); } catch { /* gallery is best-effort */ }
+  }
+
+  async function generate() {
+    if (!selected || !plannerModel || !imageModel || !key || busy) return;
+    setBusy('plan'); setError(''); setResults([]); setFailed(0); setNotice('');
+    try {
+      const brand: BrandInput = selected.brand;
+      let jobs: { headline: string; scene: string }[] = [];
+      if (mode === 'variants') {
+        const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: '', goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(selected.blob) }, AbortSignal.timeout(65000));
+        jobs = plan.concepts.slice(0, count).map(item => ({ headline: item.headline, scene: item.visualDirection }));
+      } else {
+        for (const themeId of themes) {
+          const theme = REMIX_THEMES.find(item => item.id === themeId)!;
+          const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id} — ${theme.scene}. Create concepts with a ${theme.id} headline angle and scene direction.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(selected.blob) }, AbortSignal.timeout(65000));
+          const first = plan.concepts[0];
+          if (first) jobs.push({ headline: first.headline, scene: first.visualDirection });
+        }
+      }
+      setBusy('generate');
+      let failures = 0;
+      for (const job of jobs) {
+        try { await runJob(selected, job.headline, job.scene); }
+        catch (cause) { failures += 1; setError(metaErrorMessage(cause, errorText)); }
+      }
+      setFailed(failures);
+      await refreshGallery();
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    finally { setBusy(''); }
+  }
+
+  async function removeAd(ad: SavedAd) {
+    if (armingDelete !== ad.id) { setArmingDelete(ad.id); return; }
+    setArmingDelete(null);
+    try { await deleteSavedAd(ad.id); setAds(previous => previous.filter(item => item.id !== ad.id)); if (selected?.id === ad.id) setSelected(null); setNotice(t.deleted); }
+    catch { setError(t.deleteFailed); }
+  }
+
+  const canGenerate = !!selected && !!plannerModel && !!imageModel && !!key && !busy && (mode === 'variants' || themes.length > 0);
+  const busyLabel = busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
+
+  return <section className="feature-card">
+    <h1>{mode === 'variants' ? t.titleVariants : t.titleThemes}</h1>
+    <p>{mode === 'variants' ? t.descriptionVariants : t.descriptionThemes}</p>
+    {!key && <p><Link href="/settings">{t.needKey}</Link></p>}
+    {error && <p className="request-error" role="alert">{error}</p>}
+    {notice && <p className="request-status" role="status">{notice}</p>}
+    <h2>{t.pickSource}</h2>
+    {ads.length === 0 && <p>{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>}
+    <div>{ads.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => setSelected(ad)} onDelete={() => void removeAd(ad)} armed={armingDelete === ad.id} deleteLabel={t.delete} confirmLabel={t.confirmDelete} />)}</div>
+    {mode === 'variants' && <label>{t.countLabel}<select aria-label={t.countLabel} value={count} onChange={event => setCount(Number(event.target.value))}>
+      <option value={2}>2</option>
+      <option value={3}>3</option>
+    </select></label>}
+    {mode === 'themes' && <fieldset>
+      <legend>{t.themesLabel}</legend>
+      {REMIX_THEMES.map(theme => {
+        const label = theme.id === 'ramadan' ? t.themeRamadan : theme.id === 'eid' ? t.themeEid : theme.id === 'black-friday' ? t.themeBlackFriday : t.themeSummer;
+        const checked = themes.includes(theme.id);
+        return <label key={theme.id}><input type="checkbox" checked={checked} disabled={!checked && themes.length >= 3} onChange={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])} />{label}</label>;
+      })}
+    </fieldset>}
+    <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{busy ? busyLabel : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
+    {failed > 0 && <p role="status">{t.failedSome}</p>}
+    {results.length > 0 && <div>
+      <h2>{mode === 'variants' ? t.resultsVariants : t.resultsThemes}</h2>
+      {results.map(result => <ResultCard key={result.id} result={result} downloadLabel={t.download} scoreLabel={t.score} />)}
+    </div>}
+  </section>;
+}

@@ -7,7 +7,9 @@
     "settings": "Settings",
     "create": "Create your Brand",
     "switchLanguage": "Switch to Arabic",
-    "oneshot": "One-shot"
+    "oneshot": "One-shot",
+    "variants": "Variants",
+    "themes": "Themes"
   },
   "hero": {
     "eyebrow": "YOUR NEXT BIG IDEA STARTS HERE",
@@ -1193,6 +1195,35 @@
     "wordmark": "Wordmark font",
     "wordmarkBold": "bold",
     "wordmarkRegular": "regular"
+  },
+  "remix": {
+    "titleVariants": "Ad variants",
+    "titleThemes": "Seasonal themes",
+    "descriptionVariants": "Pick a finished ad from your gallery and make 2 or 3 new versions of it with different headlines and scenes.",
+    "descriptionThemes": "Pick a finished ad from your gallery and restyle it for a season.",
+    "needKey": "Add your Meta API key in Settings first.",
+    "pickSource": "Pick a saved ad",
+    "emptyGallery": "No saved ads yet.",
+    "emptyGalleryHint": "Generate an ad in One-shot first — finished ads save to this gallery automatically.",
+    "countLabel": "How many variants",
+    "themesLabel": "Pick up to 3 themes",
+    "themeRamadan": "Ramadan",
+    "themeEid": "Eid",
+    "themeBlackFriday": "Black Friday",
+    "themeSummer": "Summer",
+    "generateVariants": "Generate variants",
+    "generateThemes": "Generate themed copies",
+    "planning": "Planning angles…",
+    "generating": "Generating…",
+    "download": "Download PNG",
+    "delete": "Delete",
+    "confirmDelete": "Confirm delete",
+    "deleted": "Saved ad deleted.",
+    "deleteFailed": "Could not delete the saved ad.",
+    "score": "Certificate score",
+    "failedSome": "Some copies failed; the ones below succeeded.",
+    "resultsVariants": "Variants",
+    "resultsThemes": "Themed copies"
   },
   "oneshot": {
     "title": "One-shot ad studio",

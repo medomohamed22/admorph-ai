@@ -43,7 +43,7 @@ describe('editable creative data', () => {
     const name = `studio-upgrade-${crypto.randomUUID()}`, old = new Dexie(name);
     old.version(2).stores({ settings: 'key', brands: 'id, updatedAt', assets: 'id, kind, createdAt', modelCatalogCache: 'providerId, fetchedAt', encryptedCredentials: 'providerId', campaigns: 'id, brandId, updatedAt' });
     const campaign = newCampaign(); await old.table('campaigns').put(campaign); await old.table('settings').put({ key: 'locale', value: 'ar' }); old.close();
-    const db = new AdMorphDB(name); try { await db.open(); expect(db.verno).toBe(7); expect(await db.campaigns.get(campaign.id)).toEqual(campaign); expect((await db.settings.get('locale'))?.value).toBe('ar'); expect(await db.creatives.count()).toBe(0); } finally { await db.delete(); }
+    const db = new AdMorphDB(name); try { await db.open(); expect(db.verno).toBe(8); expect(await db.campaigns.get(campaign.id)).toEqual(campaign); expect((await db.settings.get('locale'))?.value).toBe('ar'); expect(await db.creatives.count()).toBe(0); } finally { await db.delete(); }
   });
   it('requires explicit image confirmation and never overrides known text-only metadata', () => {
     const selected = { provider: 'meta' as const, modelId: 'user-model', manual: true, imageCapabilityConfirmed: true };
