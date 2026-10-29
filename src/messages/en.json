@@ -1252,6 +1252,13 @@
     "brandCustom": "Custom brand",
     "brandNew": "Create a new brand",
     "editBrand": "Edit brand details",
-    "briefOptional": "Extra direction (optional)"
+    "briefOptional": "Extra direction (optional)",
+    "stepperLabel": "Your ad in 5 steps",
+    "stepProduct": "Product",
+    "stepBrand": "Brand",
+    "stepIdea": "Idea",
+    "stepArrange": "Arrange",
+    "stepGenerate": "Generate",
+    "generatingNote": "Painting your finished ad…"
   }
 }

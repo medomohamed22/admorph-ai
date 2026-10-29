@@ -223,3 +223,53 @@ test('ideas generate from the product photo and brand with no written brief', as
   expect(planBody).toHaveProperty('product');
   await expect(page.getByLabel('Background scene')).toHaveValue('Icy scene one');
 });
+
+test('stepper tracks progress and the canvas blurs while generating', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const steps = page.locator('.oneshot-stepper li');
+  await expect(steps).toHaveCount(5);
+  await expect(steps.first()).toHaveClass(/current/);
+  await expect(steps.first()).toContainText('Product');
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(steps.first()).toHaveClass(/done/);
+  await page.getByText('Edit brand details', { exact: true }).click();
+  await page.getByLabel('Brand name').fill('Sora');
+  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
+  await expect(consentBox).toBeEnabled({ timeout: 30000 });
+  await consentBox.check();
+  // The sticky bar carries the same generate button for small screens; the
+  // in-flow button is hidden there, so exactly one is ever visible.
+  await expect(page.locator('.sticky-generate button')).toHaveCount(1);
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.route('**/api/ai/oneshot', async (route) => { await new Promise(resolve => setTimeout(resolve, 1500)); await route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
+  await expect(page.getByTestId('oneshot-generating')).toBeVisible();
+  await expect(page.getByTestId('oneshot-generating')).toContainText('Painting your finished ad…');
+  const result = page.getByTestId('oneshot-result');
+  await expect(result).toBeVisible({ timeout: 30000 });
+  await expect(result).toHaveClass(/oneshot-reveal/);
+  await expect(page.getByTestId('oneshot-certificate')).toBeVisible({ timeout: 30000 });
+  await expect(steps.nth(4)).toHaveClass(/done/);
+});

@@ -43,6 +43,10 @@ Alongside the layered editor, a new `/oneshot` mode lets the user arrange a prod
 
 After the first live one-shot test showed a local cutout for the third run in a row and an invisible enhance result, the segment route got the vision timeout fix (55s + maxDuration 60), the one-shot cutout became SAM-only with visible errors instead of a silent local fallback, and the enhance switch gained a success note plus an original-vs-improved preview. The editor keeps its local fallback for the no-key demo. Full detail, including the honest limit that only a live retest proves the timeout fix, is in [docs/RELEASE_SAM_FIX_REPORT.md](docs/RELEASE_SAM_FIX_REPORT.md).
 
+## One-shot simplification (Oct 28, 2026)
+
+The one-shot mode is now the whole site, rebuilt as one guided journey in five steps (product → brand → idea → arrange → generate). The old campaigns, layered editor and auto-ads routes redirect to `/oneshot`; upload cards make it clear which button uploads the product, the logo or an icon; a brand-kit picker fills identity and logo from a saved kit (or returns from a new kit already selected); ad ideas generate from the product photo and brand with the written brief optional; a stepper shows progress; the canvas blurs with a shimmer while the final image generates and the result fades in; and on phones the generate button sticks to the bottom of the screen. Full detail is in [docs/RELEASE_SIMPLIFICATION_REPORT.md](docs/RELEASE_SIMPLIFICATION_REPORT.md).
+
 ## Meta models and task verification
 
 Settings has separate Planner, Background generation, Critic, Edit command, Brand vision, Image editing and Copy roles. Fetch account models or enter an authorised model ID. Missing modality metadata means **unverified**, so it does not prevent selection.
