@@ -34,17 +34,14 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  // The consent box only enables once the canvas is ready (cutout decoded,
-  // brand filled, scene present, image model + key set) — so waiting on it
-  // is also the readiness wait for Generate.
-  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
-  await expect(consentBox).toBeEnabled({ timeout: 30000 });
-  await consentBox.check();
+  // Generate enables once the canvas is ready (cutout decoded, brand
+  // filled, scene present, image model + key set).
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
   await expect(generate).toBeEnabled({ timeout: 30000 });
 
@@ -97,13 +94,11 @@ test('One-shot enhance shows a success note and a before/after preview', async (
   await page.route('**/api/ai/product-makeover', async (route) => { await route.fulfill({ body: sample, contentType: 'image/png' }); });
 
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
-  await expect(consentBox).toBeEnabled({ timeout: 30000 });
-  await consentBox.check();
   // The enhance checkbox only flips to checked after the async makeover +
   // re-cutout finish, so click (not check) and wait for the success note.
   await page.getByRole('checkbox', { name: /Improve product/ }).click();
@@ -140,6 +135,7 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
   // no-mask diagnosis instead of a generic provider error.
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByText('SAM returned text but no usable mask for this photo.')).toBeVisible({ timeout: 30000 });
   await expect(page.getByTestId('oneshot-canvas')).toHaveCount(0);
   expect(errors).toEqual([]);
@@ -209,13 +205,11 @@ test('ideas generate from the product photo and brand with no written brief', as
     ] }), contentType: 'application/json' });
   });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
-  await expect(consentBox).toBeEnabled({ timeout: 30000 });
-  await consentBox.check();
   await expect(page.getByLabel('Extra direction (optional)')).toHaveValue('');
   await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cold Offer — Ice Cold One', exact: true })).toBeVisible();
@@ -260,14 +254,12 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await expect(steps.first()).toHaveClass(/done/);
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
-  await expect(consentBox).toBeEnabled({ timeout: 30000 });
-  await consentBox.check();
   // The sticky bar carries the same generate button for small screens; the
   // in-flow button is hidden there, so exactly one is ever visible.
   await expect(page.locator('.sticky-generate button')).toHaveCount(1);
@@ -324,13 +316,11 @@ test('brand extraction applies its font to the headline', async ({ page }) => {
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.route('**/api/ai/brand-extract', async (route) => { await route.fulfill({ body: JSON.stringify({ suggestedName: 'Sora', primaryHex: '#52633c', secondaryHex: '#dce5bb', accentHex: '#f2d1bc', brandTone: 'calm', shortDescriptionEn: 'A sample matcha brand.', shortDescriptionAr: 'براند ماتشا تجريبي.', recommendedFontEn: 'Inter', recommendedFontAr: 'Cairo', rationale: 'Fixture.', fontFamily: 'Montserrat' }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
-  await expect(consentBox).toBeEnabled({ timeout: 30000 });
-  await consentBox.check();
   await page.getByRole('button', { name: 'Extract brand from photo', exact: true }).click();
   await expect(page.getByText('Headline font: Montserrat')).toBeVisible({ timeout: 30000 });
 });
@@ -359,13 +349,11 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
-  await expect(consentBox).toBeEnabled({ timeout: 30000 });
-  await consentBox.check();
   // An added text line becomes the selected element, so the move/resize
   // buttons appear for it. It starts at 800x120 at (140, 500).
   await page.getByLabel('Your headline').fill('Hello');
@@ -385,5 +373,118 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
   expect(text?.height).toBe(144);
   expect(text?.x).toBe(50);
   expect(text?.y).toBe(488);
+  expect(errors).toEqual([]);
+});
+
+test('canvas undo and redo restore the selected text', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
+  await page.getByLabel('Your headline').fill('Hello');
+  await page.getByRole('button', { name: 'Add text', exact: true }).click();
+  await expect(page.getByLabel('Selected text')).toHaveValue('Hello');
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(page.getByLabel('Selected text')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Redo', exact: true }).click();
+  await expect(page.getByLabel('Selected text')).toHaveValue('Hello');
+});
+
+test('mockup check flags text overlapping the product', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByText('No issues found.')).toBeVisible();
+  // The added line starts at (140, 500) 800x120, squarely over the product
+  // box (340, 380) 400x600.
+  await page.getByLabel('Your headline').fill('Hello');
+  await page.getByRole('button', { name: 'Add text', exact: true }).click();
+  await expect(page.getByText('Element overlaps the product')).toBeVisible();
+  await expect(page.getByText('No issues found.')).toHaveCount(0);
+});
+
+test('evidence export downloads a ZIP and editing clears the certificate', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await page.getByText('Edit brand details', { exact: true }).click();
+  await page.getByLabel('Brand name').fill('Sora');
+  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.route('**/api/ai/oneshot', async (route) => { await route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
+  await expect(page.getByTestId('oneshot-certificate')).toBeVisible({ timeout: 30000 });
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export evidence ZIP', exact: true }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.zip$/);
+  // Any mockup edit after verification invalidates the on-screen
+  // certificate: it described a mockup that no longer exists.
+  await page.getByLabel('Your headline').fill('Hello');
+  await page.getByRole('button', { name: 'Add text', exact: true }).click();
+  await expect(page.getByTestId('oneshot-certificate')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

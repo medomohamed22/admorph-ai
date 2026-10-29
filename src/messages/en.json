@@ -1225,7 +1225,6 @@
     "enhanceDone": "Product improved — compare it with the original below.",
     "enhanceOriginal": "Original",
     "enhanceImproved": "Improved",
-    "consent": "I agree to send this mockup to Meta",
     "generate": "Generate finished ad",
     "generating": "Generating…",
     "verifying": "Checking fidelity…",
@@ -1239,7 +1238,7 @@
     "result": "Finished ad",
     "pinPhone": "Pin the phone number exactly (drawn, not generated)",
     "missingKey": "Add your Meta key in Settings and pick an image model first.",
-    "needProduct": "Upload a product photo and cut it out first.",
+    "needProduct": "Upload a product photo, then press Isolate background.",
     "needScene": "Write a background scene first.",
     "needBrand": "Write a brand name and description first.",
     "uploadHintProduct": "A clear photo of one product, front-facing if possible.",
@@ -1268,6 +1267,18 @@
     "nudgeDown": "Move down",
     "nudgeLeft": "Move left",
     "nudgeRight": "Move right",
-    "selectedControls": "Move and resize the selected element"
+    "selectedControls": "Move and resize the selected element",
+    "isolateBackground": "Isolate background",
+    "undo": "Undo",
+    "redo": "Redo",
+    "inspectTitle": "Mockup check",
+    "inspectOk": "No issues found.",
+    "findingOverlapProduct": "Element overlaps the product",
+    "findingOverlapText": "Texts overlap each other",
+    "findingOverlapLogo": "Logo overlaps text",
+    "findingLowContrast": "Text contrast is too low on the mockup",
+    "findingSafeZone": "Text is too close to the edge",
+    "exportEvidence": "Export evidence ZIP",
+    "exportBusy": "Exporting…"
   }
 }

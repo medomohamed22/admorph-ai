@@ -13,6 +13,9 @@ import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { resolveBrandFontFamily, brandFontStylesheetUrl } from '@/lib/brand/fonts';
+import { inspectOneshotLayout, INSPECT_RULE_VERSION, type InspectCode } from '@/lib/oneshot/rules';
+import { sha256Hex, buildManifest, mockupSignature } from '@/lib/evidence/manifest';
+import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
 import UploadCard from './upload-card';
 import type { Brand } from '@/lib/db/schema';
@@ -68,13 +71,19 @@ export default function OneshotStudio() {
   const [enhance, setEnhance] = useState(false);
   const [enhanceBusy, setEnhanceBusy] = useState(false);
   const [enhanceNote, setEnhanceNote] = useState('');
-  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState('');
   const [cutting, setCutting] = useState(false);
   const [error, setError] = useState('');
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const [certificate, setCertificate] = useState<VerifyResult | null>(null);
   const [score, setScore] = useState<number | null>(null);
+  const [generatedLayout, setGeneratedLayout] = useState<OneshotCanvasElement[] | null>(null);
+  const [certSignature, setCertSignature] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [past, setPast] = useState<OneshotCanvasElement[][]>([]);
+  const [future, setFuture] = useState<OneshotCanvasElement[][]>([]);
+  const prevElements = useRef(elements);
+  const skipHistory = useRef(false);
   const [pinPhone, setPinPhone] = useState(true);
   const [loaded, setLoaded] = useState<Set<string>>(new Set());
   const canvasHandle = useRef<OneshotCanvasHandle | null>(null);
@@ -121,6 +130,8 @@ export default function OneshotStudio() {
     setElements(previous => {
       const product = previous.find(item => item.kind === 'product');
       if (product) return previous.map(item => item.kind === 'product' ? { ...item, blob: result.cutoutBlob } : item);
+      // The first cutout creates the layout; it is not an undoable edit.
+      skipHistory.current = true;
       const layout = initialOneshotLayout(!!logoBlob);
       return layout.map(item => item.kind === 'product' ? { ...item, blob: result.cutoutBlob } : item.kind === 'logo' && logoBlob ? { ...item, blob: logoBlob } : item);
     });
@@ -129,11 +140,29 @@ export default function OneshotStudio() {
   }
 
   async function uploadProduct(file: File) {
-    setError(''); setCutting(true);
+    setError('');
     try {
-      await validateProduct(file); const blob = file; setOriginalBlob(blob); setCurrentBlob(blob); setEnhance(false); setEnhanceNote('');
-      await runCutout(blob);
+      await validateProduct(file); const blob = file;
+      setOriginalBlob(blob); setCurrentBlob(blob); setEnhance(false); setEnhanceNote('');
+      // A new product starts a fresh mockup: the old cutout, layout, result
+      // and certificate belong to the previous product, so none of it is
+      // kept or recorded in history.
+      skipHistory.current = true;
+      setCutoutBlob(null); setCutoutMethod(null); setElements([]); setSelected(null);
+      setResultBlob(null); setCertificate(null); setScore(null);
+      setGeneratedLayout(null); setCertSignature(null);
+      setPast([]); setFuture([]);
+      setLoaded(new Set());
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+  }
+
+  // SAM runs only when the user presses the button — never on upload.
+  async function isolateBackground() {
+    const blob = currentBlob ?? originalBlob;
+    if (!blob || cutting) return;
+    setError(''); setCutting(true);
+    try { await runCutout(blob); }
+    catch (cause) { setError(metaErrorMessage(cause, errorText)); }
     finally { setCutting(false); }
   }
 
@@ -187,7 +216,7 @@ export default function OneshotStudio() {
 
   async function extractBrand() {
     const model = visionModel ?? plannerModel;
-    if (!model || !key || !consent || !currentBlob) return;
+    if (!model || !key || !currentBlob) return;
     setBusy('extract'); setError('');
     try {
       const image = await encodeProduct(currentBlob);
@@ -198,18 +227,18 @@ export default function OneshotStudio() {
       setHeadlineFont(resolveBrandFontFamily(result.fontFamily));
       setSelectedBrandId('');
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
-    finally { setBusy(''); setConsent(false); }
+    finally { setBusy(''); }
   }
 
   async function suggestIdeas() {
-    if (!plannerModel || !key || !consent || !currentBlob || !brandValid) return;
+    if (!plannerModel || !key || !currentBlob || !brandValid) return;
     setBusy('ideas'); setError('');
     try {
       const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: brief.trim(), goal: 'awareness', creativeLanguage: workspace.locale === 'ar' ? 'ar' : 'en', format: '1080x1350', product: await encodeProduct(currentBlob) }, AbortSignal.timeout(65000));
       const next = plan.concepts.map(item => ({ angle: item.angle, title: item.title, headline: item.headline, caption: item.caption, visualDirection: item.visualDirection }));
       setConcepts(next); pickConcept(next, 0);
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
-    finally { setBusy(''); setConsent(false); }
+    finally { setBusy(''); }
   }
 
   function pickConcept(list: Concept[], index: number) {
@@ -227,7 +256,7 @@ export default function OneshotStudio() {
       return;
     }
     const model = provider.taskModel('image_edit') ?? imageModel;
-    if (!model || !key || !consent) { setEnhanceNote(t.enhanceNeedsSetup); return; }
+    if (!model || !key) { setEnhanceNote(t.enhanceNeedsSetup); return; }
     setEnhanceBusy(true); setError('');
     try {
       const response = await metaFetch('image_edit', '/api/ai/product-makeover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', apiKey: key, modelId: model.modelId, consent: true, imageConsent: true, image: await encodeProduct(originalBlob), mode: 'enhance', preset: 'clean', prompt: 'Improve this product photo: cleaner materials, nicer lighting and finish. Keep the exact product shape, proportions, colors, packaging and identity. Do not add, remove, or re-render any text, lettering, or logos.' }), signal: AbortSignal.timeout(65000) });
@@ -236,7 +265,7 @@ export default function OneshotStudio() {
       const fitted = await fitProductImage(improved);
       setCurrentBlob(fitted); await runCutout(fitted); setEnhance(true); setEnhanceNote(t.enhanceDone);
     } catch (cause) { setEnhanceNote(t.enhanceFailed); setError(metaErrorMessage(cause, errorText)); }
-    finally { setEnhanceBusy(false); setConsent(false); }
+    finally { setEnhanceBusy(false); }
   }
 
   /** Explicit touch-friendly move/resize for the selected element. */
@@ -256,8 +285,8 @@ export default function OneshotStudio() {
   }
 
   async function generate() {
-    if (!cutoutBlob || !imageModel || !key || !consent || !scene.trim() || !canvasHandle.current || !canvasReady) return;
-    setBusy('generate'); setError(''); setCertificate(null); setScore(null);
+    if (!cutoutBlob || !imageModel || !key || !scene.trim() || !canvasHandle.current || !canvasReady) return;
+    setBusy('generate'); setError(''); setCertificate(null); setScore(null); setCertSignature(null); setGeneratedLayout(null);
     try {
       // The headline font must be loaded before the mockup export, or the
       // canvas falls back to Cairo/Inter and the model sees the wrong font.
@@ -267,6 +296,9 @@ export default function OneshotStudio() {
       // Blank text boxes render nothing on the mockup; never send them as
       // quoted strings to the model.
       const layout = toServerLayout(elements).filter(element => element.kind !== 'text' && element.kind !== 'phone' ? true : (element.text?.trim().length ?? 0) > 0);
+      // The evidence manifest describes this layout, not whatever the user
+      // arranges afterwards.
+      setGeneratedLayout(elements);
       const sanitizedBrand: BrandInput = { ...brand, colors: brand.colors.map(color => /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#16100C') as [string, string, string] };
       const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup: await encodeProduct(fittedMockup), brand: sanitizedBrand, scene: scene.trim(), language: workspace.locale === 'ar' ? 'ar' : 'en', layout }), signal: AbortSignal.timeout(65000) });
       await requireMetaSuccess(response);
@@ -281,9 +313,47 @@ export default function OneshotStudio() {
         await requireMetaSuccess(verifyResponse);
         const certificate = verifyResultSchema.parse(await verifyResponse.json());
         setCertificate(certificate); setScore(oneshotScore(certificate, hasLogo));
+        setCertSignature(mockupSignature(elements, brand));
       }
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
-    finally { setBusy(''); setConsent(false); }
+    finally { setBusy(''); }
+  }
+
+  // Evidence export: the finished PNG plus a manifest that can be checked
+  // again later (hashes, deterministic checks, model IDs). Keys never enter
+  // the manifest — only the model IDs the user selected.
+  async function exportEvidence() {
+    if (!resultBlob || !originalBlob || exporting) return;
+    setExporting(true); setError('');
+    try {
+      const [originalProductHash, productSourceHash, finalExportHash] = await Promise.all([
+        sha256Hex(originalBlob),
+        sha256Hex(currentBlob ?? originalBlob),
+        sha256Hex(resultBlob),
+      ]);
+      const layout = generatedLayout ?? elements;
+      const manifest = buildManifest({
+        creativeId: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        originalProductHash, productSourceHash, finalExportHash,
+        modelIds: { planner: plannerModel?.modelId, image: imageModel?.modelId, vision: visionModel?.modelId, segment: segmentModel?.modelId },
+        ruleVersion: INSPECT_RULE_VERSION,
+        layout,
+        certificate,
+        score,
+        certificateStatus: certificate ? 'valid' : generatedLayout ? 'cleared_after_edit' : 'none',
+      });
+      const png = new Uint8Array(await resultBlob.arrayBuffer());
+      const zip = writeZip([
+        { name: 'admorph-oneshot.png', data: png },
+        { name: 'evidence-manifest.json', data: new TextEncoder().encode(JSON.stringify(manifest, null, 2)) },
+      ]);
+      const url = URL.createObjectURL(new Blob([zip.slice()], { type: 'application/zip' }));
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'admorph-evidence.zip'; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    finally { setExporting(false); }
   }
 
   const canGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid && !busy;
@@ -293,6 +363,59 @@ export default function OneshotStudio() {
   const canvasElements = useMemo(() => headlineFont
     ? elements.map(item => item.id === 'headline' ? { ...item, fontFamily: headlineFont } : item)
     : elements, [elements, headlineFont]);
+
+  // Undo/redo: every committed elements change is recorded, except changes
+  // flagged with skipHistory (a fresh product, the first cutout, and the
+  // undo/redo jumps themselves). The certificate is valid only while the
+  // mockup and brand still match the verified snapshot.
+  useEffect(() => {
+    if (prevElements.current === elements) return;
+    // Capture first: the setPast updater below runs later, after this line
+    // would otherwise have overwritten the ref it reads.
+    const previous = prevElements.current;
+    prevElements.current = elements;
+    if (skipHistory.current) { skipHistory.current = false; return; }
+    setPast(past => [...past.slice(-49), previous]);
+    setFuture([]);
+  }, [elements]);
+  useEffect(() => {
+    if (!certificate || !certSignature) return;
+    if (mockupSignature(elements, brand) !== certSignature) {
+      // Deferred: the set-state-in-effect rule forbids sync setState here.
+      Promise.resolve().then(() => { setCertificate(null); setScore(null); setCertSignature(null); });
+    }
+  }, [elements, brand, certificate, certSignature]);
+  function undo() {
+    const last = past.at(-1); if (!last) return;
+    skipHistory.current = true;
+    setPast(past.slice(0, -1));
+    setFuture([elements, ...future]);
+    setElements(last);
+  }
+  function redo() {
+    const next = future[0]; if (!next) return;
+    skipHistory.current = true;
+    setPast([...past, elements]);
+    setFuture(future.slice(1));
+    setElements(next);
+  }
+
+  // Deterministic mockup check: geometry and contrast only, recomputed on
+  // every committed arrangement. It never calls a model and never fixes
+  // anything by itself — it only shows what is wrong, measured.
+  const findings = useMemo(() => cutoutBlob ? inspectOneshotLayout(elements) : [], [cutoutBlob, elements]);
+  function elementLabel(id: string): string {
+    const el = elements.find(item => item.id === id);
+    if (!el) return id;
+    return el.text?.trim() ? `${el.kind} "${el.text.trim()}"` : el.kind;
+  }
+  const findingText: Record<InspectCode, string> = {
+    overlap_product: t.findingOverlapProduct,
+    overlap_text: t.findingOverlapText,
+    overlap_logo: t.findingOverlapLogo,
+    low_contrast: t.findingLowContrast,
+    outside_safe_zone: t.findingSafeZone,
+  };
   const generating = busy === 'generate' || busy === 'verify';
   const generateLabel = busy === 'generate' ? t.generating : busy === 'verify' ? t.verifying : resultBlob ? t.retry : t.generate;
   // Stepper state: the current step is the first incomplete one; later steps
@@ -323,6 +446,7 @@ export default function OneshotStudio() {
     <section className="feature-card">
       <h2>{t.uploadProduct}</h2>
       <UploadCard testId="upload-card-product" title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
+      <button type="button" className="button secondary" disabled={!originalBlob || cutting} onClick={() => void isolateBackground()}>{t.isolateBackground}</button>
       <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
       <label>{t.brandPick}<select aria-label={t.brandPick} value={selectedBrandId} onChange={event => { const found = workspace.brands.find(item => item.id === event.target.value); if (found) { setSelectedBrandId(found.id); applyBrand(found); } else setSelectedBrandId(''); }}>
@@ -336,10 +460,10 @@ export default function OneshotStudio() {
         <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, name: event.target.value })); }} /></label>
         <label>{t.brandDescription}<textarea value={brand.description} maxLength={500} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, description: event.target.value })); }} /></label>
         <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] })); }} />)}</div>
-        <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || !consent || busy !== ''} onClick={() => void extractBrand()}>{t.extractBrand}</button>
+        <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || busy !== ''} onClick={() => void extractBrand()}>{t.extractBrand}</button>
       </details>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
-      <button type="button" className="button secondary" disabled={!plannerModel || !key || !consent || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{t.getIdeas}</button>
+      <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{t.getIdeas}</button>
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
         {concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary" aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}
@@ -363,6 +487,8 @@ export default function OneshotStudio() {
       </div>
       {selectedTextElement && <label>{t.selectedText}<input value={selectedTextElement.text ?? ''} maxLength={200} onChange={event => setElements(previous => previous.map(item => item.id === selectedTextElement.id ? { ...item, text: event.target.value } : item))} /></label>}
       {selected && <button type="button" className="button secondary" onClick={() => { setElements(previous => previous.filter(item => item.id !== selected)); setSelected(null); }}>{t.deleteSelected}</button>}
+      <button type="button" className="button secondary" disabled={past.length === 0 || busy !== ''} onClick={undo}>{t.undo}</button>
+      <button type="button" className="button secondary" disabled={future.length === 0 || busy !== ''} onClick={redo}>{t.redo}</button>
       {selectedElement && <div role="group" aria-label={t.selectedControls}>
         <button type="button" className="button secondary" disabled={busy !== ''} onClick={() => resizeSelected(1.2)}>{t.enlarge}</button>
         <button type="button" className="button secondary" disabled={busy !== ''} onClick={() => resizeSelected(0.8)}>{t.shrink}</button>
@@ -377,6 +503,12 @@ export default function OneshotStudio() {
         <figure style={{ margin: 0 }}><img src={originalUrl} alt={t.enhanceOriginal} width={120} /><figcaption>{t.enhanceOriginal}</figcaption></figure>
         <figure style={{ margin: 0 }}><img src={currentUrl} alt={t.enhanceImproved} width={120} /><figcaption>{t.enhanceImproved}</figcaption></figure>
       </div>}
+      {cutoutBlob && <div>
+        <h3>{t.inspectTitle}</h3>
+        {findings.length === 0 ? <p>{t.inspectOk}</p> : <ul>
+          {findings.map(finding => <li key={finding.id}>{findingText[finding.code]}: {finding.elementIds.map(elementLabel).join(', ')}{finding.detail ? ` (${finding.detail})` : ''}</li>)}
+        </ul>}
+      </div>}
     </section>
 
     <section className="feature-card">
@@ -389,6 +521,7 @@ export default function OneshotStudio() {
             : <p>{t.resultEmpty}</p>}
       </div>
       {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
+      <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
       {certificate && score !== null && <div data-testid="oneshot-certificate">
         <h2>{t.certificate}</h2>
         <p>{t.score}: {score}</p>
@@ -405,14 +538,13 @@ export default function OneshotStudio() {
       {!imageModel || !key ? <p>{t.missingKey}</p> : null}
       {!scene.trim() && <p>{t.needScene}</p>}
       {!brandValid && <p>{t.needBrand}</p>}
-      <label className="check-label"><input type="checkbox" checked={consent} disabled={!canGenerate && !consent} onChange={event => setConsent(event.target.checked)} />{t.consent}</label>
       <label className="check-label"><input type="checkbox" checked={pinPhone} onChange={event => setPinPhone(event.target.checked)} />{t.pinPhone}</label>
-      <button type="button" className="button primary generate-main" disabled={!canGenerate || !consent} onClick={() => void generate()}>{generateLabel}</button>
+      <button type="button" className="button primary generate-main" disabled={!canGenerate} onClick={() => void generate()}>{generateLabel}</button>
       {error && <p role="alert">{error}</p>}
     </section>
 
     <div className="sticky-generate">
-      <button type="button" className="button primary" disabled={!canGenerate || !consent} onClick={() => void generate()}>{generateLabel}</button>
+      <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{generateLabel}</button>
     </div>
   </main>;
 }
