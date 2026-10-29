@@ -8,7 +8,7 @@ import { useProviderSession } from './provider-session';
 import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
 import { ProviderError } from '@/lib/ai/errors';
-import { extractedSchema } from '@/lib/ai/meta-contracts';
+import { extractedSchema, productBoxSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
@@ -60,6 +60,7 @@ export default function OneshotStudio() {
   const [enhanceNote, setEnhanceNote] = useState('');
   const [busy, setBusy] = useState('');
   const [cutting, setCutting] = useState(false);
+  const [tapCutout, setTapCutout] = useState(false);
   const [error, setError] = useState('');
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
   const [certificate, setCertificate] = useState<VerifyResult | null>(null);
@@ -106,11 +107,11 @@ export default function OneshotStudio() {
   const hasLogo = elements.some(item => item.kind === 'logo');
   const selectedElement = elements.find(item => item.id === selected);
 
-  async function runCutout(blob: Blob): Promise<Blob> {
+  async function runCutout(blob: Blob, geometric?: { box?: { left: number; top: number; right: number; bottom: number }; point?: { x: number; y: number } }): Promise<Blob> {
     // SAM-only: a failed or unconfigured SAM cutout is a visible error, never
     // a silent local fallback — the fallback used to hide every SAM failure.
     if (!segmentModel || !key) throw new ProviderError(!key ? 'missing_key' : 'sam_unavailable', 400);
-    const result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, prompt: SAM_PRODUCT_PROMPT, signal: AbortSignal.timeout(65000) });
+    const result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, signal: AbortSignal.timeout(65000), ...(geometric?.box ? { box: geometric.box } : geometric?.point ? { point: geometric.point } : { prompt: SAM_PRODUCT_PROMPT }) });
     setCutoutBlob(result.cutoutBlob); setCutoutMethod('meta-sam');
     setElements(previous => {
       const product = previous.find(item => item.kind === 'product');
@@ -134,6 +135,7 @@ export default function OneshotStudio() {
       // kept or recorded in history.
       skipHistory.current = true;
       setCutoutBlob(null); setCutoutMethod(null); setElements([]); setSelected(null);
+      setTapCutout(false);
       setResultBlob(null); setCertificate(null); setScore(null);
       setGeneratedLayout(null); setCertSignature(null);
       setPast([]); setFuture([]);
@@ -143,12 +145,46 @@ export default function OneshotStudio() {
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
 
+  /** Ask vision where the main product is. Any failure returns null: the text cutout is the fallback, never a blocker. */
+  async function detectProductBox(blob: Blob): Promise<{ left: number; top: number; right: number; bottom: number } | null> {
+    if (!visionModel || !key) return null;
+    try {
+      const fitted = await fitProductImage(blob);
+      const response = await metaFetch('vision', '/api/ai/product-box', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted) }), signal: AbortSignal.timeout(65000) });
+      await requireMetaSuccess(response);
+      return productBoxSchema.parse(await response.json());
+    } catch { return null; }
+  }
+
   // SAM runs only when the user presses the button — never on upload.
+  // Geometric first: a vision box tells SAM where the product is, so the
+  // cutout no longer bets on the text grounding of one word. The noun
+  // phrase is the fallback, and tapping the photo is the last resort.
   async function isolateBackground() {
     const blob = currentBlob ?? originalBlob;
     if (!blob || cutting) return;
+    setError(''); setCutting(true); setTapCutout(false);
+    try {
+      const box = await detectProductBox(blob);
+      if (box) { try { await runCutout(blob, { box }); return; } catch { /* fall through to text */ } }
+      try { await runCutout(blob); return; }
+      catch (cause) {
+        if (cause instanceof ProviderError && (cause.code === 'sam_no_mask' || cause.code === 'invalid_response')) { setTapCutout(true); setError(metaErrorMessage(cause, errorText)); return; }
+        throw cause;
+      }
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    finally { setCutting(false); }
+  }
+
+  /** Tap-to-cut: the tap point becomes SAM's prompt, so a failed automatic cutout still has a manual rescue. */
+  async function tapCutoutPhoto(event: { currentTarget: HTMLImageElement; clientX: number; clientY: number }) {
+    const blob = currentBlob ?? originalBlob;
+    if (!blob || cutting) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    const point = { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) };
     setError(''); setCutting(true);
-    try { await runCutout(blob); }
+    try { await runCutout(blob, { point }); setTapCutout(false); }
     catch (cause) { setError(metaErrorMessage(cause, errorText)); }
     finally { setCutting(false); }
   }
@@ -456,6 +492,11 @@ export default function OneshotStudio() {
       <h2>{t.uploadProduct}</h2>
       <UploadCard testId="upload-card-product" title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
       <button type="button" className="button secondary" disabled={!originalBlob || cutting} onClick={() => void isolateBackground()}>{t.isolateBackground}</button>
+      {tapCutout && originalUrl && <div>
+        <p>{t.cutoutTapHint}</p>
+        <img data-testid="cutout-tap-photo" src={originalUrl} alt="" onClick={event => void tapCutoutPhoto(event)} style={{ maxWidth: '100%', cursor: 'crosshair' }} />
+        <button type="button" className="button secondary" onClick={() => setTapCutout(false)}>{t.cutoutTapClose}</button>
+      </div>}
       <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
       <label>{t.brandPick}<select aria-label={t.brandPick} value={selectedBrandId} onChange={event => { const found = workspace.brands.find(item => item.id === event.target.value); if (found) { setSelectedBrandId(found.id); applyBrand(found); } else setSelectedBrandId(''); }}>

@@ -1283,6 +1283,8 @@
     "fixApply": "Apply fix",
     "fixNone": "No automatic fix.",
     "fixesApplied": "Applied fixes",
-    "fixUndoNote": "Undo reverses a fix."
+    "fixUndoNote": "Undo reverses a fix.",
+    "cutoutTapHint": "The automatic cutout could not find the product. Tap the product in the photo and it will be cut out from that point.",
+    "cutoutTapClose": "Hide"
   }
 }

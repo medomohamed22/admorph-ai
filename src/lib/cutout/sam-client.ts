@@ -13,7 +13,8 @@ import type { CutoutResult } from './provider';
 export interface SamCutoutOptions {
   apiKey: string;
   modelId: string;
-  prompt: string;
+  /** Noun phrase. Optional when a geometric prompt (box or point) is given. */
+  prompt?: string;
   /** Fractions of the image size (0..1). When present, SAM gets a geometric prompt instead of the noun phrase. */
   box?: { left: number; top: number; right: number; bottom: number };
   /** Fractions of the image size (0..1). A tap point; same geometric path as box. */
@@ -100,6 +101,7 @@ function segmentErrorDetails(value: unknown): ErrorDetails | undefined {
 export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<CutoutResult> {
   const image = await decodeToImageData(blob);
   const data = await blobToBase64(blob);
+  if (!options.box && !options.point && !options.prompt) throw new Error('sam_prompt_missing');
   const size = { width: image.width, height: image.height };
   const promptBody = options.box
     ? { box: boxFractionsToPixels(options.box, image.width, image.height), size }
