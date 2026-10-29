@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OneshotCanvas, { type OneshotCanvasHandle } from './oneshot-canvas';
@@ -11,7 +11,8 @@ import { ProviderError } from '@/lib/ai/errors';
 import { extractedSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
-import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
+import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
+import { resolveBrandFontFamily, brandFontStylesheetUrl } from '@/lib/brand/fonts';
 import { useObjectUrl } from './logo';
 import UploadCard from './upload-card';
 import type { Brand } from '@/lib/db/schema';
@@ -55,6 +56,7 @@ export default function OneshotStudio() {
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
+  const [headlineFont, setHeadlineFont] = useState<string | null>(null);
   const [brief, setBrief] = useState('');
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [selectedConcept, setSelectedConcept] = useState<number | null>(null);
@@ -90,6 +92,19 @@ export default function OneshotStudio() {
   const errorText = { errors: m.settings.errors, aiError: m.meta.aiError };
 
   useEffect(() => { let alive = true; Promise.all([document.fonts.load('48px Inter'), document.fonts.load('48px Cairo')]).then(() => { if (alive) return; }); return () => { alive = false; }; }, []);
+  // Load an extracted brand font from Google Fonts the first time it is
+  // suggested, then redraw the canvas so the headline uses it.
+  const injectedFonts = useRef(new Set<string>());
+  const [, setFontTick] = useState(0);
+  useEffect(() => {
+    if (!headlineFont || injectedFonts.current.has(headlineFont)) return;
+    injectedFonts.current.add(headlineFont);
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = brandFontStylesheetUrl(headlineFont);
+    document.head.appendChild(link);
+    document.fonts.load(`48px "${headlineFont}"`).then(() => setFontTick(tick => tick + 1)).catch(() => {});
+  }, [headlineFont]);
   const onReady = (id: string) => setLoaded(previous => previous.has(id) ? previous : new Set([...previous, id]));
   const canvasReady = elements.filter(item => item.blob).every(item => loaded.has(item.id));
   const brandValid = brand.name.trim().length > 0 && brand.description.trim().length > 0;
@@ -180,6 +195,7 @@ export default function OneshotStudio() {
       await requireMetaSuccess(response);
       const result = extractedSchema.parse(await response.json());
       setBrand({ name: result.suggestedName, description: (workspace.locale === 'ar' ? result.shortDescriptionAr : result.shortDescriptionEn) || result.suggestedName, colors: [result.primaryHex, result.secondaryHex, result.accentHex] });
+      setHeadlineFont(resolveBrandFontFamily(result.fontFamily));
       setSelectedBrandId('');
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
     finally { setBusy(''); setConsent(false); }
@@ -223,6 +239,16 @@ export default function OneshotStudio() {
     finally { setEnhanceBusy(false); setConsent(false); }
   }
 
+  /** Explicit touch-friendly move/resize for the selected element. */
+  function resizeSelected(factor: number) {
+    if (!selected) return;
+    setElements(previous => previous.map(item => item.id === selected ? scaleOneshotElement(item, factor) : item));
+  }
+  function nudgeSelected(dx: number, dy: number) {
+    if (!selected) return;
+    setElements(previous => previous.map(item => item.id === selected ? clampOneshotElement({ ...item, x: item.x + dx, y: item.y + dy }) : item));
+  }
+
   function addElement(kind: 'text' | 'phone' | 'icon', blob?: Blob, text?: string) {
     const base = kind === 'text' ? { x: 140, y: 500, width: 800, height: 120, fontSize: 64 } : kind === 'phone' ? { x: 340, y: 1200, width: 400, height: 60, fontSize: 44 } : { x: 830, y: 1150, width: 200, height: 200 };
     const element: OneshotCanvasElement = { id: crypto.randomUUID(), kind, ...base, text, blob, color: DEFAULT_TEXT_COLOR };
@@ -233,6 +259,9 @@ export default function OneshotStudio() {
     if (!cutoutBlob || !imageModel || !key || !consent || !scene.trim() || !canvasHandle.current || !canvasReady) return;
     setBusy('generate'); setError(''); setCertificate(null); setScore(null);
     try {
+      // The headline font must be loaded before the mockup export, or the
+      // canvas falls back to Cairo/Inter and the model sees the wrong font.
+      await document.fonts.ready;
       const mockup = await (await fetch(canvasHandle.current.exportPng())).blob();
       const fittedMockup = await fitProductImage(mockup);
       // Blank text boxes render nothing on the mockup; never send them as
@@ -259,6 +288,11 @@ export default function OneshotStudio() {
 
   const canGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid && !busy;
   const selectedTextElement = selectedElement && (selectedElement.kind === 'text' || selectedElement.kind === 'phone') ? selectedElement : null;
+  // The headline carries the extracted brand font; other texts keep the
+  // script default. The font never travels to the server (stripped there).
+  const canvasElements = useMemo(() => headlineFont
+    ? elements.map(item => item.id === 'headline' ? { ...item, fontFamily: headlineFont } : item)
+    : elements, [elements, headlineFont]);
   const generating = busy === 'generate' || busy === 'verify';
   const generateLabel = busy === 'generate' ? t.generating : busy === 'verify' ? t.verifying : resultBlob ? t.retry : t.generate;
   // Stepper state: the current step is the first incomplete one; later steps
@@ -296,6 +330,7 @@ export default function OneshotStudio() {
         {workspace.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select></label>
       <Link className="button secondary" href="/brands/new?returnTo=/oneshot">{t.brandNew} ↗</Link>
+      {headlineFont && <p>{t.brandFont}: {headlineFont}</p>}
       <details>
         <summary>{t.editBrand}</summary>
         <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, name: event.target.value })); }} /></label>
@@ -317,8 +352,7 @@ export default function OneshotStudio() {
       <p>{t.canvasHelp}</p>
       {!cutoutBlob && <p>{t.needProduct}</p>}
       {cutoutBlob && <div className="oneshot-canvas-wrap">
-        <OneshotCanvas elements={elements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />
-        {generating && <div className="generating-overlay" data-testid="oneshot-generating" role="status"><span>{t.generatingNote}</span></div>}
+        <OneshotCanvas elements={canvasElements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />
       </div>}
       <div>
         <input aria-label={t.textPlaceholder} value={newText} maxLength={200} placeholder={t.textPlaceholder} onChange={event => setNewText(event.target.value)} />
@@ -329,11 +363,41 @@ export default function OneshotStudio() {
       </div>
       {selectedTextElement && <label>{t.selectedText}<input value={selectedTextElement.text ?? ''} maxLength={200} onChange={event => setElements(previous => previous.map(item => item.id === selectedTextElement.id ? { ...item, text: event.target.value } : item))} /></label>}
       {selected && <button type="button" className="button secondary" onClick={() => { setElements(previous => previous.filter(item => item.id !== selected)); setSelected(null); }}>{t.deleteSelected}</button>}
+      {selectedElement && <div role="group" aria-label={t.selectedControls}>
+        <button type="button" className="button secondary" disabled={busy !== ''} onClick={() => resizeSelected(1.2)}>{t.enlarge}</button>
+        <button type="button" className="button secondary" disabled={busy !== ''} onClick={() => resizeSelected(0.8)}>{t.shrink}</button>
+        <button type="button" className="button secondary" aria-label={t.nudgeUp} disabled={busy !== ''} onClick={() => nudgeSelected(0, -10)}>↑</button>
+        <button type="button" className="button secondary" aria-label={t.nudgeDown} disabled={busy !== ''} onClick={() => nudgeSelected(0, 10)}>↓</button>
+        <button type="button" className="button secondary" aria-label={t.nudgeLeft} disabled={busy !== ''} onClick={() => nudgeSelected(-10, 0)}>←</button>
+        <button type="button" className="button secondary" aria-label={t.nudgeRight} disabled={busy !== ''} onClick={() => nudgeSelected(10, 0)}>→</button>
+      </div>}
       <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? t.enhanceBusy : t.enhance}</label>
       {enhanceNote && <p role="status">{enhanceNote}</p>}
       {enhance && originalUrl && currentUrl && <div data-testid="oneshot-enhance-compare" style={{ display: 'flex', gap: 12 }}>
         <figure style={{ margin: 0 }}><img src={originalUrl} alt={t.enhanceOriginal} width={120} /><figcaption>{t.enhanceOriginal}</figcaption></figure>
         <figure style={{ margin: 0 }}><img src={currentUrl} alt={t.enhanceImproved} width={120} /><figcaption>{t.enhanceImproved}</figcaption></figure>
+      </div>}
+    </section>
+
+    <section className="feature-card">
+      <h2>{t.result}</h2>
+      <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame">
+        {generating
+          ? <div className="generating-overlay" data-testid="oneshot-generating" role="status"><span>{busy === 'verify' ? t.verifying : t.generatingNote}</span></div>
+          : resultBlob && resultUrl
+            ? <img data-testid="oneshot-result" className="oneshot-reveal" key={resultUrl} src={resultUrl} alt={t.result} />
+            : <p>{t.resultEmpty}</p>}
+      </div>
+      {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
+      {certificate && score !== null && <div data-testid="oneshot-certificate">
+        <h2>{t.certificate}</h2>
+        <p>{t.score}: {score}</p>
+        <ul>
+          <li>{t.productKept}: {certificate.productKept ? '✓' : '✗'} {certificate.productNote}</li>
+          {hasLogo && <li>{t.logoKept}: {certificate.logoKept ? '✓' : '✗'} {certificate.logoNote}</li>}
+          <li>{t.layoutKept}: {certificate.layoutKept ? '✓' : '✗'} {certificate.layoutNote}</li>
+          {certificate.texts.map(item => <li key={item.id}>{item.expected}: {item.match ? '✓' : `✗ (${item.found})`}</li>)}
+        </ul>
       </div>}
     </section>
 
@@ -350,22 +414,5 @@ export default function OneshotStudio() {
     <div className="sticky-generate">
       <button type="button" className="button primary" disabled={!canGenerate || !consent} onClick={() => void generate()}>{generateLabel}</button>
     </div>
-
-    {resultBlob && resultUrl && <section className="feature-card">
-      <h2>{t.result}</h2>
-      <img data-testid="oneshot-result" className="oneshot-reveal" key={resultUrl} src={resultUrl} alt={t.result} style={{ maxWidth: '100%' }} />
-      <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>
-    </section>}
-
-    {certificate && score !== null && <section className="feature-card" data-testid="oneshot-certificate">
-      <h2>{t.certificate}</h2>
-      <p>{t.score}: {score}</p>
-      <ul>
-        <li>{t.productKept}: {certificate.productKept ? '✓' : '✗'} {certificate.productNote}</li>
-        {hasLogo && <li>{t.logoKept}: {certificate.logoKept ? '✓' : '✗'} {certificate.logoNote}</li>}
-        <li>{t.layoutKept}: {certificate.layoutKept ? '✓' : '✗'} {certificate.layoutNote}</li>
-        {certificate.texts.map(item => <li key={item.id}>{item.expected}: {item.match ? '✓' : `✗ (${item.found})`}</li>)}
-      </ul>
-    </section>}
   </main>;
 }

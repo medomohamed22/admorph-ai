@@ -247,6 +247,16 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   await expect(steps).toHaveCount(5);
   await expect(steps.first()).toHaveClass(/current/);
   await expect(steps.first()).toContainText('Product');
+  // The result frame is visible from the start, above the generate button.
+  const frame = page.getByTestId('oneshot-result-frame');
+  await expect(frame).toBeVisible();
+  await expect(frame).toContainText('Your finished ad will appear here.');
+  const framePrecedesGenerate = await page.evaluate(() => {
+    const frameEl = document.querySelector('[data-testid="oneshot-result-frame"]');
+    const button = document.querySelector('.generate-main');
+    return !!frameEl && !!button && Boolean(frameEl.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+  expect(framePrecedesGenerate).toBe(true);
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -267,6 +277,8 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-generating')).toBeVisible();
   await expect(page.getByTestId('oneshot-generating')).toContainText('Painting your finished ad…');
+  // The blur lives in the result frame now, not on the canvas.
+  await expect(frame.getByTestId('oneshot-generating')).toBeVisible();
   // The generating overlay must never widen the page: on a phone the
   // shimmer sliding outside the canvas used to spill across the screen.
   // Sample a full shimmer cycle (1.6s) — a single instant can miss it.
@@ -283,6 +295,95 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   const result = page.getByTestId('oneshot-result');
   await expect(result).toBeVisible({ timeout: 30000 });
   await expect(result).toHaveClass(/oneshot-reveal/);
+  // The finished image lands inside the same frame that blurred.
+  await expect(frame.getByTestId('oneshot-result')).toBeVisible();
   await expect(page.getByTestId('oneshot-certificate')).toBeVisible({ timeout: 30000 });
   await expect(steps.nth(4)).toHaveClass(/done/);
+});
+
+test('brand extraction applies its font to the headline', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.route('**/api/ai/brand-extract', async (route) => { await route.fulfill({ body: JSON.stringify({ suggestedName: 'Sora', primaryHex: '#52633c', secondaryHex: '#dce5bb', accentHex: '#f2d1bc', brandTone: 'calm', shortDescriptionEn: 'A sample matcha brand.', shortDescriptionAr: 'براند ماتشا تجريبي.', recommendedFontEn: 'Inter', recommendedFontAr: 'Cairo', rationale: 'Fixture.', fontFamily: 'Montserrat' }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await page.getByText('Edit brand details', { exact: true }).click();
+  await page.getByLabel('Brand name').fill('Sora');
+  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
+  await expect(consentBox).toBeEnabled({ timeout: 30000 });
+  await consentBox.check();
+  await page.getByRole('button', { name: 'Extract brand from photo', exact: true }).click();
+  await expect(page.getByText('Headline font: Montserrat')).toBeVisible({ timeout: 30000 });
+});
+
+test('canvas controls resize and nudge the selected element', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onblocked = () => reject(new Error('db blocked'));
+    open.onsuccess = () => { const db = open.result, tx = db.transaction(['settings'], 'readwrite');
+      const store = tx.objectStore('settings');
+      store.put({ key: 'providerSettings', value: { provider: 'meta', customBaseUrl: '', roles: { planner: { provider: 'meta', modelId: 'fixture-planner' }, image: { provider: 'meta', modelId: 'fixture-image' }, critic: { provider: 'meta', modelId: 'fixture-critic' }, edit: { provider: 'meta', modelId: 'fixture-edit' } } } });
+      store.put({ key: 'metaExtraRoles', value: { vision: { provider: 'meta', modelId: 'fixture-vision' }, segment: { provider: 'meta', modelId: 'sam-3.1' } } });
+      tx.oncomplete = () => { db.close(); resolve(); };
+      tx.onerror = () => { db.close(); reject(new Error('seed transaction failed')); };
+      tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
+  }));
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await page.getByText('Edit brand details', { exact: true }).click();
+  await page.getByLabel('Brand name').fill('Sora');
+  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  const consentBox = page.getByLabel('I agree to send this mockup to Meta');
+  await expect(consentBox).toBeEnabled({ timeout: 30000 });
+  await consentBox.check();
+  // An added text line becomes the selected element, so the move/resize
+  // buttons appear for it. It starts at 800x120 at (140, 500).
+  await page.getByLabel('Your headline').fill('Hello');
+  await page.getByRole('button', { name: 'Add text', exact: true }).click();
+  await page.getByRole('button', { name: 'Enlarge', exact: true }).click();
+  await page.getByRole('button', { name: 'Move left', exact: true }).click();
+  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  type LayoutItem = { id: string; kind: string; x: number; y: number; width: number; height: number; text?: string };
+  const captured: { layout?: LayoutItem[] } = {};
+  await page.route('**/api/ai/oneshot', async (route) => { captured.layout = (route.request().postDataJSON() as { layout: LayoutItem[] }).layout; await route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
+  await expect(page.getByTestId('oneshot-result')).toBeVisible({ timeout: 30000 });
+  // Enlarge x1.2 around the center, then one 10px nudge left.
+  const text = captured.layout?.find(item => item.text === 'Hello');
+  expect(text?.width).toBe(960);
+  expect(text?.height).toBe(144);
+  expect(text?.x).toBe(50);
+  expect(text?.y).toBe(488);
+  expect(errors).toEqual([]);
 });

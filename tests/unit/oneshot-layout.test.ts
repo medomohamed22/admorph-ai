@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  clampOneshotElement, toServerLayout, initialOneshotLayout, zoneOf,
+  clampOneshotElement, toServerLayout, initialOneshotLayout, zoneOf, scaleOneshotElement,
   type OneshotCanvasElement,
 } from '../../src/lib/ai/oneshot';
 
@@ -14,16 +14,39 @@ describe('clampOneshotElement', () => {
 });
 
 describe('toServerLayout', () => {
-  it('drops blobs, colors and font sizes but keeps text', () => {
+  it('drops blobs, colors, font sizes and fonts but keeps text', () => {
     const blob = new Blob(['x']);
     const layout = toServerLayout([
       { id: 'p', kind: 'product', x: 0, y: 0, width: 100, height: 100, blob },
-      { id: 'h', kind: 'text', x: 0, y: 0, width: 100, height: 50, text: 'hi', color: '#000', fontSize: 40 },
+      { id: 'h', kind: 'text', x: 0, y: 0, width: 100, height: 50, text: 'hi', color: '#000', fontSize: 40, fontFamily: 'Montserrat' },
     ] as OneshotCanvasElement[]);
     expect(layout).toEqual([
       { id: 'p', kind: 'product', x: 0, y: 0, width: 100, height: 100 },
       { id: 'h', kind: 'text', x: 0, y: 0, width: 100, height: 50, text: 'hi' },
     ]);
+  });
+});
+
+describe('scaleOneshotElement', () => {
+  it('scales around the center', () => {
+    expect(scaleOneshotElement({ id: 't', kind: 'text', x: 140, y: 500, width: 800, height: 120, text: 'hi' }, 1.2)).toEqual(
+      { id: 't', kind: 'text', x: 60, y: 488, width: 960, height: 144, text: 'hi' });
+  });
+  it('never shrinks below the 24px minimum', () => {
+    expect(scaleOneshotElement({ id: 't', kind: 'text', x: 100, y: 100, width: 30, height: 30, text: 'hi' }, 0.5)).toEqual(
+      { id: 't', kind: 'text', x: 103, y: 103, width: 24, height: 24, text: 'hi' });
+  });
+  it('never grows past the frame edges', () => {
+    expect(scaleOneshotElement({ id: 't', kind: 'text', x: 0, y: 0, width: 1000, height: 1200, text: 'hi' }, 1.2)).toEqual(
+      { id: 't', kind: 'text', x: 0, y: 0, width: 1080, height: 1296, text: 'hi' });
+  });
+  it('keeps canvas-only fields on the scaled element', () => {
+    const blob = new Blob(['x']);
+    const scaled = scaleOneshotElement({ id: 't', kind: 'text', x: 0, y: 0, width: 100, height: 100, text: 'hi', blob, color: '#000', fontFamily: 'Montserrat' }, 2);
+    expect(scaled.blob).toBe(blob);
+    expect(scaled.color).toBe('#000');
+    expect(scaled.fontFamily).toBe('Montserrat');
+    expect(scaled.width).toBe(200);
   });
 });
 

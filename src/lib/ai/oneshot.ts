@@ -105,6 +105,7 @@ export type OneshotCanvasElement = OneshotElement & {
   blob?: Blob;
   color?: string;
   fontSize?: number;
+  fontFamily?: string;
 };
 
 /** Keep a dragged/resized element inside the frame (min 24px a side). */
@@ -127,8 +128,23 @@ export function toServerLayout(elements: OneshotCanvasElement[]): OneshotElement
     delete layout.blob;
     delete layout.color;
     delete layout.fontSize;
+    delete layout.fontFamily;
     return layout;
   });
+}
+
+/**
+ * Scale an element around its center by a factor, keeping its aspect and
+ * staying inside the frame (never below the 24px minimum, never past an
+ * edge). Canvas-only fields (blob, color, font) survive untouched.
+ */
+export function scaleOneshotElement<T extends OneshotElement>(element: T, factor: number): T {
+  const fit = Math.min(factor, ONESHOT_WIDTH / element.width, ONESHOT_HEIGHT / element.height);
+  const safe = Math.max(fit, 24 / element.width, 24 / element.height);
+  const width = element.width * safe, height = element.height * safe;
+  const x = Math.min(Math.max(0, element.x + (element.width - width) / 2), ONESHOT_WIDTH - width);
+  const y = Math.min(Math.max(0, element.y + (element.height - height) / 2), ONESHOT_HEIGHT - height);
+  return { ...element, width, height, x, y };
 }
 
 /** Starter arrangement: product centered, logo top-right, headline top-center. */

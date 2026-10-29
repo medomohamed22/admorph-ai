@@ -1259,6 +1259,15 @@
     "stepIdea": "Idea",
     "stepArrange": "Arrange",
     "stepGenerate": "Generate",
-    "generatingNote": "Painting your finished ad…"
+    "generatingNote": "Painting your finished ad…",
+    "resultEmpty": "Your finished ad will appear here.",
+    "brandFont": "Headline font",
+    "enlarge": "Enlarge",
+    "shrink": "Shrink",
+    "nudgeUp": "Move up",
+    "nudgeDown": "Move down",
+    "nudgeLeft": "Move left",
+    "nudgeRight": "Move right",
+    "selectedControls": "Move and resize the selected element"
   }
 }
