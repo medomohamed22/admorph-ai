@@ -14,6 +14,7 @@ import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { resolveBrandFontFamily, brandFontStylesheetUrl } from '@/lib/brand/fonts';
 import { inspectOneshotLayout, INSPECT_RULE_VERSION, type InspectCode } from '@/lib/oneshot/rules';
+import { proposeOneshotRepairs, type RepairProposal } from '@/lib/oneshot/repair';
 import { sha256Hex, buildManifest, mockupSignature } from '@/lib/evidence/manifest';
 import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
@@ -154,6 +155,7 @@ export default function OneshotStudio() {
       setGeneratedLayout(null); setCertSignature(null);
       setPast([]); setFuture([]);
       setSuggestedFonts([]);
+      setAppliedRepairs([]);
       setLoaded(new Set());
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
@@ -424,6 +426,23 @@ export default function OneshotStudio() {
     low_contrast: t.findingLowContrast,
     outside_safe_zone: t.findingSafeZone,
   };
+  // Closed-loop repair: one deterministic proposal per finding, computed
+  // from the same rule set as the inspect. Applying one is an ordinary
+  // element change, so it lands in history (Undo reverses it) and the
+  // inspect list re-runs on the new arrangement — that re-run IS the
+  // verify step of the loop. No model is consulted anywhere in it.
+  const [appliedRepairs, setAppliedRepairs] = useState<{ elementId: string; text: string }[]>([]);
+  const proposals = useMemo(() => cutoutBlob ? proposeOneshotRepairs(elements, brand.colors) : [], [cutoutBlob, elements, brand]);
+  const liveRepairs = appliedRepairs.filter(entry => elements.some(item => item.id === entry.elementId));
+  function applyRepair(proposal: RepairProposal) {
+    const before = elements.find(item => item.id === proposal.elementId);
+    const label = before ? elementLabel(before.id) : proposal.elementId;
+    const description = proposal.patch.color !== undefined
+      ? `${label} recolored to ${proposal.patch.color}`
+      : `${label} moved to (${proposal.patch.x}, ${proposal.patch.y})`;
+    setElements(previous => previous.map(item => item.id === proposal.elementId ? { ...item, ...proposal.patch } : item));
+    setAppliedRepairs(previous => [...previous, { elementId: proposal.elementId, text: description }]);
+  }
   const generating = busy === 'generate' || busy === 'verify';
   const generateLabel = busy === 'generate' ? t.generating : busy === 'verify' ? t.verifying : resultBlob ? t.retry : t.generate;
   // Stepper state: the current step is the first incomplete one; later steps
@@ -518,8 +537,20 @@ export default function OneshotStudio() {
       {cutoutBlob && <div>
         <h3>{t.inspectTitle}</h3>
         {findings.length === 0 ? <p>{t.inspectOk}</p> : <ul>
-          {findings.map(finding => <li key={finding.id}>{findingText[finding.code]}: {finding.elementIds.map(elementLabel).join(', ')}{finding.detail ? ` (${finding.detail})` : ''}</li>)}
+          {findings.map(finding => {
+            const proposal = proposals.find(item => item.findingId === finding.id);
+            return <li key={finding.id}>{findingText[finding.code]}: {finding.elementIds.map(elementLabel).join(', ')}{finding.detail ? ` (${finding.detail})` : ''} {proposal
+              ? <button type="button" className="button secondary" disabled={busy !== ''} onClick={() => applyRepair(proposal)}>{t.fixApply}</button>
+              : <span>{t.fixNone}</span>}</li>;
+          })}
         </ul>}
+        {liveRepairs.length > 0 && <div>
+          <h4>{t.fixesApplied}</h4>
+          <ul>
+            {liveRepairs.map((entry, index) => <li key={`${entry.elementId}-${index}`}>{entry.text}</li>)}
+          </ul>
+          <p>{t.fixUndoNote}</p>
+        </div>}
       </div>}
     </section>
 
