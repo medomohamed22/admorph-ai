@@ -267,6 +267,19 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-generating')).toBeVisible();
   await expect(page.getByTestId('oneshot-generating')).toContainText('Painting your finished ad…');
+  // The generating overlay must never widen the page: on a phone the
+  // shimmer sliding outside the canvas used to spill across the screen.
+  // Sample a full shimmer cycle (1.6s) — a single instant can miss it.
+  const maxHorizontalOverflow = await page.evaluate(async () => {
+    let max = 0;
+    const started = Date.now();
+    while (Date.now() - started < 2000) {
+      max = Math.max(max, document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return max;
+  });
+  expect(maxHorizontalOverflow).toBeLessThanOrEqual(1);
   const result = page.getByTestId('oneshot-result');
   await expect(result).toBeVisible({ timeout: 30000 });
   await expect(result).toHaveClass(/oneshot-reveal/);

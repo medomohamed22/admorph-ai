@@ -91,3 +91,16 @@ five steps: product → brand → idea → arrange → generate.
   (`rm -rf .next && npm run build`) fixed it; the gate now greps the
   built CSS for the new class names before running E2E.
 - No paid calls were made by the implementation.
+
+## Addendum — generation overlay overflow fix (Oct 29, 2026)
+
+A phone screen recording during generation showed the blur area sliding
+outside the screen. Cause: the shimmer layer was as wide as the canvas
+and animated `translateX(-100%)` → `translateX(100%)` with nothing
+clipping it, so the page grew ~239px wider than a 320px viewport while
+generating (reproduced in E2E by sampling `scrollWidth` over a full
+1.6s shimmer cycle). Fix: the canvas wrapper now clips
+(`overflow:hidden`) and the shimmer is a narrow 40%-wide band sweeping
+across inside the box, so no animated layer ever leaves the canvas.
+Guarded by the same E2E sampling assertion on all three viewport
+projects; one-shot E2E stays 18/18.
