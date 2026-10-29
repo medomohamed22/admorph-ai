@@ -88,3 +88,4 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
   .sticky-generate .button{width:100%}
   .generate-main{display:none}
 }
+.design-canvas-host, .design-canvas-host canvas { touch-action: none; }

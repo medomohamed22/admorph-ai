@@ -1279,6 +1279,7 @@
     "findingLowContrast": "تباين النص ضعيف على الماكيت",
     "findingSafeZone": "النص قريب أوي من الحافة",
     "exportEvidence": "تصدير ملف الإثبات",
-    "exportBusy": "جارٍ التصدير…"
+    "exportBusy": "جارٍ التصدير…",
+    "suggestedFonts": "خطوط مقترحة"
   }
 }

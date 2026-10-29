@@ -63,6 +63,7 @@ export default function OneshotStudio() {
   const [brief, setBrief] = useState('');
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [selectedConcept, setSelectedConcept] = useState<number | null>(null);
+  const [suggestedFonts, setSuggestedFonts] = useState<string[]>([]);
   const [scene, setScene] = useState(t.defaultScene);
   const [elements, setElements] = useState<OneshotCanvasElement[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -152,6 +153,7 @@ export default function OneshotStudio() {
       setResultBlob(null); setCertificate(null); setScore(null);
       setGeneratedLayout(null); setCertSignature(null);
       setPast([]); setFuture([]);
+      setSuggestedFonts([]);
       setLoaded(new Set());
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
@@ -237,6 +239,11 @@ export default function OneshotStudio() {
       const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: brief.trim(), goal: 'awareness', creativeLanguage: workspace.locale === 'ar' ? 'ar' : 'en', format: '1080x1350', product: await encodeProduct(currentBlob) }, AbortSignal.timeout(65000));
       const next = plan.concepts.map(item => ({ angle: item.angle, title: item.title, headline: item.headline, caption: item.caption, visualDirection: item.visualDirection }));
       setConcepts(next); pickConcept(next, 0);
+      // The planner suggests up to three headline fonts with the ideas;
+      // only allowlist families survive, in the planner's order.
+      const fonts: string[] = [];
+      for (const name of plan.fonts ?? []) { const resolved = resolveBrandFontFamily(name); if (resolved && !fonts.includes(resolved)) fonts.push(resolved); }
+      setSuggestedFonts(fonts);
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
     finally { setBusy(''); }
   }
@@ -358,8 +365,9 @@ export default function OneshotStudio() {
 
   const canGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid && !busy;
   const selectedTextElement = selectedElement && (selectedElement.kind === 'text' || selectedElement.kind === 'phone') ? selectedElement : null;
-  // The headline carries the extracted brand font; other texts keep the
-  // script default. The font never travels to the server (stripped there).
+  // The headline carries the chosen brand font (from extraction or the
+  // suggested-font picker); other texts keep the script default. The font
+  // never travels to the server (stripped there).
   const canvasElements = useMemo(() => headlineFont
     ? elements.map(item => item.id === 'headline' ? { ...item, fontFamily: headlineFont } : item)
     : elements, [elements, headlineFont]);
@@ -467,6 +475,10 @@ export default function OneshotStudio() {
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
         {concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary" aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}
+      </div>}
+      {suggestedFonts.length > 0 && <div>
+        <p>{t.suggestedFonts}</p>
+        {suggestedFonts.map(family => <button key={family} type="button" className="button secondary" aria-pressed={headlineFont === family} onClick={() => setHeadlineFont(family)}>{family}</button>)}
       </div>}
       <label>{t.scene}<textarea value={scene} maxLength={1000} onChange={event => setScene(event.target.value)} /></label>
     </section>

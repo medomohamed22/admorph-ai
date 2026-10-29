@@ -1279,6 +1279,7 @@
     "findingLowContrast": "Text contrast is too low on the mockup",
     "findingSafeZone": "Text is too close to the edge",
     "exportEvidence": "Export evidence ZIP",
-    "exportBusy": "Exporting…"
+    "exportBusy": "Exporting…",
+    "suggestedFonts": "Suggested fonts"
   }
 }
