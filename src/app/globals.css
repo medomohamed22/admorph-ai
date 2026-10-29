@@ -77,6 +77,10 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
 @keyframes oneshotShimmer{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 .oneshot-reveal{animation:oneshotReveal .75s ease-out}
 @keyframes oneshotReveal{from{filter:blur(12px);opacity:0}to{filter:blur(0);opacity:1}}
+.result-frame{position:relative;max-width:480px;margin:12px auto;border:1.5px dashed #a89a80;border-radius:16px;overflow:hidden;background:#fbf9f2;aspect-ratio:4/5;display:flex;align-items:center;justify-content:center}
+.result-frame.filled{border-style:solid;border-color:#52633c}
+.result-frame img{width:100%;height:100%;object-fit:contain;display:block}
+.result-frame p{padding:16px;text-align:center}
 .sticky-generate{display:none}
 @media(max-width:750px){
   .oneshot-studio{padding-bottom:88px}

@@ -1259,6 +1259,15 @@
     "stepIdea": "الفكرة",
     "stepArrange": "الترتيب",
     "stepGenerate": "التوليد",
-    "generatingNote": "بنرسم إعلانك النهائي…"
+    "generatingNote": "بنرسم إعلانك النهائي…",
+    "resultEmpty": "الصورة النهائية هتظهر هنا.",
+    "brandFont": "خط العنوان",
+    "enlarge": "تكبير",
+    "shrink": "تصغير",
+    "nudgeUp": "حرّك لفوق",
+    "nudgeDown": "حرّك لتحت",
+    "nudgeLeft": "حرّك للشمال",
+    "nudgeRight": "حرّك لليمين",
+    "selectedControls": "حرّك وكبّر العنصر المختار"
   }
 }
