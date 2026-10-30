@@ -123,19 +123,21 @@ export default function HomePage() {
         <h2 id="home-gallery-title">{ads.length > 0 ? t.galleryTitle : saved.length > 0 ? t.yourAdsTitle : t.galleryTitle}</h2>
         {saved.length > 0 && <ButtonLink size="sm" href="/gallery" icon={<IconArrow size={15} />}>{t.openGallery}</ButtonLink>}
       </div>
-      {ads.length > 0
-        ? <div className="home-ad-grid">{ads.map(ad => <figure key={ad.src} className="home-ad" data-ratio={ad.ratio} data-testid="home-showcase-ad">
-            <Image src={ad.src} alt={ad.headline} width={1080} height={ad.ratio === '1:1' ? 1080 : ad.ratio === '9:16' ? 1920 : 1350} sizes="(max-width: 640px) 92vw, 280px" />
-            <figcaption><span>{t[`category_${ad.category}`]} · {ad.ratio}</span>{ad.score !== null && <small>{t.certificate} {ad.score}/100</small>}</figcaption>
-          </figure>)}</div>
-        : saved.length > 0
-          ? <div className="home-ad-grid">{saved.map(ad => <SavedAdTile key={ad.id} ad={ad} label={ad.createdAt.slice(0, 10)} />)}</div>
-          : <div className="empty-state home-empty" data-testid="home-gallery-empty">
-              <span className="empty-state-art" aria-hidden="true"><IconSparkles size={28} /></span>
-              <h3>{t.emptyTitle}</h3>
-              <p>{t.emptyLead}</p>
-              <ButtonLink variant="primary" href="/oneshot">{t.cta}</ButtonLink>
-            </div>}
+      {ads.length > 0 && <>
+        <p className="home-gallery-note">{t.showcaseNote}</p>
+        <div className="home-ad-grid">{ads.map(ad => <figure key={ad.src} className="home-ad" data-ratio={ad.ratio} data-testid="home-showcase-ad">
+          <Image src={ad.src} alt={ad.headline} width={1080} height={ad.ratio === '1:1' ? 1080 : ad.ratio === '9:16' ? 1920 : 1350} sizes="(max-width: 640px) 92vw, 380px" />
+          <figcaption><span>{t[`category_${ad.category}`]} · {ad.ratio}</span>{ad.score !== null && <small>{t.certificate} {ad.score}/100</small>}</figcaption>
+        </figure>)}</div>
+      </>}
+      {ads.length > 0 && saved.length > 0 && <h2 className="home-yours">{t.yourAdsTitle}</h2>}
+      {saved.length > 0 && <div className="home-ad-grid">{saved.map(ad => <SavedAdTile key={ad.id} ad={ad} label={ad.createdAt.slice(0, 10)} />)}</div>}
+      {ads.length === 0 && saved.length === 0 && <div className="empty-state home-empty" data-testid="home-gallery-empty">
+        <span className="empty-state-art" aria-hidden="true"><IconSparkles size={28} /></span>
+        <h3>{t.emptyTitle}</h3>
+        <p>{t.emptyLead}</p>
+        <ButtonLink variant="primary" href="/oneshot">{t.cta}</ButtonLink>
+      </div>}
     </section>
   </div>;
 }

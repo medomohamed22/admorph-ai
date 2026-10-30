@@ -151,7 +151,7 @@ export function ScoreRing({ value, size = 132, stroke = 10, label }: { value: nu
         <circle className="ring-value" cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={drawn ? c * (1 - clamped / 100) : c} />
       </svg>
-      <output aria-hidden="true" style={{ fontSize: size * 0.3 }}>{shown}<small>/100</small></output>
+      <output aria-hidden="true" style={{ fontSize: size * (clamped >= 100 ? 0.24 : 0.3) }}>{shown}<small>/100</small></output>
     </div>
   );
 }

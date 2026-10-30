@@ -1,8 +1,12 @@
 {
   "hero": {
-    "before": "/demo/sora-product.png",
-    "after": "/showcase/sample-after.png",
-    "sample": true
+    "before": "/showcase/talj-photo.webp",
+    "after": "/showcase/ad-talj.webp",
+    "sample": false
   },
-  "ads": []
+  "ads": [
+    { "src": "/showcase/ad-talj.webp", "category": "food", "ratio": "4:5", "headline": "نعومة الغيم في علبة وحدة", "score": 100 },
+    { "src": "/showcase/ad-sneaker.webp", "category": "fashion", "ratio": "4:5", "headline": "امشي براحتك طول اليوم", "score": 100 },
+    { "src": "/showcase/ad-headphones.webp", "category": "electronics", "ratio": "4:5", "headline": "Comfort You Can Hear", "score": 100 }
+  ]
 }
