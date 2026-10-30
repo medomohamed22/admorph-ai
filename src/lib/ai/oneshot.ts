@@ -19,6 +19,8 @@ export const oneshotElementSchema = z.object({
   width: z.number().min(24).max(ONESHOT_WIDTH),
   height: z.number().min(24).max(ONESHOT_HEIGHT),
   text: z.string().max(200).optional(),
+  /** A text drawn on a solid shape: a price tag, a discount sticker or a button. */
+  badge: z.enum(['price', 'discount', 'cta']).optional(),
 }).strict();
 export type OneshotElement = z.infer<typeof oneshotElementSchema>;
 
@@ -71,6 +73,8 @@ export function zoneOf(element: Pick<OneshotElement, 'x' | 'y' | 'width' | 'heig
   return zone || 'center';
 }
 
+const BADGE_SHAPE = { price: 'rounded price tag', discount: 'round discount sticker', cta: 'rounded call-to-action button' } as const;
+
 /**
  * The one-shot prompt: turn the user's mockup into a finished photorealistic
  * ad while keeping every element where the user put it. The mockup image is
@@ -87,6 +91,7 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     else if (element.kind === 'logo') lines.push(`The logo stays ${zone}.`);
     else if (element.kind === 'icon') lines.push(`The icon stays ${zone}.`);
     else if (element.kind === 'phone') lines.push(`The phone number "${element.text ?? ''}" stays ${zone}; every digit must be exactly as written.`);
+    else if (element.badge) lines.push(`The text "${element.text ?? ''}" sits on a solid ${BADGE_SHAPE[element.badge]} ${zone}, in the badge colors of the mockup, rendered exactly as written.`);
     else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled.`);
   }
   lines.push(`Scene: ${scene}.`);
@@ -123,6 +128,10 @@ export type OneshotCanvasElement = OneshotElement & {
   color?: string;
   fontSize?: number;
   fontFamily?: string;
+  bold?: boolean;
+  align?: 'left' | 'center' | 'right';
+  /** Badge background color. */
+  fill?: string;
 };
 
 /** Keep a dragged/resized element inside the frame (min 24px a side). */
@@ -146,6 +155,9 @@ export function toServerLayout(elements: OneshotCanvasElement[]): OneshotElement
     delete layout.color;
     delete layout.fontSize;
     delete layout.fontFamily;
+    delete layout.bold;
+    delete layout.align;
+    delete layout.fill;
     return layout;
   });
 }

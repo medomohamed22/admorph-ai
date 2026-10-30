@@ -28,6 +28,8 @@ import UploadCard from './upload-card';
 import { AgentPipeline, type RepairRecord } from './agent-pipeline';
 import { CertificateCard, TrustPanel } from './certificate-card';
 import { SizeSet } from './size-set';
+import { CanvasTools, MAX_ELEMENTS } from './canvas-tools';
+import { removeLogoBackground } from '@/lib/oneshot/logo-background';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
@@ -66,6 +68,8 @@ export default function OneshotStudio() {
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [logoMissing, setLogoMissing] = useState(false);
+  const [logoNote, setLogoNote] = useState('');
+  const [logoClearing, setLogoClearing] = useState(false);
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [headlineFont, setHeadlineFont] = useState<string | null>(null);
   const [brief, setBrief] = useState('');
@@ -243,14 +247,28 @@ export default function OneshotStudio() {
   async function uploadLogo(file: File) {
     setError('');
     try {
-      await validateProduct(file); const blob = file; setLogoBlob(blob); setLogoMissing(false);
-      setElements(previous => {
-        const logo = previous.find(item => item.kind === 'logo');
-        if (logo) return previous.map(item => item.kind === 'logo' ? { ...item, blob } : item);
-        if (!previous.some(item => item.kind === 'product')) return previous;
-        return [...previous, { id: crypto.randomUUID(), kind: 'logo', x: 830, y: 40, width: 200, height: 80, blob }];
-      });
+      await validateProduct(file); placeLogo(file); setLogoMissing(false); setLogoNote('');
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+  }
+  function placeLogo(blob: Blob) {
+    setLogoBlob(blob);
+    setElements(previous => {
+      const logo = previous.find(item => item.kind === 'logo');
+      if (logo) return previous.map(item => item.kind === 'logo' ? { ...item, blob } : item);
+      if (!previous.some(item => item.kind === 'product')) return previous;
+      return [...previous, { id: crypto.randomUUID(), kind: 'logo', x: 830, y: 40, width: 200, height: 80, blob }];
+    });
+  }
+  /** Clear a flat logo background on the device: no request, no model. */
+  async function clearLogo() {
+    if (!logoBlob || logoClearing) return;
+    setLogoClearing(true); setLogoNote('');
+    try {
+      const { blob, result } = await removeLogoBackground(logoBlob);
+      if (blob) { placeLogo(blob); setLogoNote(t.logoCleared); }
+      else setLogoNote(result.reason === 'busy_background' ? t.logoBusy : t.logoAlready);
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    finally { setLogoClearing(false); }
   }
 
   /** Fill the studio from a saved brand kit: identity fields plus its logo.
@@ -409,6 +427,7 @@ export default function OneshotStudio() {
   }
 
   function addElement(kind: 'text' | 'phone' | 'icon', blob?: Blob, text?: string) {
+    if (elements.length >= MAX_ELEMENTS) return;
     const base = kind === 'text' ? { x: 140, y: 500, width: 800, height: 120, fontSize: 64 } : kind === 'phone' ? { x: 340, y: 1200, width: 400, height: 60, fontSize: 44 } : { x: 830, y: 1150, width: 200, height: 200 };
     const element: OneshotCanvasElement = { id: crypto.randomUUID(), kind, ...base, text, blob, color: DEFAULT_TEXT_COLOR };
     setElements(previous => [...previous, element]); setSelected(element.id);
@@ -700,6 +719,10 @@ export default function OneshotStudio() {
       </div></fieldset>
       {logoMissing && <p role="alert">{t.brandLogoMissing}</p>}
       <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
+      {logoBlob && <div className="logo-clear">
+        <button type="button" className="button secondary" disabled={logoClearing} onClick={() => void clearLogo()}>{logoClearing ? <WaitingText label={t.logoClearing} /> : t.logoClear}</button>
+        {logoNote && <p role="status" data-testid="logo-note">{logoNote}</p>}
+      </div>}
       <Link className="button secondary" href="/brands/new?returnTo=/oneshot">{t.brandNew} ↗</Link>
       {headlineFont && suggestedFonts.length === 0 && <p>{t.brandFont}: {headlineFont}</p>}
       <details>
@@ -778,6 +801,7 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" aria-label={t.nudgeLeft} disabled={busy !== ''} onClick={() => nudgeSelected(-10, 0)}>←</button>
         <button type="button" className="button secondary" aria-label={t.nudgeRight} disabled={busy !== ''} onClick={() => nudgeSelected(10, 0)}>→</button>
       </div>}
+      {cutoutBlob && <CanvasTools elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} colors={brand.colors} disabled={busy !== ''} headlineFont={headlineFont} setHeadlineFont={setHeadlineFont} loadFont={loadFont} />}
       {cutoutBlob && <div>
         <h3>{t.inspectTitle}</h3>
         {findings.length === 0 ? <p>{t.inspectOk}</p> : <ul>

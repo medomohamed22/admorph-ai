@@ -41,7 +41,7 @@ export function inspectOneshotLayout(elements: OneshotCanvasElement[]): InspectF
     if (intersects(logo, text)) findings.push({ id: `overlap_logo:${logo.id}:${text.id}`, code: 'overlap_logo', severity: 'warning', elementIds: [logo.id, text.id], detail: '' });
   }
   for (const text of texts) {
-    const ratio = contrastFromLuminance(luminanceOfHex(text.color ?? '#16100C'), luminanceOfHex(MOCKUP_SHEET));
+    const ratio = contrastFromLuminance(luminanceOfHex(text.color ?? '#16100C'), luminanceOfHex(text.fill ?? MOCKUP_SHEET));
     if (ratio < TEXT_CONTRAST_MIN) findings.push({ id: `low_contrast:${text.id}`, code: 'low_contrast', severity: 'warning', elementIds: [text.id], detail: ratio.toFixed(2) });
   }
   for (const text of texts) {

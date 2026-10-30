@@ -49,7 +49,7 @@ export function deterministicChecksFor(elements: OneshotCanvasElement[]): Eviden
  * invalidate the on-screen certificate the moment the mockup changes.
  */
 export function mockupSignature(elements: OneshotCanvasElement[], brand: { name: string; description: string; colors: readonly string[] }): string {
-  const layout = elements.map(item => [item.id, item.kind, item.x, item.y, item.width, item.height, item.text ?? '', item.color ?? '', item.fontSize ?? 0, item.fontFamily ?? ''].join('|')).join(';');
+  const layout = elements.map(item => [item.id, item.kind, item.x, item.y, item.width, item.height, item.text ?? '', item.color ?? '', item.fontSize ?? 0, item.fontFamily ?? '', item.badge ?? '', item.fill ?? '', item.bold ? 1 : 0, item.align ?? ''].join('|')).join(';');
   return `${layout}#${[brand.name, brand.description, ...brand.colors].join('|')}`;
 }
 
