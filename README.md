@@ -75,6 +75,10 @@ The cutout used to bet everything on SAM's text grounding of the single word "pr
 
 Applying a saved brand whose logo asset was gone used to keep the previous brand's logo on screen (the early return in `applyBrand` never cleared the logo slot), logo previews and canvas images updated one render behind the blob (the object URL was created in an effect), and Delete hid behind a native confirm dialog that automated browsers dismiss silently. Now applying a brand always defines the logo slot and warns when its saved logo cannot be loaded, the object URL is derived during render, and delete is a two-step in-page confirm. Full detail is in [docs/RELEASE_BRAND_FIXES_REPORT.md](docs/RELEASE_BRAND_FIXES_REPORT.md).
 
+## Redesign Phase 2: responsive system (Oct 30, 2026)
+
+Centered 900px containers for one-shot and remix, sticky generate/save bars on every viewport, a fixed five-item bottom nav on phones replacing the wrapped header links, and single-column brand grids on phones. Full detail is in [docs/RELEASE_REDESIGN_PHASE2_REPORT.md](docs/RELEASE_REDESIGN_PHASE2_REPORT.md).
+
 ## Redesign Phase 1: universal waiting (Oct 30, 2026)
 
 Every network wait in the live paths now shows a spinner, the phase label, and a live seconds counter (one-shot generate/verify/cutout/ideas/extract/enhance, remix plan/generate, settings model test/catalog fetch), via a shared `WaitingText` component that stays still under `prefers-reduced-motion` while the counter advances. Full detail is in [docs/RELEASE_REDESIGN_PHASE1_REPORT.md](docs/RELEASE_REDESIGN_PHASE1_REPORT.md).

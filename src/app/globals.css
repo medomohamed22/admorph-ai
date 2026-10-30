@@ -81,12 +81,34 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
 .result-frame.filled{border-style:solid;border-color:#52633c}
 .result-frame img{width:100%;height:100%;object-fit:contain;display:block}
 .result-frame p{padding:16px;text-align:center}
-.sticky-generate{display:none}
+/* Phase 2 responsive system: one centered container, sticky primary actions on
+ * every viewport, a fixed bottom nav on phones, single-column grids. */
+.oneshot-studio{max-width:900px;margin:auto;padding:40px 32px 88px}
+.remix-page{max-width:900px;margin:auto;padding:40px 32px 88px}
+.sticky-generate{display:block;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#f8f7f3ee;border-top:1px solid var(--line);box-shadow:0 -6px 18px #28361a14}
+.sticky-generate .button{width:100%}
+.generate-main{display:none}
+.sticky-save{display:flex;gap:10px;justify-content:center;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#f8f7f3ee;border-top:1px solid var(--line);box-shadow:0 -6px 18px #28361a14}
+.settings-page{padding-bottom:100px}
+.mobile-nav{display:none}
 @media(max-width:750px){
-  .oneshot-studio{padding-bottom:88px}
-  .sticky-generate{display:block;position:fixed;left:0;right:0;bottom:0;z-index:50;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:#f8f7f3ee;border-top:1px solid var(--line);box-shadow:0 -6px 18px #28361a14}
-  .sticky-generate .button{width:100%}
-  .generate-main{display:none}
+  body{padding-bottom:72px}
+  header nav{width:auto;order:0;justify-content:flex-end}
+  html[dir=rtl] header nav{display:flex}
+  html[dir=rtl] header nav .language{position:static}
+  .nav-page-link{display:none}
+  .mobile-nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:50;background:#f8f7f3ee;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+  .mobile-nav a{min-height:44px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border-bottom:2px solid transparent;text-align:center;padding:0 2px;overflow-wrap:anywhere}
+  .mobile-nav a[aria-current]{border-color:var(--coral)}
+  .sticky-generate{bottom:60px}
+  .sticky-save{bottom:60px}
+  .settings-page{padding-bottom:70px}
+}
+@media(max-width:700px){
+  .oneshot-studio,.remix-page{padding:28px 20px 88px}
+  .brand-library{grid-template-columns:1fr}
+  .brand-builder{grid-template-columns:1fr}
+  .brand-preview{position:static}
 }
 .design-canvas-host, .design-canvas-host canvas { touch-action: none; }
 .waiting{display:inline-flex;align-items:center;gap:8px}

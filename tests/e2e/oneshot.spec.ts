@@ -570,6 +570,10 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   const stageBox = await page.locator('.design-canvas-host canvas').first().boundingBox();
   expect(stageBox).not.toBeNull();
   const scale = stageBox!.width / 1080;
+  // One device pixel is 1/scale logical units (about 4 at phone scale),
+  // so a fixed 2-unit tolerance sits below screen resolution and flakes
+  // with pointer rounding. Allow the original 2 units plus one pixel.
+  const dragTolerance = 2 + 1 / scale;
   const startX = stageBox!.x + 540 * scale;
   const startY = stageBox!.y + 680 * scale;
   await page.mouse.move(startX, startY);
@@ -589,8 +593,8 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   // The product started at (340, 380); the drag adds (80, 60), within a
   // couple of units of pointer rounding.
   const product = captured.layout?.find(item => item.kind === 'product');
-  expect(Math.abs((product?.x ?? 0) - 420)).toBeLessThan(2);
-  expect(Math.abs((product?.y ?? 0) - 440)).toBeLessThan(2);
+  expect(Math.abs((product?.x ?? 0) - 420)).toBeLessThan(dragTolerance);
+  expect(Math.abs((product?.y ?? 0) - 440)).toBeLessThan(dragTolerance);
   expect(errors).toEqual([]);
 });
 
