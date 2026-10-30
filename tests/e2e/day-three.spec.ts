@@ -150,9 +150,9 @@ test('Arabic switching translates all screens, persists and preserves edits', as
   await expect(page.getByRole('radio', { name: ar.settings.arabic, exact: true })).toHaveAttribute('aria-checked', 'true');
   await expect(page.getByTestId('model-spark')).toContainText(arStudio.models.needsKey);
   await page.screenshot({ path: `test-results/${info.project.name}-day3-ar-settings.png`, fullPage: true });
-  await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toContainText(ar.hero.title);
+  await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toContainText(arStudio.home.title);
   await page.getByRole('button', { name: ar.nav.switchLanguage, exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('One product.');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('From a phone photo');
   await page.reload(); await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 

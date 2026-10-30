@@ -1,3 +1,5 @@
-'use client';
-import Link from 'next/link';import {useMessages} from '@/components/workspace';
-export default function Home(){const m=useMessages();return <><section className="hero"><div className="eyebrow"><span className="dot"/> {m.hero.eyebrow}</div><h1>{m.hero.title}<br/><em>{m.hero.accent}</em></h1><p>{m.hero.description}</p><div className="hero-actions"><Link className="button primary" href="/oneshot">{m.hero.cta} ↗</Link><Link className="button secondary" href="/brands">{m.nav.brands}</Link></div><div className="hero-note">{m.hero.note}</div><div className="orbit orbit-one" aria-hidden="true">✳</div><div className="orbit orbit-two" aria-hidden="true">✧</div></section></>}
+import HomePage from '@/components/home-page';
+
+export default function Home() {
+  return <HomePage />;
+}
