@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import OneshotCanvas, { type OneshotCanvasHandle } from './oneshot-canvas';
@@ -12,20 +12,22 @@ import { extractedSchema, productBoxSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
-import { resolveBrandFontFamily, brandFontStylesheetUrl } from '@/lib/brand/fonts';
+import { resolveBrandFontFamily, brandFontStylesheetUrl, fontsForScript } from '@/lib/brand/fonts';
+import { artBriefToScene, settingOf, type ArtBrief } from '@/lib/ai/art-brief';
 import { inspectOneshotLayout, INSPECT_RULE_VERSION, type InspectCode } from '@/lib/oneshot/rules';
 import { proposeOneshotRepairs, type RepairProposal } from '@/lib/oneshot/repair';
 import { sha256Hex, buildManifest, mockupSignature } from '@/lib/evidence/manifest';
 import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
-import { saveAd } from '@/lib/db/repository';
+import { saveAd, loadRecentScenes, rememberRecentScene } from '@/lib/db/repository';
 import { loadDraft, saveDraft, clearDraft, draftHasWork } from '@/lib/oneshot/draft';
 import { PLAN_DIALECTS, DIALECT_EXAMPLE, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
 import { IconArrow, IconCheck } from './ui/icons';
 import UploadCard from './upload-card';
 import { AgentPipeline, type RepairRecord } from './agent-pipeline';
 import { CertificateCard, TrustPanel } from './certificate-card';
+import { SizeSet } from './size-set';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
@@ -34,7 +36,7 @@ const DEFAULT_TEXT_COLOR = '#16100C';
 
 type Attempt = { blob: Blob; certificate: VerifyResult | null; score: number | null };
 
-type Concept = { angle: string; title: string; headline: string; caption: string; visualDirection: string };
+type Concept = { angle: string; title: string; headline: string; caption: string; visualDirection: string; artBrief?: ArtBrief };
 
 function AttemptCard({ attempt, label, scoreLabel, active, useLabel, activeLabel, onUse }: { attempt: Attempt; label: string; scoreLabel: string; active: boolean; useLabel: string; activeLabel: string; onUse: () => void }) {
   const url = useObjectUrl(attempt.blob);
@@ -129,15 +131,20 @@ export default function OneshotStudio() {
   // suggested, then redraw the canvas so the headline uses it.
   const injectedFonts = useRef(new Set<string>());
   const [, setFontTick] = useState(0);
-  useEffect(() => {
-    if (!headlineFont || injectedFonts.current.has(headlineFont)) return;
-    injectedFonts.current.add(headlineFont);
+  const loadFont = useCallback((family: string) => {
+    if (injectedFonts.current.has(family)) return;
+    injectedFonts.current.add(family);
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = brandFontStylesheetUrl(headlineFont);
+    link.href = brandFontStylesheetUrl(family);
     document.head.appendChild(link);
-    document.fonts.load(`48px "${headlineFont}"`).then(() => setFontTick(tick => tick + 1)).catch(() => {});
-  }, [headlineFont]);
+    document.fonts.load(`48px "${family}"`).then(() => setFontTick(tick => tick + 1)).catch(() => {});
+  }, []);
+  useEffect(() => { if (headlineFont) loadFont(headlineFont); }, [headlineFont, loadFont]);
+  const [moreFonts, setMoreFonts] = useState(false);
+  const fontScript = dialectLanguage(dialect) === 'ar' ? 'arabic' : 'latin';
+  // Opening the font list loads every family in it so each button previews its own face.
+  useEffect(() => { if (moreFonts) for (const font of fontsForScript(fontScript)) loadFont(font.family); }, [moreFonts, fontScript, loadFont]);
   const onReady = (id: string) => setLoaded(previous => previous.has(id) ? previous : new Set([...previous, id]));
   const canvasReady = elements.filter(item => item.blob).every(item => loaded.has(item.id));
   const brandValid = brand.name.trim().length > 0 && brand.description.trim().length > 0;
@@ -347,11 +354,13 @@ export default function OneshotStudio() {
     if (!plannerModel || !key || !currentBlob || !brandValid) return;
     setBusy('ideas'); setError('');
     try {
-      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, product: await encodeProduct(currentBlob) };
+      // The last few settings go along so every round of ideas lands somewhere new.
+      const recent = await loadRecentScenes().catch(() => [] as string[]);
+      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, ...(recent.length ? { avoidScenes: recent } : {}), product: await encodeProduct(currentBlob) };
       startStep('ideas', planBody);
       const plan = await requestPlan(planBody, AbortSignal.timeout(65000));
       finishStep('ideas', plan.concepts.map(item => item.headline).join(' · '), plan);
-      const next = plan.concepts.map(item => ({ angle: item.angle, title: item.title, headline: item.headline, caption: item.caption, visualDirection: item.visualDirection }));
+      const next = plan.concepts.map(item => ({ angle: item.angle, title: item.title, headline: item.headline, caption: item.caption, visualDirection: item.visualDirection, ...(item.artBrief ? { artBrief: item.artBrief } : {}) }));
       setConcepts(next); pickConcept(next, 0);
       // The planner suggests up to three headline fonts with the ideas;
       // only allowlist families survive, in the planner's order.
@@ -364,7 +373,7 @@ export default function OneshotStudio() {
 
   function pickConcept(list: Concept[], index: number) {
     const concept = list[index]; if (!concept) return;
-    setSelectedConcept(index); setScene(concept.visualDirection);
+    setSelectedConcept(index); setScene(concept.artBrief ? artBriefToScene(concept.artBrief) : concept.visualDirection);
     setElements(previous => previous.map(item => item.kind === 'text' && item.id === 'headline' ? { ...item, text: concept.headline } : item));
   }
 
@@ -419,7 +428,8 @@ export default function OneshotStudio() {
     // Finished ads save to the gallery automatically, so the variants
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
-    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
+    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format: '1080x1350', ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
+    if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
     if (!verifyModel) return { blob: result, certificate: null, score: null };
     setBusy('verify');
@@ -716,13 +726,27 @@ export default function OneshotStudio() {
       {busy === 'ideas' && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
-        <div className="idea-grid">{concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary idea-card" style={{ animationDelay: `${index * 60}ms` }} aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}</div>
+        <div className="idea-grid">{concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary idea-card" style={{ animationDelay: `${index * 60}ms` }} aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>
+          <span className="idea-card-title">{concept.title} — {concept.headline}</span>
+          {concept.artBrief && <span className="idea-brief" data-testid="idea-brief">
+            <span><b>{t.briefSetting}</b> {concept.artBrief.setting}</span>
+            <span><b>{t.briefLight}</b> {concept.artBrief.lighting}</span>
+            <span><b>{t.briefCamera}</b> {concept.artBrief.camera}</span>
+            <span className="idea-brief-palette" aria-label={t.briefPalette}>{concept.artBrief.palette.slice(0, 4).map(color => <i key={color} title={color} style={{ background: /^#[\da-f]{3,8}$/i.test(color) ? color : undefined }}>{/^#/.test(color) ? '' : color}</i>)}</span>
+          </span>}
+        </button>)}</div>
       </div>}
-      {suggestedFonts.length > 0 && <div>
-        <p>{t.suggestedFonts}</p>
-        {suggestedFonts.map(family => <button key={family} type="button" className="button secondary" aria-pressed={headlineFont === family} onClick={() => setHeadlineFont(family)}>{family}</button>)}
-        {headlineFont && <p>{t.brandFont}: {headlineFont}</p>}
-      </div>}
+      <div className="font-pick" data-testid="font-pick">
+        {suggestedFonts.length > 0 && <p>{t.suggestedFonts}</p>}
+        <div className="font-pick-row">
+          {suggestedFonts.map(family => <button key={family} type="button" className="button secondary font-chip" style={{ fontFamily: `"${family}"` }} aria-pressed={headlineFont === family} onClick={() => setHeadlineFont(family)}>{family}</button>)}
+          <button type="button" className="button ghost font-more" aria-expanded={moreFonts} aria-controls="font-more-list" onClick={() => setMoreFonts(open => !open)}>{moreFonts ? t.fewerFonts : t.moreFonts}</button>
+        </div>
+        {moreFonts && <div id="font-more-list" className="font-pick-row font-more-list" role="group" aria-label={t.moreFonts}>
+          {fontsForScript(fontScript).filter(font => !suggestedFonts.includes(font.family)).map(font => <button key={font.family} type="button" className="button secondary font-chip" style={{ fontFamily: `"${font.family}"` }} aria-pressed={headlineFont === font.family} onClick={() => setHeadlineFont(font.family)}><span className="font-sample" dir={fontScript === 'arabic' ? 'rtl' : 'ltr'}>{fontScript === 'arabic' ? 'إعلان' : 'Aa'}</span><small>{font.family}</small></button>)}
+        </div>}
+        {headlineFont && (suggestedFonts.length > 0 || moreFonts) && <p>{t.brandFont}: {headlineFont}</p>}
+      </div>
       <label>{t.scene}<textarea value={scene} maxLength={1000} onChange={event => setScene(event.target.value)} /></label>
     </section>
 
@@ -801,6 +825,7 @@ export default function OneshotStudio() {
         <Link className="button secondary" href="/variants">{t.makeVariants}</Link>
         <Link className="button secondary" href="/themes">{t.makeSeasonal}</Link>
       </div>}
+      {resultBlob && !generating && <SizeSet key={resultUrl ?? ""} ad={resultBlob} layout={toServerLayout(generatedLayout ?? elements)} brand={brand} language={workspace.locale === 'ar' ? 'ar' : 'en'} hasLogo={hasLogo} cutout={cutoutBlob} />}
       {certificate && score !== null && <CertificateCard certificate={certificate} score={score} hasLogo={hasLogo} />}
       </div>
       </div>

@@ -126,7 +126,24 @@
     "certExtra": "لا نص زائد",
     "certExtraFound": "مرسوم وليس في مسودتك: {list}",
     "certExtraNone": "لا تظهر إلا كلماتك",
-    "shelfLink": "عندك رف كامل؟ اعمل حملة"
+    "shelfLink": "عندك رف كامل؟ اعمل حملة",
+    "briefSetting": "المكان",
+    "briefLight": "الإضاءة",
+    "briefCamera": "الكاميرا",
+    "briefPalette": "الألوان",
+    "moreFonts": "خطوط أكثر",
+    "fewerFonts": "خطوط أقل",
+    "sizesTitle": "كل المقاسات",
+    "sizesLead": "إعلانك 4:5 جاهز للفيد والبوست المربع والستوري. النسخ المؤطَّرة تُصنع على جهازك، ويمكن لـ Muse Image مدّ المشهد ليملأ الإطار.",
+    "sizeFeed": "4:5 · الفيد",
+    "sizeSquare": "1:1 · بوست مربع",
+    "sizeStory": "9:16 · ستوري وريلز",
+    "sizeLocal": "مؤطَّر على جهازك",
+    "sizeAi": "المشهد ممدود بـ Muse Image",
+    "sizeAiReframed": "رجّع Muse Image مقاسًا آخر؛ تم تأطيره ليناسب",
+    "sizeExtend": "مدّ المشهد (طلبان)",
+    "sizeExtending": "جارٍ مدّ المشهد",
+    "sizeDownload": "تنزيل"
   },
   "home": {
     "eyebrow": "مبني على ثلاثة نماذج من Meta",
@@ -232,5 +249,10 @@
     "sampleTitle": "لا يوجد رف قريب؟",
     "sampleHint": "جرّب رفًّا تجريبيًا بثلاثة منتجات وبطاقات أسعار. يستخدم مفتاحك أيضًا.",
     "sampleCta": "جرّب الرف التجريبي"
+  },
+  "remix": {
+    "axis_setting": "مكان جديد",
+    "axis_light": "إضاءة وزاوية جديدة",
+    "axis_palette": "ألوان ومزاج جديد"
   }
 }

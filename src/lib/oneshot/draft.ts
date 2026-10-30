@@ -2,6 +2,7 @@ import { getDatabase, type AdMorphDB } from '../db/dexie';
 import type { BrandInput } from '../db/schema';
 import type { OneshotCanvasElement } from '../ai/oneshot';
 import type { PlanDialect } from '../campaign/dialects';
+import type { ArtBrief } from '../ai/art-brief';
 
 /**
  * The one-shot wizard's progress, kept in IndexedDB so a reload, a trip to
@@ -21,7 +22,7 @@ export type OneshotDraft = {
   headlineFont: string | null;
   brief: string;
   scene: string;
-  concepts: { angle: string; title: string; headline: string; caption: string; visualDirection: string }[];
+  concepts: { angle: string; title: string; headline: string; caption: string; visualDirection: string; artBrief?: ArtBrief }[];
   selectedConcept: number | null;
   suggestedFonts: string[];
   elements: OneshotCanvasElement[];

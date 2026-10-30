@@ -42,7 +42,7 @@ describe('buildOneshotPrompt', () => {
     expect(prompt).toContain('The text "ساقعة تنعشك" stays top');
     expect(prompt).toContain('The phone number "01012345678" stays bottom');
     expect(prompt).toContain('every digit must be exactly as written');
-    expect(prompt).toContain('Background: sunset beach.');
+    expect(prompt).toContain('Scene: sunset beach.');
     expect(prompt).toContain('Brand colors: #16100C, #F5EEDF, #7ED3E0.');
     expect(prompt).not.toContain('NOUR');
     expect(prompt).toContain('The only words allowed anywhere in the image are');

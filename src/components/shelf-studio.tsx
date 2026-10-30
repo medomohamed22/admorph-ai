@@ -253,7 +253,7 @@ export default function ShelfStudio() {
       const notes = repairNotes(best.certificate, false);
       if (notes.length) { const second = await attempt(notes); if ((second.score ?? -1) > (best.score ?? -1)) best = second; }
     }
-    void saveAd({ id: crypto.randomUUID(), blob: best.blob, source: 'shelf', brand: sanitized, headline: ad.headline, hasLogo: false, createdAt: new Date().toISOString(), cutout: item.cutout }).catch(() => {});
+    void saveAd({ id: crypto.randomUUID(), blob: best.blob, source: 'shelf', brand: sanitized, headline: ad.headline, hasLogo: false, createdAt: new Date().toISOString(), scene: ad.scene, format: '1080x1350', cutout: item.cutout }).catch(() => {});
     if (navigator.vibrate) navigator.vibrate(20);
     return { ...ad, state: 'done', blob: best.blob, certificate: best.certificate, score: best.score };
   }
