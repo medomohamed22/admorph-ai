@@ -633,7 +633,10 @@ export default function OneshotStudio() {
   return <main className="oneshot-studio wizard">
     <div className="wizard-head">
       <div><h1>{t.title}</h1><p>{t.subtitle}</p></div>
-      {originalBlob && <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={startOver}>{t.startOver}</button>}
+      <div className="wizard-head-actions">
+        <Link className="ui-btn ui-btn--secondary ui-btn--sm" href="/shelf">{t.shelfLink}</Link>
+        {originalBlob && <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={startOver}>{t.startOver}</button>}
+      </div>
     </div>
     {restoredNote && <p className="request-status" role="status">{t.draftRestored}</p>}
     <div className="wizard-layout">

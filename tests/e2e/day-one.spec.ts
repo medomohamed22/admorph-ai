@@ -10,8 +10,8 @@ test('landing points to the wizard and the gallery', async ({ page }) => {
   await page.locator('.home-actions a[href="/oneshot"]').click();
   await expect(page).toHaveURL(/\/oneshot$/);
   await page.goto('/');
-  await page.locator('.home-actions a[href="/gallery"]').click();
-  await expect(page).toHaveURL(/\/gallery$/);
+  await page.locator('.home-actions a[href="/shelf"]').click();
+  await expect(page).toHaveURL(/\/shelf$/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });

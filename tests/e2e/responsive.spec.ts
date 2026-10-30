@@ -26,7 +26,7 @@ test('sticky actions and nav adapt to the viewport', async ({ page }) => {
 });
 
 test('no horizontal overflow on the main pages', async ({ page }) => {
-  for (const path of ['/', '/oneshot', '/gallery', '/brands', '/settings', '/variants', '/themes']) {
+  for (const path of ['/', '/oneshot', '/shelf', '/gallery', '/brands', '/settings', '/variants', '/themes']) {
     await page.goto(path);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     expect(overflow, `${path} overflows`).toBe(false);
