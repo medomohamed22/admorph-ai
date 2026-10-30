@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Stage, Layer, Rect, Text, Image as KonvaImage, Group, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Line, Text, Image as KonvaImage, Group, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { ONESHOT_WIDTH, ONESHOT_HEIGHT, clampOneshotElement, type OneshotCanvasElement } from '@/lib/ai/oneshot';
 import { fitContain } from '@/lib/editor/fit';
+import { snapBox, type Guide } from '@/lib/oneshot/snap';
 import { useObjectUrl } from './logo';
 
 const ARABIC = /[\u0600-\u06FF]/;
@@ -38,6 +39,8 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
   // A hidden wizard step reports width 0; keep the last real width so the
   // stage (and its export) stays valid while another step is on screen.
   const [width, setWidth] = useState(360);
+  // Guide lines shown while an element snaps to the frame or to another element.
+  const [guides, setGuides] = useState<Guide[]>([]);
   useEffect(() => { if (!host.current) return; const observer = new ResizeObserver(entries => { const next = entries[0].contentRect.width; if (next > 0) setWidth(next); }); observer.observe(host.current); return () => observer.disconnect(); }, []);
   const scale = Math.min(1, (width - 20) / ONESHOT_WIDTH, 740 / ONESHOT_HEIGHT);
   useEffect(() => {
@@ -67,7 +70,13 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
         const rtl = ARABIC.test(element.text ?? '');
         return <Group key={element.id} id={element.id} x={element.x} y={element.y} width={element.width} height={element.height}
           draggable={!disabled} onClick={() => select(element.id)} onTap={() => select(element.id)}
-          onDragEnd={event => { const safe = clampOneshotElement({ ...element, x: event.target.x(), y: event.target.y() }); event.target.position({ x: safe.x, y: safe.y }); change(element.id, safe); }}
+          onDragMove={event => {
+            const others = elements.filter(item => item.id !== element.id);
+            const snapped = snapBox({ x: event.target.x(), y: event.target.y(), width: element.width, height: element.height }, others, Math.min(24, 8 / scale));
+            event.target.position({ x: snapped.x, y: snapped.y });
+            setGuides(snapped.guides);
+          }}
+          onDragEnd={event => { setGuides([]); const safe = clampOneshotElement({ ...element, x: event.target.x(), y: event.target.y() }); event.target.position({ x: safe.x, y: safe.y }); change(element.id, safe); }}
           onTransformEnd={event => { const node = event.target; const safe = clampOneshotElement({ ...element, x: node.x(), y: node.y(), width: element.width * node.scaleX(), height: element.height * node.scaleY() }); node.setAttrs({ x: safe.x, y: safe.y, width: safe.width, height: safe.height, scaleX: 1, scaleY: 1 }); change(element.id, safe); }}>
           {/* Invisible hit area: the image child below is non-listening, so
               without this rect the group has nothing to grab — taps and
@@ -75,9 +84,13 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
               The rect is transparent, so exports and the model see nothing. */}
           {element.blob && <Rect x={0} y={0} width={element.width} height={element.height} fill="rgba(0,0,0,0)" />}
           {element.blob ? <Raster blob={element.blob} id={element.id} width={element.width} height={element.height} onReady={onReady}/> : null}
-          {isText && <Text text={element.text ?? ''} width={element.width} height={element.height} padding={8} fill={element.color ?? '#16100C'} fontFamily={element.fontFamily ? `${element.fontFamily}, ${rtl ? 'Cairo' : 'Inter'}` : rtl ? 'Cairo' : 'Inter'} fontSize={element.fontSize ?? 64} lineHeight={1.2} align="center" verticalAlign="middle" wrap="word" direction={rtl ? 'rtl' : 'ltr'}/>}
+          {isText && element.badge && <Rect x={0} y={0} width={element.width} height={element.height} fill={element.fill ?? '#16100C'} cornerRadius={element.badge === 'cta' ? Math.min(28, element.height / 2) : Math.min(element.width, element.height) / 2} listening={false}/>}
+          {isText && <Text text={element.text ?? ''} width={element.width} height={element.height} padding={element.badge ? 14 : 8} fill={element.color ?? '#16100C'} fontFamily={element.fontFamily ? `${element.fontFamily}, ${rtl ? 'Cairo' : 'Inter'}` : rtl ? 'Cairo' : 'Inter'} fontSize={element.fontSize ?? 64} fontStyle={element.bold ? 'bold' : 'normal'} lineHeight={1.2} align={element.badge ? 'center' : element.align ?? 'center'} verticalAlign="middle" wrap="word" direction={rtl ? 'rtl' : 'ltr'}/>}
         </Group>;
       })}
+      {guides.map(guide => guide.axis === 'x'
+        ? <Line key={`x${guide.at}`} points={[guide.at, 0, guide.at, ONESHOT_HEIGHT]} stroke="#e0218a" strokeWidth={2 / scale} dash={[12 / scale, 8 / scale]} listening={false}/>
+        : <Line key={`y${guide.at}`} points={[0, guide.at, ONESHOT_WIDTH, guide.at]} stroke="#e0218a" strokeWidth={2 / scale} dash={[12 / scale, 8 / scale]} listening={false}/>)}
       <Transformer ref={transformer} rotateEnabled={false} flipEnabled={false} enabledAnchors={!disabled && selected ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : []} boundBoxFunc={(old, next) => Math.abs(next.width) < 24 * scale || Math.abs(next.height) < 24 * scale ? old : next}/>
     </Layer>
   </Stage></div></div>;
