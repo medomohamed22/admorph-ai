@@ -1,6 +1,7 @@
 import { getDatabase, type AdMorphDB } from '../db/dexie';
 import type { BrandInput } from '../db/schema';
 import type { OneshotCanvasElement } from '../ai/oneshot';
+import type { PlanDialect } from '../campaign/dialects';
 
 /**
  * The one-shot wizard's progress, kept in IndexedDB so a reload, a trip to
@@ -24,6 +25,7 @@ export type OneshotDraft = {
   selectedConcept: number | null;
   suggestedFonts: string[];
   elements: OneshotCanvasElement[];
+  dialect?: PlanDialect;
   savedAt: string;
 };
 

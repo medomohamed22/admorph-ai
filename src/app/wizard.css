@@ -94,3 +94,25 @@ html:has(.wizard-bar) { scroll-padding-top: 88px; scroll-padding-bottom: 150px; 
   .wizard-panel.enter-forward, .wizard-panel.enter-back, .idea-card { animation: none; }
   .wizard-link i { transition: none; }
 }
+
+/* ---------------- Dialect picker ---------------- */
+.dialect-pick { border: 0; padding: 0; margin: 0 0 var(--space-4); min-width: 0; }
+.dialect-pick legend { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: var(--space-2); }
+.dialect-grid { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.dialect-chip { min-height: 44px; padding: 0 16px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out); }
+.dialect-chip:active { transform: scale(.97); }
+.dialect-chip:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+.dialect-chip.selected { border-color: transparent; background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, var(--accent-gradient) border-box; }
+.dialect-preview { display: grid; gap: 2px; margin: var(--space-3) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-sm); background: var(--surface-2); border-inline-start: 3px solid var(--accent-1); }
+.dialect-preview small { color: var(--muted); font-size: 12px; }
+.dialect-preview span { font-size: var(--text-lg); font-weight: 700; animation: home-rise-in var(--dur-base) var(--ease-out) both; }
+
+/* ---------------- Season cards ---------------- */
+.theme-pick-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important; gap: var(--space-3) !important; }
+.theme-pick { position: relative; min-height: 132px !important; padding: var(--space-4) !important; justify-content: flex-end; overflow: hidden; }
+.theme-pick-strip { position: absolute; inset: 0; height: auto !important; margin: 0 !important; border-radius: 0 !important; opacity: .85; transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-slow) var(--ease-out); }
+.theme-pick:hover .theme-pick-strip { transform: scale(1.06); }
+.theme-pick strong { position: relative; font-size: var(--text-md) !important; color: #fff; text-shadow: 0 1px 8px rgba(0, 0, 0, .55); }
+.theme-pick.selected .theme-pick-strip { opacity: 1; }
+.theme-pick.selected::after { content: '✓'; position: absolute; top: 10px; inset-inline-end: 10px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #111; font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .dialect-preview span { animation: none; } .theme-pick:hover .theme-pick-strip { transform: none; } }

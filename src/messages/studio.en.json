@@ -113,7 +113,15 @@
     "trustHashing": "Computing fingerprints…",
     "trustChecks": "Deterministic layout checks",
     "trustCertValid": "Certificate: valid for this exact mockup.",
-    "trustCertCleared": "Certificate: cleared because the mockup changed after review."
+    "trustCertCleared": "Certificate: cleared because the mockup changed after review.",
+    "dialectLabel": "Write the copy in",
+    "dialectPreview": "Tone example (a fixed sample, not generated):",
+    "dialect_ar_eg": "Egyptian",
+    "dialect_ar_gulf": "Gulf",
+    "dialect_ar_lev": "Levantine",
+    "dialect_ar_sd": "Sudanese",
+    "dialect_ar_msa": "Standard Arabic",
+    "dialect_en": "English"
   },
   "home": {
     "eyebrow": "Built on three Meta models",

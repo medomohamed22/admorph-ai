@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useMessages } from './workspace';
 import { useObjectUrl } from './logo';
-import { ButtonLink, Button } from './ui';
+import { ButtonLink, Button, Toast } from './ui';
 import { IconCalendar, IconLayers, IconSparkles } from './ui/icons';
 import { loadSavedAds, deleteSavedAd } from '@/lib/db/repository';
 import type { SavedAd } from '@/lib/db/schema';
@@ -33,7 +33,7 @@ export default function AdGallery() {
   const [ads, setAds] = useState<SavedAd[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [armed, setArmed] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState<{ text: string; tone: 'ok' | 'bad' } | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -44,8 +44,8 @@ export default function AdGallery() {
   async function remove(ad: SavedAd) {
     if (armed !== ad.id) { setArmed(ad.id); return; }
     setArmed(null);
-    try { await deleteSavedAd(ad.id); setAds(previous => (previous ?? []).filter(item => item.id !== ad.id)); setNotice(t.deleted); }
-    catch { setNotice(t.deleteFailed); }
+    try { await deleteSavedAd(ad.id); setAds(previous => (previous ?? []).filter(item => item.id !== ad.id)); setNotice({ text: t.deleted, tone: 'ok' }); }
+    catch { setNotice({ text: t.deleteFailed, tone: 'bad' }); }
   }
 
   return <main className="remix-page gallery-page">
@@ -55,7 +55,7 @@ export default function AdGallery() {
       <ButtonLink href="/themes" icon={<IconCalendar size={16} />}>{t.themes}</ButtonLink>
     </div>
     {failed && <p className="request-error" role="alert">{t.loadFailed}</p>}
-    {notice && <p className="request-status" role="status">{notice}</p>}
+    {notice && <Toast message={notice.text} tone={notice.tone} onDone={() => setNotice(null)} />}
     {ads === null
       ? <div className="gallery-grid" aria-busy="true">{[0, 1, 2].map(index => <div key={index} className="gallery-card gallery-skeleton" />)}</div>
       : ads.length === 0
