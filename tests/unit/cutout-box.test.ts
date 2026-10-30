@@ -41,3 +41,23 @@ describe('tight vision boxes', () => {
     expect(clippedSides(dot, width, height, { left: 3, top: 1, right: 17, bottom: 19 })).toEqual([]);
   });
 });
+
+import { dropSmallIslands } from '../../src/lib/cutout/sam-client';
+
+describe('detached mask fragments', () => {
+  it('clears small pieces that do not touch the product and keeps large parts', () => {
+    const width = 30, height = 20, alpha = new Uint8ClampedArray(width * height);
+    const fill = (x0: number, y0: number, x1: number, y1: number) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) alpha[y * width + x] = 255; };
+    fill(2, 2, 12, 14);   // the product: 120 px
+    fill(14, 2, 24, 12);  // a second large part: 100 px (kept)
+    fill(4, 16, 7, 18);   // a price-tag fragment: 6 px (cleared)
+    expect(dropSmallIslands(alpha, width, height)).toBe(6);
+    expect(alpha[17 * width + 5]).toBe(0);
+    expect(alpha[5 * width + 5]).toBe(255);
+    expect(alpha[5 * width + 20]).toBe(255);
+  });
+  it('leaves a single-piece mask alone', () => {
+    const alpha = new Uint8ClampedArray(16).fill(255);
+    expect(dropSmallIslands(alpha, 4, 4)).toBe(0);
+  });
+});

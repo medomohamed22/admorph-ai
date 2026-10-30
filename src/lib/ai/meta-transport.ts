@@ -17,7 +17,7 @@ export async function metaCall(path:'chat/completions'|'images/generations'|'ima
  if(['unsupported_modality','unsupported_endpoint','model_not_supported','unsupported_task'].includes(value??''))throw new ProviderError('unsupported_task',422);
  if(value==='insufficient_quota'||value==='quota_exceeded')throw new ProviderError('quota',429);
  const parsed=z.object({error:z.object({message:z.string().optional(),param:z.string().nullable().optional()})}).safeParse(error),safe=response.status===400?new ProviderError('invalid_request'):httpError(response.status);safe.details={source:'meta',upstreamStatus:response.status,message:scrubProviderMessage(parsed.success?parsed.data.error.message:undefined,key),parameter:parsed.success?scrubProviderMessage(parsed.data.error.param,key)?.slice(0,100):undefined};throw safe;}
- return await readJsonLimited(response,path==='chat/completions'?200000:5*1024*1024);
+ return await readJsonLimited(response,path==='chat/completions'?200000:16*1024*1024);
  }catch(error){if(signal.aborted)throw new ProviderError('timeout',504);throw error instanceof ProviderError?error:new ProviderError('network',502);}
 }
 export async function metaJson<T>(model:string,key:string,prompt:string,schema:z.ZodType<T>,image:z.infer<typeof inputImage>|undefined,signal:AbortSignal,options:TransportOptions={}){
@@ -28,12 +28,25 @@ export async function metaJson<T>(model:string,key:string,prompt:string,schema:z
  if(choice.message.refusal||choice.finish_reason==='content_filter')throw new ProviderError('plan_blocked',422);if(choice.finish_reason==='length')throw new ProviderError('plan_truncated',502);if(choice.finish_reason!=='stop')throw new ProviderError('invalid_response',502);
  try{const sanitized=(choice.message.content??'').split(key).join('[redacted]');return schema.parse(JSON.parse(sanitized));}catch{throw new ProviderError('invalid_response',502);}
 }
+/** Largest painted image accepted from Meta, and the largest sent on to the browser (the
+ * hosting platform caps a response near 4.5 MB). Muse Image returns PNGs of about 3 MB, so
+ * anything over the response cap is re-encoded rather than refused. */
+const RAW_IMAGE_LIMIT=12*1024*1024,RESPONSE_IMAGE_LIMIT=3*1024*1024;
+/** Shrink an oversized painted image under the response cap: lossless PNG first, then JPEG. */
+export async function fitImageResponse(bytes:Buffer,format:string,limit=RESPONSE_IMAGE_LIMIT):Promise<{bytes:Buffer;mimeType:string}>{
+ if(bytes.length<=limit)return {bytes,mimeType:`image/${format}`};
+ const {default:sharp}=await import('sharp');
+ const png=await sharp(bytes).png({compressionLevel:9,adaptiveFiltering:true}).toBuffer();
+ if(png.length<=limit)return {bytes:png,mimeType:'image/png'};
+ for(const quality of [92,85,78]){const jpeg=await sharp(bytes).flatten({background:'#ffffff'}).jpeg({quality,mozjpeg:true}).toBuffer();if(jpeg.length<=limit)return {bytes:jpeg,mimeType:'image/jpeg'};}
+ throw new ProviderError('image_response',502);
+}
 export async function metaImage(model:string,key:string,prompt:string,signal:AbortSignal,options:TransportOptions={},image?:z.infer<typeof inputImage>){
  if(image)await validateRaster(image);
  const json=await metaCall(image?'images/edits':'images/generations',{model,prompt,n:1,response_format:'b64_json',output_format:'png',...(image?{images:[{image_url:`data:${image.mimeType};base64,${image.data}`}]}:{})},key,signal,options);
- const strict=z.object({data:z.array(z.object({b64_json:z.string().max(4*1024*1024).regex(/^[A-Za-z0-9+/]+={0,2}$/)})).length(1)}).safeParse(json);
+ const strict=z.object({data:z.array(z.object({b64_json:z.string().max(Math.ceil(RAW_IMAGE_LIMIT*4/3)+4).regex(/^[A-Za-z0-9+/]+={0,2}$/)})).length(1)}).safeParse(json);
  let bytes:Buffer;
- if(strict.success){bytes=Buffer.from(strict.data.data[0].b64_json,'base64');if(bytes.length>3*1024*1024)throw new ProviderError('image_response',502);}
+ if(strict.success){bytes=Buffer.from(strict.data.data[0].b64_json,'base64');if(bytes.length>RAW_IMAGE_LIMIT)throw new ProviderError('image_response',502);}
  else {
    const first=Array.isArray((json as {data?:unknown})?.data)?(json as {data:unknown[]}).data[0] as Record<string,unknown>|undefined:undefined;
    if(typeof first?.b64_json==='string')throw new ProviderError('image_response',502);
@@ -41,11 +54,11 @@ export async function metaImage(model:string,key:string,prompt:string,signal:Abo
    if(url&&isFetchableImageUrl(url)){
      const fetched=await (options.fetcher??fetch)(url,{signal,redirect:'error',cache:'no-store',credentials:'omit',referrerPolicy:'no-referrer'});
      if(!fetched.ok)throw new ProviderError('image_response',502);
-     bytes=Buffer.from(await fetched.arrayBuffer());if(bytes.length>3*1024*1024)throw new ProviderError('image_response',502);
+     bytes=Buffer.from(await fetched.arrayBuffer());if(bytes.length>RAW_IMAGE_LIMIT)throw new ProviderError('image_response',502);
    } else if(url)throw new ProviderError('image_response',502);
    else throw new ProviderError('image_shape',502,{source:'meta',fields:responseShape(json)});
  }
- const {default:sharp}=await import('sharp');try{const raster=sharp(bytes,{limitInputPixels:4096*4096}),meta=await raster.metadata();if(!meta.width||!meta.height||meta.width>4096||meta.height>4096||!['png','jpeg','webp'].includes(meta.format??'')||(meta.pages??1)>1)throw new Error();await raster.stats();return {bytes,mimeType:`image/${meta.format}`};}catch{throw new ProviderError('image_response',502);}
+ const {default:sharp}=await import('sharp');try{const raster=sharp(bytes,{limitInputPixels:4096*4096}),meta=await raster.metadata();if(!meta.width||!meta.height||meta.width>4096||meta.height>4096||!['png','jpeg','webp'].includes(meta.format??'')||(meta.pages??1)>1)throw new Error();await raster.stats();return await fitImageResponse(bytes,meta.format!);}catch{throw new ProviderError('image_response',502);}
 }
 /** Only an https URL on a public host may be fetched server-side. The URL
  * itself is never returned to the client — only the validated bytes. */

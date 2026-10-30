@@ -29,3 +29,31 @@ test('a tight vision box is padded, and a cut that runs into the box edge is ret
   expect(second.top).toBeLessThanOrEqual(26);
   expect(second.bottom - second.top).toBeGreaterThan(first.bottom - first.top);
 });
+
+// Live finding (30 Oct): after "Improve product" the app cut the improved photo
+// with the text prompt only; SAM answered with no mask and the improvement was
+// thrown away. The cut must follow the box path and the improvement must stay.
+test('Improve product keeps the improved photo and cuts it along the Muse Spark box', async ({ page }) => {
+  test.setTimeout(90_000);
+  const prompts: string[] = [];
+  const product = await page.context().request.get('/demo/sora-product.png').then(response => response.body()).catch(() => null);
+  await page.route('**/api/ai/product-makeover', async route => route.fulfill({ body: product ?? Buffer.alloc(0), contentType: 'image/png' }));
+  await page.route('**/api/ai/product-box', route => route.fulfill({ json: { left: 0.1, top: 0.1, right: 0.9, bottom: 0.9 } }));
+  await page.route('**/api/ai/segment', route => {
+    const body = route.request().postDataJSON();
+    prompts.push(body.box ? 'box' : body.prompt ? 'text' : 'point');
+    // Like the live run: the text prompt finds nothing, the box does.
+    if (!body.box) return route.fulfill({ status: 502, json: { error: { code: 'sam_no_mask', details: { source: 'meta', message: 'SAM returned no mask records' } } } });
+    const { left, top, right, bottom } = body.box, dx = Math.round((right - left) * 0.1), dy = Math.round((bottom - top) * 0.1);
+    return route.fulfill({ json: { masks: [{ objectId: 'product', left: left + dx, top: top + dy, right: right - dx, bottom: bottom - dy, width: 8, height: 8, rasterBase64: Buffer.alloc(64, 1).toString('base64') }] } });
+  });
+  await page.goto('/settings');
+  await page.locator('#api-key').fill('fixture-enhance-key');
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByLabel(/Improve product/).click();
+  await expect(page.getByTestId('oneshot-enhance-compare')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await expect(page.getByLabel(/Improve product/)).toBeChecked();
+  expect(prompts).toEqual(['box']);
+});

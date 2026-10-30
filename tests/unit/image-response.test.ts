@@ -51,3 +51,32 @@ describe('metaImage response handling', () => {
       .rejects.toMatchObject({ code: 'image_response' });
   });
 });
+
+import { fitImageResponse } from '../../src/lib/ai/meta-transport';
+
+describe('oversized painted images', () => {
+  // Random noise does not compress: a 1100x1100 noise PNG is about 3.6 MB, like a large Muse Image result.
+  async function noisyPng(size = 1100) {
+    const raw = Buffer.alloc(size * size * 3);
+    for (let i = 0; i < raw.length; i++) raw[i] = (i * 2654435761) >>> 24;
+    return sharp(raw, { raw: { width: size, height: size, channels: 3 } }).png({ compressionLevel: 0 }).toBuffer();
+  }
+  it('passes a small image through untouched', async () => {
+    const { bytes } = await pngFixture();
+    expect(await fitImageResponse(bytes, 'png')).toEqual({ bytes, mimeType: 'image/png' });
+  });
+  it('re-encodes an image over the response cap instead of refusing it', async () => {
+    const big = await noisyPng();
+    expect(big.length).toBeGreaterThan(3 * 1024 * 1024);
+    const fitted = await fitImageResponse(big, 'png');
+    expect(fitted.bytes.length).toBeLessThanOrEqual(3 * 1024 * 1024);
+    const meta = await sharp(fitted.bytes).metadata();
+    expect([meta.width, meta.height]).toEqual([1100, 1100]);
+  });
+  it('metaImage accepts a painted PNG over 3 MB', async () => {
+    const big = await noisyPng();
+    const fetcher = vi.fn(async () => Response.json({ data: [{ b64_json: big.toString('base64') }] }));
+    const result = await metaImage('muse-image-1.0', 'fixture-key', 'a prompt', signal(), { fetcher });
+    expect(result.bytes.length).toBeLessThanOrEqual(3 * 1024 * 1024);
+  });
+});
