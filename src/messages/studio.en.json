@@ -126,7 +126,24 @@
     "certExtra": "No extra text",
     "certExtraFound": "Painted but not in your mockup: {list}",
     "certExtraNone": "Only your words appear",
-    "shelfLink": "Whole shelf? Make a campaign"
+    "shelfLink": "Whole shelf? Make a campaign",
+    "briefSetting": "Place",
+    "briefLight": "Light",
+    "briefCamera": "Camera",
+    "briefPalette": "Palette",
+    "moreFonts": "More fonts",
+    "fewerFonts": "Fewer fonts",
+    "sizesTitle": "Every size",
+    "sizesLead": "Your 4:5 ad, ready for the feed, square posts and stories. The framed versions are made on your device; Muse Image can extend the scene to fill the frame.",
+    "sizeFeed": "4:5 · Feed",
+    "sizeSquare": "1:1 · Square post",
+    "sizeStory": "9:16 · Story & Reels",
+    "sizeLocal": "Framed on your device",
+    "sizeAi": "Scene extended by Muse Image",
+    "sizeAiReframed": "Muse Image returned another shape; framed to fit",
+    "sizeExtend": "Extend the scene (2 requests)",
+    "sizeExtending": "Extending the scene",
+    "sizeDownload": "Download"
   },
   "home": {
     "eyebrow": "Built on three Meta models",
@@ -232,5 +249,10 @@
     "sampleTitle": "No shelf nearby?",
     "sampleHint": "Try a sample shelf with three products and price tags. It still uses your key.",
     "sampleCta": "Try the sample shelf"
+  },
+  "remix": {
+    "axis_setting": "New place",
+    "axis_light": "New light and angle",
+    "axis_palette": "New palette and mood"
   }
 }

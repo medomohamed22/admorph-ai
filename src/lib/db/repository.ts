@@ -1,6 +1,7 @@
 import { getDatabase, type AdMorphDB } from './dexie';
 import { browserPrefersArabic } from '../i18n';
 import { brandSchema, savedSettingsSchema, cacheSchema, encryptedCredentialSchema, type Brand, type Asset, type SavedSettings, type CatalogCache, type SavedAd } from './schema';
+import { avoidScenesSchema, rememberScene } from '../ai/art-brief';
 
 export async function loadWorkspace(db: AdMorphDB = getDatabase()) {
   const [settings, rawBrands, assets] = await Promise.all([db.settings.toArray(), db.brands.toArray(), db.assets.toArray()]);
@@ -54,4 +55,16 @@ export async function loadSavedAds(db: AdMorphDB = getDatabase()) {
 }
 export async function deleteSavedAd(id: string, db: AdMorphDB = getDatabase()) {
   await db.savedAds.delete(id);
+}
+
+/** The settings of the last few ads, newest first, so the planner can avoid them. */
+export async function loadRecentScenes(db: AdMorphDB = getDatabase()): Promise<string[]> {
+  const row = await db.settings.get('recentScenes');
+  const parsed = avoidScenesSchema.safeParse(row?.value);
+  return parsed.success ? parsed.data : [];
+}
+export async function rememberRecentScene(setting: string, db: AdMorphDB = getDatabase()) {
+  const next = rememberScene(await loadRecentScenes(db), setting);
+  await db.settings.put({ key: 'recentScenes', value: next });
+  return next;
 }

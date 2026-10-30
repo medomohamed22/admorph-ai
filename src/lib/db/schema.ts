@@ -19,7 +19,7 @@ export type Asset = { id: string; kind: 'logo' | 'product' | 'background' | 'cut
 /** A finished ad image saved to the project's gallery, so the remix pages
  *  (variants, themes) can pick it as a source without re-uploading. */
 /** `cutout` keeps the product cutout the ad was painted from, so variants and seasons can redesign from the product instead of repainting the finished ad. */
-export type SavedAd = { id: string; blob: Blob; source: 'oneshot' | 'variants' | 'themes' | 'shelf'; brand: BrandInput; headline: string; hasLogo: boolean; createdAt: string; cutout?: Blob };
+export type SavedAd = { id: string; blob: Blob; source: 'oneshot' | 'variants' | 'themes' | 'shelf'; brand: BrandInput; headline: string; hasLogo: boolean; createdAt: string; cutout?: Blob; /** The scene it was painted in, so variants can move away from it. */ scene?: string; /** Output size; older ads are 4:5. */ format?: '1080x1350' | '1080x1080' | '1080x1920' };
 export const selectionSchema = z.object({ provider: providerIdSchema, modelId: z.string().min(1).max(240), manual: z.boolean().optional(), imageCapabilityConfirmed: z.boolean().optional() }).strict();
 export const rolesSchema = z.object({ planner: selectionSchema.nullable(), image: selectionSchema.nullable(), critic: selectionSchema.nullable(), edit: selectionSchema.nullable() }).strict();
 export const savedSettingsSchema = z.object({

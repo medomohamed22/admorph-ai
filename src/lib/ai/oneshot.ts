@@ -89,7 +89,8 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     else if (element.kind === 'phone') lines.push(`The phone number "${element.text ?? ''}" stays ${zone}; every digit must be exactly as written.`);
     else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled.`);
   }
-  lines.push(`Background: ${scene}.`);
+  lines.push(`Scene: ${scene}.`);
+  lines.push('Paint a real, specific place with depth and props, never a plain studio backdrop or empty void. Light the product to match the scene, with natural contact shadows and reflections, so it sits in the scene rather than floating on it.');
   lines.push(`Brand colors: ${brand.colors.join(', ')}. Echo them in the scene. The brand's name is context only: never write it as text.`);
   const allowed = layout.filter(element => (element.kind === 'text' || element.kind === 'phone') && element.text?.trim()).map(element => `"${element.text!.trim()}"`);
   lines.push(allowed.length
@@ -171,4 +172,36 @@ export function initialOneshotLayout(hasLogo: boolean): OneshotElement[] {
   ];
   if (hasLogo) layout.push({ id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 });
   return layout;
+}
+
+/** The two extra platform sizes a finished 4:5 ad can be extended to. */
+export const RESIZE_FORMATS = ['1080x1080', '1080x1920'] as const;
+export type ResizeFormat = (typeof RESIZE_FORMATS)[number];
+
+/**
+ * Resize input: the finished ad already placed on the new canvas (the client
+ * frames it and fills the bands with a blur), plus the exact words it shows.
+ */
+export const resizeRequestSchema = metaBase.extend({
+  imageConsent: z.literal(true),
+  image: inputImage,
+  format: z.enum(RESIZE_FORMATS),
+  words: z.array(z.string().trim().min(1).max(200)).max(8),
+  language: z.enum(['en', 'ar']),
+}).strict();
+
+export function buildResizePrompt(format: ResizeFormat, words: string[], language: 'en' | 'ar'): string {
+  const shape = format === '1080x1080' ? 'square 1:1 feed post' : 'tall 9:16 story';
+  const bands = format === '1080x1080' ? 'left and right' : 'top and bottom';
+  const lines = [
+    `This is a finished advertisement placed in the middle of a ${shape} canvas. The blurred bands on the ${bands} are empty space, not part of the design.`,
+    `Extend the ad's own scene into those bands so the whole frame reads as one seamless photograph: continue the same setting, surfaces, light and colors to the edges.`,
+    'Keep everything inside the original ad exactly as it is: the product, the logo, every word and its position. Do not move, redraw, enlarge or duplicate any of them.',
+    words.length
+      ? `The only words allowed in the image are ${words.map(word => `"${word}"`).join(', ')}, plus text printed on the product itself. Write nothing new in the extended areas.`
+      : 'Write no words in the extended areas.',
+  ];
+  if (language === 'ar') lines.push('Arabic text stays right to left with correctly joined letters.');
+  lines.push('No blur, seams, frames or borders may remain; no objects cropped by the frame edges.');
+  return lines.join(' ');
 }

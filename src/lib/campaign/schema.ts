@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { brandInputSchema } from '../db/schema';
 import { selectionSchema } from '../db/schema';
 import { SIZE_FORMATS } from '../editor/sizes';
+import { artBriefSchema, avoidScenesSchema } from '../ai/art-brief';
 
 export const MAX_PRODUCT_BYTES = 2 * 1024 * 1024;
 export const goalSchema = z.enum(['awareness', 'consideration', 'conversion']);
@@ -12,6 +13,7 @@ export const conceptFieldsSchema = z.object({
   angle: angleSchema, title: z.string().trim().min(1).max(100),
   audienceAngle: z.string().trim().min(1).max(240), headline: z.string().trim().min(1).max(120),
   caption: z.string().trim().min(1).max(1200), copyLocale:z.enum(['ar_msa','ar_eg','ar_gulf','ar_lev','en_direct','en_genz','en_luxury']).optional(),ctaText:z.string().max(40).optional(), visualDirection: z.string().trim().min(1).max(1000), spatialPreset: z.enum(['top_copy_center_product','rtl_right_copy_left_product','ltr_left_copy_right_product','bottom_banner_center_stage']).optional(), negativeSpaceInstruction: z.string().max(600).optional(),
+  artBrief: artBriefSchema.optional(),
 }).strict();
 export const planSchema = z.object({ concepts: z.array(conceptFieldsSchema).length(3), fonts: z.array(z.string().trim().min(1).max(60)).max(3).optional() }).strict().superRefine((value, ctx) => {
   if (new Set(value.concepts.map(concept => concept.angle)).size !== 3) ctx.addIssue({ code: 'custom', message: 'distinct_angles' });
@@ -47,6 +49,8 @@ export const planRequestSchema = z.object({
   brief: z.string().trim().max(2000).default(''), goal: goalSchema, creativeLanguage: z.enum(['en', 'ar']), format: z.enum(SIZE_FORMATS),
   /** Optional copy dialect; when present the planner writes every headline and caption in it. */
   dialect: planDialectSchema.optional(),
+  /** Settings of the last few ads, so the planner picks a new place each time. */
+  avoidScenes: avoidScenesSchema.optional(),
   product: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     data: z.string().min(4).max(4 * Math.ceil(MAX_PRODUCT_BYTES / 3)).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
 }).strict();

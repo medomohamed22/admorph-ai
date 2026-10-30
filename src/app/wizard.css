@@ -56,6 +56,20 @@
 .idea-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin: var(--space-3) 0; }
 .idea-card { margin: 0 !important; text-align: start; min-height: 88px !important; animation: home-rise-in var(--dur-base) var(--ease-out) both; }
 .idea-card[aria-pressed=true] { border-color: var(--accent-1); box-shadow: 0 0 0 3px var(--accent-soft); }
+.idea-card { display: grid !important; gap: 8px; align-content: start; justify-content: stretch !important; justify-items: start; }
+.idea-card-title { font-weight: 700; }
+.idea-brief { display: grid; gap: 4px; font-size: 12px; font-weight: 400; color: var(--muted); line-height: 1.4; }
+.idea-brief b { color: var(--text); font-weight: 600; margin-inline-end: 4px; }
+.idea-brief-palette { display: flex; flex-wrap: wrap; gap: 4px; }
+.idea-brief-palette i { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface-2); font-style: normal; font-size: 11px; }
+.font-pick { display: grid; gap: var(--space-2); }
+.font-pick p { margin: 0; }
+.font-pick-row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.font-pick-row .button { margin: 0; }
+.font-chip { display: inline-grid !important; gap: 0; justify-items: center; min-height: 44px; font-size: 17px; }
+.font-chip small { font-family: var(--font-sans, inherit); font-size: 11px; color: var(--muted); }
+.font-sample { font-size: 20px; line-height: 1.2; }
+.font-more-list { animation: home-rise-in var(--dur-base) var(--ease-out) both; }
 .idea-skeleton { border-radius: var(--radius); border: 1px solid var(--line); background: linear-gradient(100deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%); background-size: 300% 100%; animation: gallery-shimmer 1.4s linear infinite; }
 @keyframes home-rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
@@ -117,3 +131,21 @@ html:has(.wizard-bar) { scroll-padding-top: 88px; scroll-padding-bottom: 150px; 
 .theme-pick.selected::after { content: '✓'; position: absolute; top: 10px; inset-inline-end: 10px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #111; font-weight: 800; }
 @media (prefers-reduced-motion: reduce) { .dialect-preview span { animation: none; } .theme-pick:hover .theme-pick-strip { transform: none; } }
 .wizard-head-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.size-set { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+.size-set h3, .size-lead { margin: 0; }
+.size-lead { color: var(--muted); font-size: 14px; }
+.size-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); align-items: start; }
+.size-tile { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; animation: home-rise-in var(--dur-base) var(--ease-out) both; }
+.size-media { display: flex; align-items: center; justify-content: center; height: 240px; min-width: 0; border-radius: var(--radius-sm); background: var(--surface-2); overflow: hidden; }
+.size-media img { display: block; width: 100%; height: 100%; min-width: 0; object-fit: contain; }
+.size-placeholder { max-width: 100%; max-height: 100%; border-radius: 4px; }
+.size-placeholder { width: 60%; height: 70%; background: linear-gradient(90deg, var(--surface-2), var(--surface), var(--surface-2)); background-size: 200% 100%; animation: size-shimmer 1.2s linear infinite; }
+.size-1080x1080 .size-placeholder { width: 80%; height: auto; aspect-ratio: 1; }
+.size-1080x1920 .size-placeholder { width: auto; height: 100%; aspect-ratio: 9 / 16; }
+@keyframes size-shimmer { to { background-position: -200% 0; } }
+.size-meta { display: grid; gap: 2px; }
+.size-meta small { color: var(--muted); font-size: 12px; }
+.size-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.size-actions .button { margin: 0; }
+.size-error { margin: 0; color: var(--bad); font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .size-tile, .size-placeholder { animation: none; } }

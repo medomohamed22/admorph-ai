@@ -9,12 +9,13 @@ import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error
 import { encodeProduct, fitProductImage, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
 import { oneshotScore, verifyResultSchema, type OneshotElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { REMIX_THEMES, MIN_SEASON_CUES, type RemixThemeId } from '@/lib/ai/remix';
-import { loadSavedAds, saveAd, deleteSavedAd } from '@/lib/db/repository';
+import { VARIANT_AXES, artBriefToScene, settingOf, type VariantAxis } from '@/lib/ai/art-brief';
+import { loadSavedAds, saveAd, deleteSavedAd, loadRecentScenes } from '@/lib/db/repository';
 import type { SavedAd, BrandInput } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 
-type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null };
+type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis };
 
 function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, confirmLabel, selectedLabel, disabled }: { ad: SavedAd; selected: boolean; onSelect: () => void; onDelete: () => void; armed: boolean; deleteLabel: string; confirmLabel: string; selectedLabel: string; disabled: boolean }) {
   const url = useObjectUrl(ad.blob);
@@ -28,9 +29,10 @@ function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, con
   </article>;
 }
 
-function ResultCard({ result, downloadLabel, scoreLabel }: { result: RemixResult; downloadLabel: string; scoreLabel: string }) {
+function ResultCard({ result, downloadLabel, scoreLabel, axisLabel }: { result: RemixResult; downloadLabel: string; scoreLabel: string; axisLabel?: string }) {
   const url = useObjectUrl(result.blob);
   return <article data-testid="remix-result">
+    {axisLabel && <span className="remix-axis" data-testid="remix-axis">{axisLabel}</span>}
     {url && <img className="media-reveal" src={url} alt="" style={{ maxWidth: '100%' }} />}
     <p>{result.headline}</p>
     {result.score !== null && <p>{scoreLabel}: {result.score}</p>}
@@ -88,7 +90,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
 
   /** One remix and its review. A seasonal copy that shows too few season
    *  cues is painted once more and the better of the two is kept. */
-  async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId) {
+  async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
     const paint = async () => {
       const remixResponse = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) });
@@ -110,9 +112,9 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       const again = await paint();
       if ((again.score ?? -1) > (best.score ?? -1)) best = again;
     }
-    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate };
+    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}) };
     setResults(previous => [...previous, result]);
-    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
+    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
 
   async function generate() {
@@ -129,22 +131,26 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       // is a new design rather than a repaint of the finished ad.
       const fromProduct = !!selected.cutout;
       const remixImage = selected.cutout ? await fitProductImage(selected.cutout) : fittedSource;
-      let jobs: { headline: string; scene: string; theme?: RemixThemeId }[] = [];
+      let jobs: { headline: string; scene: string; theme?: RemixThemeId; axis?: VariantAxis }[] = [];
       if (mode === 'variants') {
-        const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: '', goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
-        jobs = plan.concepts.slice(0, count).map(item => ({ headline: item.headline, scene: item.visualDirection }));
+        // Each variant moves along its own axis, away from the source ad's scene and the latest ones.
+        const recent = await loadRecentScenes().catch(() => [] as string[]);
+        const avoidScenes = [...(selected.scene ? [settingOf(selected.scene)] : []), ...recent].filter(Boolean).slice(0, 5);
+        const axisBrief = `Variants of an existing ad${selected.headline ? ` whose headline was ${JSON.stringify(selected.headline)}` : ''}${selected.scene ? ` and whose scene was ${JSON.stringify(selected.scene.slice(0, 300))}` : ''}. ${VARIANT_AXES.map((axis, index) => `Concept ${index + 1}: ${axis.instruction}.`).join(' ')} Every headline must differ from the original.`;
+        const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
+        jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id }));
       } else {
         for (const themeId of themes) {
           const theme = REMIX_THEMES.find(item => item.id === themeId)!;
           const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
           const first = plan.concepts[0];
-          if (first) jobs.push({ headline: first.headline, scene: first.visualDirection, theme: themeId });
+          if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId });
         }
       }
       setBusy('generate');
       let failures = 0;
       for (const job of jobs) {
-        try { await runJob(selected, remixImage, fromProduct, job.headline, job.scene, job.theme); }
+        try { await runJob(selected, remixImage, fromProduct, job.headline, job.scene, job.theme, job.axis); }
         catch (cause) { failures += 1; setError(metaErrorMessage(cause, errorText)); }
       }
       setFailed(failures);
@@ -190,7 +196,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     {selected && expected > 0 && <div>
       <h2>{mode === 'variants' ? t.resultsVariants : t.resultsThemes}</h2>
       {Array.from({ length: expected }).map((_, index) => index < results.length
-        ? <ResultCard key={results[index].id} result={results[index]} downloadLabel={t.download} scoreLabel={t.score} />
+        ? <ResultCard key={results[index].id} result={results[index]} downloadLabel={t.download} scoreLabel={t.score} axisLabel={results[index].axis ? t[`axis_${results[index].axis}`] : undefined} />
         : <div key={`slot-${index}`} data-testid="remix-slot" className="remix-slot"><p>{t.emptySlot}</p></div>)}
     </div>}
   </section>
