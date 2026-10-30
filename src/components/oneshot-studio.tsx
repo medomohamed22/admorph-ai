@@ -509,10 +509,10 @@ export default function OneshotStudio() {
       </div>}
       <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
-      <label>{t.brandPick}<select aria-label={t.brandPick} value={selectedBrandId} onChange={event => { const found = workspace.brands.find(item => item.id === event.target.value); if (found) { setSelectedBrandId(found.id); applyBrand(found); } else { setSelectedBrandId(''); setLogoMissing(false); } }}>
-        <option value="">{t.brandCustom}</option>
-        {workspace.brands.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
-      </select></label>
+      <fieldset className="brand-pick-fieldset"><legend>{t.brandPick}</legend><div className="brand-pick-grid">
+        <button type="button" className={selectedBrandId === '' ? 'brand-pick selected' : 'brand-pick'} aria-pressed={selectedBrandId === ''} onClick={() => { setSelectedBrandId(''); setLogoMissing(false); }}>{t.brandCustom}</button>
+        {workspace.brands.map(item => <button type="button" key={item.id} className={selectedBrandId === item.id ? 'brand-pick selected' : 'brand-pick'} aria-pressed={selectedBrandId === item.id} onClick={() => { setSelectedBrandId(item.id); applyBrand(item); }}><span className="brand-pick-name">{item.name}</span><span className="brand-pick-swatches">{item.colors.map(color => <i key={color} style={{ background: color }} />)}</span></button>)}
+      </div></fieldset>
       {logoMissing && <p role="alert">{t.brandLogoMissing}</p>}
       <Link className="button secondary" href="/brands/new?returnTo=/oneshot">{t.brandNew} ↗</Link>
       {headlineFont && <p>{t.brandFont}: {headlineFont}</p>}

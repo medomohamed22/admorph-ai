@@ -23,7 +23,7 @@ function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, con
       <span>{ad.brand.name} — {ad.headline || ad.source} — {ad.createdAt.slice(0, 10)}</span>
       {selected && <strong>{selectedLabel}</strong>}
     </button>
-    <button type="button" className="text-button danger" disabled={disabled} onClick={onDelete}>{armed ? confirmLabel : deleteLabel}</button>
+    <button type="button" className="button secondary danger" disabled={disabled} onClick={onDelete}>{armed ? confirmLabel : deleteLabel}</button>
   </article>;
 }
 
@@ -156,17 +156,16 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     <h2>{t.pickSource}</h2>
     {ads.length === 0 && <p>{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>}
     <div>{ads.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => setSelected(ad)} onDelete={() => void removeAd(ad)} armed={armingDelete === ad.id} deleteLabel={t.delete} confirmLabel={t.confirmDelete} selectedLabel={t.selected} disabled={busy !== ''} />)}</div>
-    {mode === 'variants' && <label>{t.countLabel}<select aria-label={t.countLabel} value={count} disabled={busy !== ''} onChange={event => setCount(Number(event.target.value))}>
-      <option value={2}>2</option>
-      <option value={3}>3</option>
-    </select></label>}
-    {mode === 'themes' && <fieldset>
+    {mode === 'variants' && <fieldset className="segmented-fieldset"><legend>{t.countLabel}</legend><div className="segmented" role="group" aria-label={t.countLabel}>{[2, 3].map(value => <button key={value} type="button" aria-pressed={count === value} disabled={busy !== ''} onClick={() => setCount(value)}>{value}</button>)}</div></fieldset>}
+    {mode === 'themes' && <fieldset className="theme-pick-fieldset">
       <legend>{t.themesLabel}</legend>
+      <div className="theme-pick-grid">
       {REMIX_THEMES.map(theme => {
         const label = theme.id === 'ramadan' ? t.themeRamadan : theme.id === 'eid' ? t.themeEid : theme.id === 'black-friday' ? t.themeBlackFriday : t.themeSummer;
         const checked = themes.includes(theme.id);
-        return <label key={theme.id}><input type="checkbox" checked={checked} disabled={busy !== '' || (!checked && themes.length >= 3)} onChange={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])} />{label}</label>;
+        return <button key={theme.id} type="button" className={checked ? 'theme-pick selected' : 'theme-pick'} aria-pressed={checked} disabled={busy !== '' || (!checked && themes.length >= 3)} onClick={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])}><span className="theme-pick-strip" style={{ background: theme.id === 'ramadan' ? 'linear-gradient(135deg,#0e5a3c,#d4af37)' : theme.id === 'eid' ? 'linear-gradient(135deg,#0f766e,#f5d76e)' : theme.id === 'black-friday' ? 'linear-gradient(135deg,#16100c,#df543a)' : 'linear-gradient(135deg,#7ed3e0,#f5a623)' }} /><strong>{label}</strong></button>;
       })}
+      </div>
     </fieldset>}
     <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{busy ? <WaitingText label={busyLabel} /> : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
     {failed > 0 && <p role="status">{t.failedSome}</p>}

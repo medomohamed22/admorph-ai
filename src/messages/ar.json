@@ -1194,7 +1194,8 @@
     "polishHelp": "الظل والتدرّج طبقات مشتقة منفصلة: بكسلات المنتج لا تتغير أبدًا.",
     "wordmark": "خط كلمة العلامة",
     "wordmarkBold": "تقيل",
-    "wordmarkRegular": "عادي"
+    "wordmarkRegular": "عادي",
+    "customModel": "معرّف موديل مخصص"
   },
   "remix": {
     "titleVariants": "نسخ الإعلان",

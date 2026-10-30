@@ -115,3 +115,22 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
 .waiting-spinner{width:15px;height:15px;flex:none;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:waitingSpin .8s linear infinite}
 @keyframes waitingSpin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.waiting-spinner{animation:none}}
+
+/* Phase 3-4 pickers and button hierarchy */
+.brand-pick-fieldset,.theme-pick-fieldset,.segmented-fieldset{border:0;padding:0;margin:20px 0;min-width:0}
+.brand-pick-fieldset legend,.theme-pick-fieldset legend,.segmented-fieldset legend{font-size:11px;font-weight:600;margin-bottom:7px}
+.brand-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.brand-pick{display:flex;flex-direction:column;gap:8px;align-items:flex-start;text-align:start;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:#fffef8;color:var(--ink);min-height:44px;cursor:pointer}
+.brand-pick.selected,.theme-pick.selected{border-color:#52633c;background:#eef1e2;box-shadow:0 0 0 1px #52633c55}
+.brand-pick-name{font-weight:600;font-size:13px;overflow-wrap:anywhere}
+.brand-pick-swatches{display:flex;gap:6px}
+.brand-pick-swatches i{width:18px;height:18px;border-radius:50%;border:1px solid #8885;display:inline-block}
+.theme-pick-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.theme-pick{display:flex;flex-direction:column;text-align:start;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fffef8;color:var(--ink);min-height:44px;cursor:pointer}
+.theme-pick-strip{display:block;height:28px;border-radius:6px;margin-bottom:8px}
+.theme-pick strong{font-size:13px}
+.segmented{display:flex;gap:8px;flex-wrap:wrap}
+.segmented button{min-width:44px;min-height:44px;padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-weight:600;cursor:pointer}
+.segmented button[aria-pressed=true]{background:var(--ink);color:#fff}
+.button.danger{background:#fff;border-color:#c9a09a;color:#a13026}
+.brand-library-card.active{border:2px solid #52633c;box-shadow:0 0 0 1px #52633c55}
