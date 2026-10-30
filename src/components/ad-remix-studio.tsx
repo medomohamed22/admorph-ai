@@ -15,6 +15,7 @@ import { loadSavedAds, saveAd, deleteSavedAd, loadRecentScenes } from '@/lib/db/
 import type { SavedAd, BrandInput } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
+import { withRateLimit } from '@/lib/shelf/queue';
 
 type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis };
 
@@ -62,6 +63,9 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const [failed, setFailed] = useState(0);
   const [notice, setNotice] = useState('');
   const [armingDelete, setArmingDelete] = useState<string | null>(null);
+  // Variants make several requests in a row; a per-minute limit pauses and retries instead of failing.
+  const [waitSeconds, setWaitSeconds] = useState(0);
+  const onWait = (seconds: number) => setWaitSeconds(seconds);
 
   const imageModel = provider.taskModel('image');
   const plannerModel = provider.taskModel('planner');
@@ -94,15 +98,13 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
     const paint = async () => {
-      const remixResponse = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) });
-      await requireMetaSuccess(remixResponse);
+      const remixResponse = await withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
       const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
       let score: number | null = null, certificate: VerifyResult | null = null;
       const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
       if (verifyModel) {
         const fittedResult = await fitProductImage(blob);
-        const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language, ...(theme ? { season: theme } : {}) }), signal: AbortSignal.timeout(65000) });
-        await requireMetaSuccess(verifyResponse);
+        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language, ...(theme ? { season: theme } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
         certificate = verifyResultSchema.parse(await verifyResponse.json());
         score = oneshotScore(certificate, false) - (theme && (certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES ? 20 : 0);
       }
@@ -132,18 +134,19 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       // is a new design rather than a repaint of the finished ad.
       const fromProduct = !!selected.cutout;
       const remixImage = selected.cutout ? await fitProductImage(selected.cutout) : fittedSource;
+      const encodedSource = await encodeProduct(fittedSource);
       let jobs: { headline: string; scene: string; theme?: RemixThemeId; axis?: VariantAxis }[] = [];
       if (mode === 'variants') {
         // Each variant moves along its own axis, away from the source ad's scene and the latest ones.
         const recent = await loadRecentScenes().catch(() => [] as string[]);
         const avoidScenes = [...(selected.scene ? [settingOf(selected.scene)] : []), ...recent].filter(Boolean).slice(0, 5);
         const axisBrief = `Variants of an existing ad${selected.headline ? ` whose headline was ${JSON.stringify(selected.headline)}` : ''}${selected.scene ? ` and whose scene was ${JSON.stringify(selected.scene.slice(0, 300))}` : ''}. ${VARIANT_AXES.map((axis, index) => `Concept ${index + 1}: ${axis.instruction}.`).join(' ')} Every headline must differ from the original.`;
-        const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
+        const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
         jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id }));
       } else {
         for (const themeId of themes) {
           const theme = REMIX_THEMES.find(item => item.id === themeId)!;
-          const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
+          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
           const first = plan.concepts[0];
           if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId });
         }
@@ -178,6 +181,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     {!key && <p><Link href="/settings">{t.needKey}</Link></p>}
     {error && <p className="request-error" role="alert">{error}</p>}
     {notice && <p className="request-status" role="status">{notice}</p>}
+    {waitSeconds > 0 && <p className="request-status" role="status" data-testid="remix-rate-wait">{m.shelf.rateWait.replace('{s}', String(waitSeconds))}</p>}
     <h2>{t.pickSource}</h2>
     {ads.length === 0 && <p>{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>}
     <div className="remix-source-grid">{ads.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => setSelected(ad)} onDelete={() => void removeAd(ad)} armed={armingDelete === ad.id} deleteLabel={t.delete} confirmLabel={t.confirmDelete} selectedLabel={t.selected} disabled={busy !== ''} />)}</div>
