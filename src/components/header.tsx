@@ -16,7 +16,7 @@ export function Header() {
   const path = usePathname();
   const topRef = useRef<HTMLElement>(null), bottomRef = useRef<HTMLElement>(null);
   const items: NavItem[] = [
-    { href: '/oneshot', label: m.nav.createAd, icon: <IconSparkles size={16} />, active: p => p.startsWith('/oneshot') },
+    { href: '/oneshot', label: m.nav.createAd, icon: <IconSparkles size={16} />, active: p => p.startsWith('/oneshot') || p.startsWith('/shelf') },
     { href: '/gallery', label: m.nav.gallery, icon: <IconLayers size={16} />, active: p => ['/gallery', '/variants', '/themes'].some(prefix => p.startsWith(prefix)) },
     { href: '/brands', label: m.nav.brands, icon: <IconPalette size={16} />, active: p => p.startsWith('/brands') },
     { href: '/settings', label: m.nav.settings, icon: <IconSettings size={16} />, active: p => p === '/settings' },

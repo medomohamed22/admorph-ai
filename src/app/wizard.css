@@ -116,3 +116,4 @@ html:has(.wizard-bar) { scroll-padding-top: 88px; scroll-padding-bottom: 150px; 
 .theme-pick.selected .theme-pick-strip { opacity: 1; }
 .theme-pick.selected::after { content: '✓'; position: absolute; top: 10px; inset-inline-end: 10px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #fff; color: #111; font-weight: 800; }
 @media (prefers-reduced-motion: reduce) { .dialect-preview span { animation: none; } .theme-pick:hover .theme-pick-strip { transform: none; } }
+.wizard-head-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }

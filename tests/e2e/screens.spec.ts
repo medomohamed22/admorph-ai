@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 // page must fit without horizontal scrolling, and a screenshot is kept in
 // test-results for review.
 const WIDTHS = [360, 390, 768, 1280, 1440];
-const PAGES = ['/', '/oneshot', '/gallery', '/brands', '/settings', '/variants', '/themes'];
+const PAGES = ['/', '/oneshot', '/shelf', '/gallery', '/brands', '/settings', '/variants', '/themes'];
 
 for (const locale of ['en', 'ar'] as const) {
   test(`every main page fits at 360–1440px in ${locale === 'en' ? 'English' : 'Arabic'}`, async ({ browser }, info) => {

@@ -91,7 +91,7 @@ export default function HomePage() {
         <p className="home-lead">{t.lead}</p>
         <div className="home-actions">
           <ButtonLink variant="primary" size="lg" href="/oneshot" icon={<IconSparkles size={18} />}>{t.cta}</ButtonLink>
-          <ButtonLink size="lg" href="/gallery" icon={<IconLayers size={18} />}>{t.secondary}</ButtonLink>
+          <ButtonLink size="lg" href="/shelf" icon={<IconLayers size={18} />}>{t.shelfCta}</ButtonLink>
         </div>
       </div>
       <div className="home-hero-visual">
