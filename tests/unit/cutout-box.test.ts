@@ -61,3 +61,48 @@ describe('detached mask fragments', () => {
     expect(dropSmallIslands(alpha, 4, 4)).toBe(0);
   });
 });
+
+import { chooseBoxAlpha, perimeterCoverage } from '../../src/lib/cutout/sam-client';
+
+describe('box masks: product, not background', () => {
+  const width = 20, height = 20, box = { left: 2, top: 2, right: 18, bottom: 18 };
+  const product = new Uint8ClampedArray(width * height), background = new Uint8ClampedArray(width * height);
+  for (let y = 2; y < 18; y++) for (let x = 2; x < 18; x++) {
+    const inside = x >= 6 && x < 14 && y >= 6 && y < 14;
+    (inside ? product : background)[y * width + x] = 255;
+  }
+  it('measures how much of the box outline a mask covers', () => {
+    expect(perimeterCoverage(product, width, height, box)).toBe(0);
+    expect(perimeterCoverage(background, width, height, box)).toBe(1);
+  });
+  it('prefers the product over a larger background mask', () => {
+    expect(chooseBoxAlpha([background, product], width, height, box)).toBe(product);
+  });
+  it('inverts a lone background mask inside the box', () => {
+    const chosen = chooseBoxAlpha([background], width, height, box)!;
+    expect(chosen[10 * width + 10]).toBe(255);
+    expect(chosen[3 * width + 3]).toBe(0);
+    expect(chosen[0]).toBe(0);
+  });
+  it('never treats a product that fills a full-image box as background', () => {
+    const full = new Uint8ClampedArray(width * height).fill(255);
+    expect(chooseBoxAlpha([full], width, height, { left: 0, top: 0, right: width, bottom: height })).toBe(full);
+  });
+});
+
+import { isBackgroundMask } from '../../src/lib/cutout/sam-client';
+
+describe('a product larger than its box is not mistaken for background', () => {
+  const width = 20, height = 20, box = { left: 2, top: 2, right: 18, bottom: 18 };
+  it('keeps a mask that fills the whole box', () => {
+    const solid = new Uint8ClampedArray(width * height);
+    for (let y = 2; y < 18; y++) for (let x = 2; x < 18; x++) solid[y * width + x] = 255;
+    expect(isBackgroundMask(solid, width, height, box)).toBe(false);
+    expect(chooseBoxAlpha([solid], width, height, box)).toBe(solid);
+  });
+  it('keeps a round product whose uncovered corners touch the outline', () => {
+    const round = new Uint8ClampedArray(width * height);
+    for (let y = 2; y < 18; y++) for (let x = 2; x < 18; x++) if ((x - 9.5) ** 2 + (y - 9.5) ** 2 <= 64) round[y * width + x] = 255;
+    expect(isBackgroundMask(round, width, height, box)).toBe(false);
+  });
+});

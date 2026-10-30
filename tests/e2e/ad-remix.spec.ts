@@ -196,3 +196,25 @@ test('seasonal copies redesign from the saved cutout, name the season, and repai
   expect(remixes[0]).toMatchObject({ source: 'product', theme: 'ramadan' });
   await expect(page.getByText('Certificate score: 100')).toBeVisible();
 });
+
+// Live finding (30 Oct): starting variants right after another job hit the
+// per-minute limit and the whole run failed. It now pauses and retries.
+test('a rate limit on the variants page pauses, says so, and carries on', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByRole('link', { name: 'Variants', exact: true }).click();
+  await interceptRemix(page);
+  let plans = 0;
+  await page.route('**/api/ai/plan', async route => {
+    plans += 1;
+    if (plans === 1) return route.fulfill({ status: 429, json: { error: { code: 'rate_limit' } } });
+    return route.fulfill({ json: { concepts } });
+  });
+  await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
+  await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
+  await expect(page.getByTestId('remix-rate-wait')).toContainText('Pausing 12 s');
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+  expect(plans).toBe(2);
+  await expect(page.getByTestId('remix-rate-wait')).toHaveCount(0);
+});
