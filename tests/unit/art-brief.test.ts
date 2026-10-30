@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { artBriefSchema, artBriefToScene, rememberScene, settingOf, artBriefInstruction, VARIANT_AXES, RECENT_SCENES_LIMIT } from '../../src/lib/ai/art-brief';
 import { planSchema, planRequestSchema } from '../../src/lib/campaign/schema';
 import { brandFontStylesheetUrl, fontsForScript, resolveBrandFontFamily } from '../../src/lib/brand/fonts';
-import { buildResizePrompt, resizeRequestSchema } from '../../src/lib/ai/oneshot';
-import { frameRect, closeToFormat } from '../../src/lib/oneshot/reframe';
+import { buildOneshotPrompt, oneshotRequestSchema, reflowLayout, zoneOf, type OneshotElement } from '../../src/lib/ai/oneshot';
 
+const brand = { name: 'Sora', description: 'tea', colors: ['#52633C', '#DCE5BB', '#F2D1BC'] as [string, string, string] };
 const brief = { setting: 'a sunlit marble kitchen counter', props: ['a bowl of lemons', 'a linen towel'], lighting: 'warm morning side light', camera: 'low angle, 50mm', composition: 'product right third, headline top left', palette: ['#F2E8D5', 'olive green'], typeStyle: 'bold condensed white sans', avoid: ['plain backdrop'] };
 
 describe('art brief', () => {
@@ -56,26 +56,30 @@ describe('curated fonts', () => {
   });
 });
 
-describe('sizes', () => {
-  it('places a 4:5 ad whole on square and story canvases', () => {
-    expect(frameRect(1080, 1350, '1080x1080')).toEqual({ width: 1080, height: 1080, x: 108, y: 0, w: 864, h: 1080 });
-    expect(frameRect(1080, 1350, '1080x1920')).toEqual({ width: 1080, height: 1920, x: 0, y: 285, w: 1080, h: 1350 });
+describe('ad size picked before painting', () => {
+  const layout: OneshotElement[] = [
+    { id: 'product', kind: 'product', x: 340, y: 380, width: 400, height: 600 },
+    { id: 'headline', kind: 'text', x: 140, y: 120, width: 800, height: 120, text: 'Hi' },
+  ];
+  it('moves the layout to a new frame without squashing the product', () => {
+    const square = reflowLayout(layout, 1350, 1080);
+    const product = square.find(item => item.id === 'product')!;
+    expect(product.y + product.height).toBeLessThanOrEqual(1080);
+    expect(product.width / product.height).toBeCloseTo(400 / 600);
+    const story = reflowLayout(layout, 1350, 1920);
+    expect(story.find(item => item.id === 'headline')!.y).toBeCloseTo((120 + 60) * 1920 / 1350 - 60);
+    expect(reflowLayout(layout, 1350, 1350)).toBe(layout);
   });
-  it('cover-fits only results that are already close to the shape', () => {
-    expect(closeToFormat(1024, 1024, '1080x1080')).toBe(true);
-    expect(closeToFormat(1080, 1920, '1080x1920')).toBe(true);
-    expect(closeToFormat(1024, 1024, '1080x1920')).toBe(false);
+  it('tells the painter the exact size and reads zones in that frame', () => {
+    expect(buildOneshotPrompt(brand, 'a cafe', layout, 'en', [], '1080x1920')).toContain('1080x1920, a 9:16 full-screen story');
+    expect(buildOneshotPrompt(brand, 'a cafe', layout, 'en')).toContain('1080x1350');
+    expect(zoneOf({ x: 0, y: 1500, width: 100, height: 100 }, 1920)).toBe('bottom left');
   });
-  it('asks for the bands to be filled and nothing new written', () => {
-    const prompt = buildResizePrompt('1080x1920', ['Cold, smooth, yours'], 'en');
-    expect(prompt).toContain('tall 9:16 story');
-    expect(prompt).toContain('top and bottom');
-    expect(prompt).toContain('"Cold, smooth, yours"');
-    expect(buildResizePrompt('1080x1080', [], 'ar')).toContain('right to left');
-  });
-  it('accepts only the two extra sizes', () => {
-    const base = { providerId: 'meta', apiKey: 'k', modelId: 'muse-image-1.0', consent: true, imageConsent: true, image: { mimeType: 'image/png', data: 'AAAA' }, words: [], language: 'en' };
-    expect(resizeRequestSchema.safeParse({ ...base, format: '1080x1920' }).success).toBe(true);
-    expect(resizeRequestSchema.safeParse({ ...base, format: '1080x1350' }).success).toBe(false);
+  it('rejects a layout that does not fit the picked frame', () => {
+    const base = { providerId: 'meta', apiKey: 'k', modelId: 'muse-image-1.0', consent: true, imageConsent: true, mockup: { mimeType: 'image/png', data: 'AAAA' }, brand, scene: 'a cafe', language: 'en' };
+    const tall = [{ id: 'p', kind: 'product', x: 100, y: 1500, width: 300, height: 300 }];
+    expect(oneshotRequestSchema.safeParse({ ...base, layout: tall, format: '1080x1920' }).success).toBe(true);
+    expect(oneshotRequestSchema.safeParse({ ...base, layout: tall, format: '1080x1080' }).success).toBe(false);
+    expect(oneshotRequestSchema.safeParse({ ...base, layout: tall }).success).toBe(false);
   });
 });

@@ -25,9 +25,9 @@ function blockers(elements: OneshotCanvasElement[], excludeId: string): OneshotC
 function fits(box: Box, others: OneshotCanvasElement[]): boolean {
   return others.every(other => !intersects(box, other));
 }
-function inSafeZone(box: Box): boolean {
+function inSafeZone(box: Box, frameHeight: number): boolean {
   return box.x >= SAFE_MARGIN && box.y >= SAFE_MARGIN
-    && box.x + box.width <= 1080 - SAFE_MARGIN && box.y + box.height <= 1350 - SAFE_MARGIN;
+    && box.x + box.width <= 1080 - SAFE_MARGIN && box.y + box.height <= frameHeight - SAFE_MARGIN;
 }
 const GAP = 16;
 
@@ -35,7 +35,7 @@ const GAP = 16;
  * named blocker, then steps down and right from the current position.
  * Texts must also land inside the safe zone, or the fix would trade one
  * finding for another. Returns null when nothing fits. */
-function searchMove(subject: OneshotCanvasElement, firstBlocker: OneshotCanvasElement, others: OneshotCanvasElement[]): { x: number; y: number } | null {
+function searchMove(subject: OneshotCanvasElement, firstBlocker: OneshotCanvasElement, others: OneshotCanvasElement[], frameHeight: number): { x: number; y: number } | null {
   const ordered = [firstBlocker, ...others.filter(el => el.id !== firstBlocker.id)];
   const candidates: { x: number; y: number }[] = [];
   for (const blocker of ordered) {
@@ -51,10 +51,10 @@ function searchMove(subject: OneshotCanvasElement, firstBlocker: OneshotCanvasEl
     candidates.push({ x: subject.x + 40 * step, y: subject.y });
   }
   for (const candidate of candidates) {
-    const placed = clampOneshotElement({ ...subject, ...candidate });
+    const placed = clampOneshotElement({ ...subject, ...candidate }, frameHeight);
     const box = { x: placed.x, y: placed.y, width: placed.width, height: placed.height };
     if (!fits(box, others)) continue;
-    if (isTextKind(subject) && !inSafeZone(box)) continue;
+    if (isTextKind(subject) && !inSafeZone(box, frameHeight)) continue;
     return { x: placed.x, y: placed.y };
   }
   return null;
@@ -77,7 +77,7 @@ function searchRecolor(brandColors: string[]): string {
   return bestOf(brandColors) ?? bestOf(['#000000', '#FFFFFF']) ?? '#000000';
 }
 
-function proposeFor(finding: InspectFinding, elements: OneshotCanvasElement[], brandColors: string[]): RepairProposal | null {
+function proposeFor(finding: InspectFinding, elements: OneshotCanvasElement[], brandColors: string[], frameHeight: number): RepairProposal | null {
   const byId = (id: string) => elements.find(el => el.id === id);
   if (finding.code === 'low_contrast') {
     const subject = byId(finding.elementIds[0]);
@@ -88,7 +88,7 @@ function proposeFor(finding: InspectFinding, elements: OneshotCanvasElement[], b
     const subject = byId(finding.elementIds[0]);
     if (!subject) return null;
     const x = Math.max(SAFE_MARGIN, Math.min(subject.x, 1080 - subject.width - SAFE_MARGIN));
-    const y = Math.max(SAFE_MARGIN, Math.min(subject.y, 1350 - subject.height - SAFE_MARGIN));
+    const y = Math.max(SAFE_MARGIN, Math.min(subject.y, frameHeight - subject.height - SAFE_MARGIN));
     if (x === subject.x && y === subject.y) return null;
     return { findingId: finding.id, elementId: subject.id, patch: { x, y } };
   }
@@ -102,7 +102,7 @@ function proposeFor(finding: InspectFinding, elements: OneshotCanvasElement[], b
   if (finding.code === 'overlap_logo') { subject = byId(finding.elementIds[1]); firstBlocker = byId(finding.elementIds[0]); }
   if (!subject || !firstBlocker) return null;
   const others = blockers(elements, subject.id);
-  const moved = searchMove(subject, firstBlocker, others);
+  const moved = searchMove(subject, firstBlocker, others, frameHeight);
   if (!moved) return null;
   return { findingId: finding.id, elementId: subject.id, patch: moved };
 }
@@ -114,10 +114,10 @@ function proposeFor(finding: InspectFinding, elements: OneshotCanvasElement[], b
  * geometry or contrast math over the live arrangement, and applying one
  * re-runs the inspect, so the loop verifies itself.
  */
-export function proposeOneshotRepairs(elements: OneshotCanvasElement[], brandColors: string[]): RepairProposal[] {
+export function proposeOneshotRepairs(elements: OneshotCanvasElement[], brandColors: string[], frameHeight = 1350): RepairProposal[] {
   const proposals: RepairProposal[] = [];
-  for (const finding of inspectOneshotLayout(elements)) {
-    const proposal = proposeFor(finding, elements, brandColors);
+  for (const finding of inspectOneshotLayout(elements, frameHeight)) {
+    const proposal = proposeFor(finding, elements, brandColors, frameHeight);
     if (proposal) proposals.push(proposal);
   }
   return proposals;

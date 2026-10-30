@@ -2,9 +2,17 @@ import { z } from 'zod';
 import { metaBase, inputImage } from './meta-contracts';
 import { brandInputSchema, type BrandInput } from '../db/schema';
 
-/** One-shot canvas coordinates: the mockup is always 1080x1350. */
+/** One-shot canvas coordinates: always 1080 wide; the height follows the size picked before generating. */
 export const ONESHOT_WIDTH = 1080;
 export const ONESHOT_HEIGHT = 1350;
+export const ONESHOT_FORMATS = ['1080x1350', '1080x1080', '1080x1920'] as const;
+export type OneshotFormat = (typeof ONESHOT_FORMATS)[number];
+const MAX_FRAME_HEIGHT = 1920;
+/** The frame height of a size; anything unknown is the 4:5 feed size. */
+export function frameHeightOf(format: OneshotFormat | undefined | null): number {
+  return format === '1080x1080' ? 1080 : format === '1080x1920' ? 1920 : ONESHOT_HEIGHT;
+}
+const FORMAT_WORDS: Record<OneshotFormat, string> = { '1080x1350': '4:5 portrait feed post', '1080x1080': '1:1 square post', '1080x1920': '9:16 full-screen story' };
 
 /**
  * One layout element on the mockup canvas. `text` carries the exact string
@@ -15,9 +23,9 @@ export const oneshotElementSchema = z.object({
   id: z.string().min(1).max(80),
   kind: z.enum(['product', 'logo', 'text', 'icon', 'phone']),
   x: z.number().min(0).max(ONESHOT_WIDTH),
-  y: z.number().min(0).max(ONESHOT_HEIGHT),
+  y: z.number().min(0).max(MAX_FRAME_HEIGHT),
   width: z.number().min(24).max(ONESHOT_WIDTH),
-  height: z.number().min(24).max(ONESHOT_HEIGHT),
+  height: z.number().min(24).max(MAX_FRAME_HEIGHT),
   text: z.string().max(200).optional(),
   /** A text drawn on a solid shape: a price tag, a discount sticker or a button. */
   badge: z.enum(['price', 'discount', 'cta']).optional(),
@@ -33,7 +41,12 @@ export const oneshotRequestSchema = metaBase.extend({
   layout: z.array(oneshotElementSchema).min(1).max(20),
   /** The critic's notes on a failed first attempt; present only on the one repair retry. */
   fixNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(8).optional(),
-}).strict();
+  /** The size picked before generating; absent means 4:5. */
+  format: z.enum(ONESHOT_FORMATS).optional(),
+}).strict().superRefine((value, ctx) => {
+  const height = frameHeightOf(value.format);
+  if (value.layout.some(element => element.y + element.height > height + 0.5)) ctx.addIssue({ code: 'custom', path: ['layout'], message: 'element outside the frame' });
+});
 
 export const verifyRequestSchema = metaBase.extend({
   imageConsent: z.literal(true),
@@ -64,10 +77,10 @@ export const verifyResultSchema = z.object({
 }).strict();
 export type VerifyResult = z.infer<typeof verifyResultSchema>;
 
-/** Plain-words zone of an element's center inside the 1080x1350 frame. */
-export function zoneOf(element: Pick<OneshotElement, 'x' | 'y' | 'width' | 'height'>): string {
+/** Plain-words zone of an element's center inside the frame. */
+export function zoneOf(element: Pick<OneshotElement, 'x' | 'y' | 'width' | 'height'>, frameHeight = ONESHOT_HEIGHT): string {
   const cx = element.x + element.width / 2, cy = element.y + element.height / 2;
-  const vertical = cy < ONESHOT_HEIGHT / 3 ? 'top' : cy > (2 * ONESHOT_HEIGHT) / 3 ? 'bottom' : '';
+  const vertical = cy < frameHeight / 3 ? 'top' : cy > (2 * frameHeight) / 3 ? 'bottom' : '';
   const horizontal = cx < ONESHOT_WIDTH / 3 ? 'left' : cx > (2 * ONESHOT_WIDTH) / 3 ? 'right' : '';
   const zone = [vertical, horizontal].filter(Boolean).join(' ');
   return zone || 'center';
@@ -80,13 +93,14 @@ const BADGE_SHAPE = { price: 'rounded price tag', discount: 'round discount stic
  * ad while keeping every element where the user put it. The mockup image is
  * the layout authority; the words below only name what is already drawn.
  */
-export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: OneshotElement[], language: 'en' | 'ar', fixNotes: string[] = []): string {
+export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: OneshotElement[], language: 'en' | 'ar', fixNotes: string[] = [], format: OneshotFormat = '1080x1350'): string {
+  const frameHeight = frameHeightOf(format);
   const lines = [
-    'Turn this rough mockup into a finished photorealistic advertising image at 1080x1350.',
+    `Turn this rough mockup into a finished photorealistic advertising image at 1080x${frameHeight}, a ${FORMAT_WORDS[format]}. Keep exactly this shape and fill the whole frame edge to edge; no borders or empty bands.`,
     'Keep every element exactly where it is in the mockup. Do not move, resize, add, or remove any element.',
   ];
   for (const element of layout) {
-    const zone = zoneOf(element);
+    const zone = zoneOf(element, frameHeight);
     if (element.kind === 'product') lines.push(`The product stays ${zone} at its mockup size and shape.`);
     else if (element.kind === 'logo') lines.push(`The logo stays ${zone}.`);
     else if (element.kind === 'icon') lines.push(`The icon stays ${zone}.`);
@@ -135,15 +149,15 @@ export type OneshotCanvasElement = OneshotElement & {
 };
 
 /** Keep a dragged/resized element inside the frame (min 24px a side). */
-export function clampOneshotElement(element: OneshotElement): OneshotElement {
+export function clampOneshotElement<T extends OneshotElement>(element: T, frameHeight = ONESHOT_HEIGHT): T {
   const width = Math.min(Math.max(24, element.width), ONESHOT_WIDTH);
-  const height = Math.min(Math.max(24, element.height), ONESHOT_HEIGHT);
+  const height = Math.min(Math.max(24, element.height), frameHeight);
   return {
     ...element,
     width,
     height,
     x: Math.min(Math.max(0, element.x), ONESHOT_WIDTH - width),
-    y: Math.min(Math.max(0, element.y), ONESHOT_HEIGHT - height),
+    y: Math.min(Math.max(0, element.y), frameHeight - height),
   };
 }
 
@@ -167,12 +181,12 @@ export function toServerLayout(elements: OneshotCanvasElement[]): OneshotElement
  * staying inside the frame (never below the 24px minimum, never past an
  * edge). Canvas-only fields (blob, color, font) survive untouched.
  */
-export function scaleOneshotElement<T extends OneshotElement>(element: T, factor: number): T {
-  const fit = Math.min(factor, ONESHOT_WIDTH / element.width, ONESHOT_HEIGHT / element.height);
+export function scaleOneshotElement<T extends OneshotElement>(element: T, factor: number, frameHeight = ONESHOT_HEIGHT): T {
+  const fit = Math.min(factor, ONESHOT_WIDTH / element.width, frameHeight / element.height);
   const safe = Math.max(fit, 24 / element.width, 24 / element.height);
   const width = element.width * safe, height = element.height * safe;
   const x = Math.min(Math.max(0, element.x + (element.width - width) / 2), ONESHOT_WIDTH - width);
-  const y = Math.min(Math.max(0, element.y + (element.height - height) / 2), ONESHOT_HEIGHT - height);
+  const y = Math.min(Math.max(0, element.y + (element.height - height) / 2), frameHeight - height);
   return { ...element, width, height, x, y };
 }
 
@@ -186,34 +200,20 @@ export function initialOneshotLayout(hasLogo: boolean): OneshotElement[] {
   return layout;
 }
 
-/** The two extra platform sizes a finished 4:5 ad can be extended to. */
-export const RESIZE_FORMATS = ['1080x1080', '1080x1920'] as const;
-export type ResizeFormat = (typeof RESIZE_FORMATS)[number];
-
 /**
- * Resize input: the finished ad already placed on the new canvas (the client
- * frames it and fills the bands with a blur), plus the exact words it shows.
+ * Move an arranged mockup to another size before painting: every element
+ * keeps its vertical position as a share of the frame, and anything taller
+ * than the new frame allows is scaled down around its center (keeping its
+ * shape, so the product is never squashed).
  */
-export const resizeRequestSchema = metaBase.extend({
-  imageConsent: z.literal(true),
-  image: inputImage,
-  format: z.enum(RESIZE_FORMATS),
-  words: z.array(z.string().trim().min(1).max(200)).max(8),
-  language: z.enum(['en', 'ar']),
-}).strict();
-
-export function buildResizePrompt(format: ResizeFormat, words: string[], language: 'en' | 'ar'): string {
-  const shape = format === '1080x1080' ? 'square 1:1 feed post' : 'tall 9:16 story';
-  const bands = format === '1080x1080' ? 'left and right' : 'top and bottom';
-  const lines = [
-    `This is a finished advertisement placed in the middle of a ${shape} canvas. The blurred bands on the ${bands} are empty space, not part of the design.`,
-    `Extend the ad's own scene into those bands so the whole frame reads as one seamless photograph: continue the same setting, surfaces, light and colors to the edges.`,
-    'Keep everything inside the original ad exactly as it is: the product, the logo, every word and its position. Do not move, redraw, enlarge or duplicate any of them.',
-    words.length
-      ? `The only words allowed in the image are ${words.map(word => `"${word}"`).join(', ')}, plus text printed on the product itself. Write nothing new in the extended areas.`
-      : 'Write no words in the extended areas.',
-  ];
-  if (language === 'ar') lines.push('Arabic text stays right to left with correctly joined letters.');
-  lines.push('No blur, seams, frames or borders may remain; no objects cropped by the frame edges.');
-  return lines.join(' ');
+export function reflowLayout<T extends OneshotElement>(elements: T[], fromHeight: number, toHeight: number): T[] {
+  if (fromHeight === toHeight) return elements;
+  return elements.map(element => {
+    const limit = toHeight * (element.kind === 'product' ? 0.72 : 0.9);
+    const shrink = element.height > limit ? limit / element.height : 1;
+    const width = element.width * shrink, height = element.height * shrink;
+    const centerY = (element.y + element.height / 2) * (toHeight / fromHeight);
+    const x = element.x + (element.width - width) / 2;
+    return clampOneshotElement({ ...element, x, y: centerY - height / 2, width, height }, toHeight);
+  });
 }

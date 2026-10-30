@@ -22,8 +22,8 @@ const BADGE_BOX: Record<Badge, { width: number; height: number; fontSize: number
  * button badges, text styling and alignment. Everything here changes only
  * the local mockup; no tool makes a request.
  */
-export function CanvasTools({ elements, setElements, selected, setSelected, colors, disabled, headlineFont, setHeadlineFont, loadFont }: {
-  elements: OneshotCanvasElement[]; setElements: Dispatch<SetStateAction<OneshotCanvasElement[]>>;
+export function CanvasTools({ frameHeight = 1350, elements, setElements, selected, setSelected, colors, disabled, headlineFont, setHeadlineFont, loadFont }: {
+  frameHeight?: number; elements: OneshotCanvasElement[]; setElements: Dispatch<SetStateAction<OneshotCanvasElement[]>>;
   selected: string | null; setSelected: (id: string | null) => void; colors: readonly string[]; disabled: boolean;
   headlineFont: string | null; setHeadlineFont: (family: string | null) => void; loadFont: (family: string) => void;
 }) {
@@ -72,7 +72,7 @@ export function CanvasTools({ elements, setElements, selected, setSelected, colo
     {current && <section className="tool-block" aria-labelledby="tool-align">
       <h3 id="tool-align">{t.alignTitle}</h3>
       <div className="tool-row" role="group" aria-label={t.alignTitle}>
-        {(['left', 'center', 'right', 'top', 'middle', 'bottom'] as Alignment[]).map(alignment => <button key={alignment} type="button" className="tool-chip" disabled={disabled} onClick={() => update(current.id, clampOneshotElement({ ...current, ...alignToFrame(current, alignment) }))}>{t[`align_${alignment}`]}</button>)}
+        {(['left', 'center', 'right', 'top', 'middle', 'bottom'] as Alignment[]).map(alignment => <button key={alignment} type="button" className="tool-chip" disabled={disabled} onClick={() => update(current.id, clampOneshotElement({ ...current, ...alignToFrame(current, alignment, frameHeight) }, frameHeight))}>{t[`align_${alignment}`]}</button>)}
       </div>
     </section>}
 

@@ -49,7 +49,7 @@ export function CertificateCard({ certificate, score, hasLogo }: { certificate: 
  * and the final image, and the deterministic checks on the layout that was
  * painted. Hashes are computed on open, locally; nothing is sent anywhere.
  */
-export function TrustPanel({ original, productSource, result, layout, certificateValid }: { original: Blob; productSource: Blob; result: Blob; layout: OneshotCanvasElement[]; certificateValid: boolean }) {
+export function TrustPanel({ original, productSource, result, layout, certificateValid, frameHeight = 1350, disabled = false }: { original: Blob; productSource: Blob; result: Blob; layout: OneshotCanvasElement[]; certificateValid: boolean; frameHeight?: number; disabled?: boolean }) {
   const t = useMessages().oneshot;
   const [open, setOpen] = useState(false);
   const [hashes, setHashes] = useState<{ original: string; product: string; final: string } | null>(null);
@@ -60,11 +60,11 @@ export function TrustPanel({ original, productSource, result, layout, certificat
       setHashes({ original: a, product: b, final: c });
     }
   }
-  const checks = deterministicChecksFor(layout);
+  const checks = deterministicChecksFor(layout, frameHeight);
   const checkLabel: Record<string, string> = { overlap_product: t.findingOverlapProduct, overlap_text: t.findingOverlapText, overlap_logo: t.findingOverlapLogo, low_contrast: t.findingLowContrast, outside_safe_zone: t.findingSafeZone };
   return <div className="trust">
-    <button type="button" className="ui-btn ui-btn--ghost" aria-expanded={open} aria-controls="trust-panel" onClick={() => void toggle()}>{t.trustTitle}</button>
-    {open && <section id="trust-panel" className="trust-panel" data-testid="trust-panel" aria-label={t.trustTitle}>
+    <button type="button" className="ui-btn ui-btn--ghost" aria-expanded={open} aria-controls="trust-panel" disabled={disabled} onClick={() => void toggle()}>{t.trustTitle}</button>
+    {open && !disabled && <section id="trust-panel" className="trust-panel" data-testid="trust-panel" aria-label={t.trustTitle}>
       <p>{t.trustLead}</p>
       <h4>{t.trustModels}</h4>
       <ul className="trust-models">
