@@ -89,3 +89,7 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
   .generate-main{display:none}
 }
 .design-canvas-host, .design-canvas-host canvas { touch-action: none; }
+.waiting{display:inline-flex;align-items:center;gap:8px}
+.waiting-spinner{width:15px;height:15px;flex:none;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:waitingSpin .8s linear infinite}
+@keyframes waitingSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.waiting-spinner{animation:none}}

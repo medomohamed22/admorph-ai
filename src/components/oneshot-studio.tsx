@@ -18,6 +18,7 @@ import { proposeOneshotRepairs, type RepairProposal } from '@/lib/oneshot/repair
 import { sha256Hex, buildManifest, mockupSignature } from '@/lib/evidence/manifest';
 import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
+import { WaitingText } from './waiting';
 import { saveAd } from '@/lib/db/repository';
 import UploadCard from './upload-card';
 import type { Brand } from '@/lib/db/schema';
@@ -471,7 +472,7 @@ export default function OneshotStudio() {
     setAppliedRepairs(previous => [...previous, { elementId: proposal.elementId, text: description }]);
   }
   const generating = busy === 'generate' || busy === 'verify';
-  const generateLabel = busy === 'generate' ? t.generating : busy === 'verify' ? t.verifying : resultBlob ? t.retry : t.generate;
+  const generateLabel = busy === 'generate' ? <WaitingText label={t.generating} /> : busy === 'verify' ? <WaitingText label={t.verifying} /> : resultBlob ? t.retry : t.generate;
   // Stepper state: the current step is the first incomplete one; later steps
   // read as locked until their prerequisites are done.
   const readyToGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid;
@@ -500,7 +501,7 @@ export default function OneshotStudio() {
     <section className="feature-card">
       <h2>{t.uploadProduct}</h2>
       <UploadCard testId="upload-card-product" title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
-      <button type="button" className="button secondary" disabled={!originalBlob || cutting} onClick={() => void isolateBackground()}>{t.isolateBackground}</button>
+      <button type="button" className="button secondary" disabled={!originalBlob || cutting} onClick={() => void isolateBackground()}>{cutting ? <WaitingText label={t.isolateBackground} /> : t.isolateBackground}</button>
       {tapCutout && originalUrl && <div>
         <p>{t.cutoutTapHint}</p>
         <img data-testid="cutout-tap-photo" src={originalUrl} alt="" onClick={event => void tapCutoutPhoto(event)} style={{ maxWidth: '100%', cursor: 'crosshair' }} />
@@ -520,10 +521,10 @@ export default function OneshotStudio() {
         <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, name: event.target.value })); }} /></label>
         <label>{t.brandDescription}<textarea value={brand.description} maxLength={500} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, description: event.target.value })); }} /></label>
         <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] })); }} />)}</div>
-        <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || busy !== ''} onClick={() => void extractBrand()}>{t.extractBrand}</button>
+        <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || busy !== ''} onClick={() => void extractBrand()}>{busy === 'extract' ? <WaitingText label={t.extractBrand} /> : t.extractBrand}</button>
       </details>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
-      <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{t.getIdeas}</button>
+      <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
         {concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary" aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}
@@ -561,7 +562,7 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" aria-label={t.nudgeLeft} disabled={busy !== ''} onClick={() => nudgeSelected(-10, 0)}>←</button>
         <button type="button" className="button secondary" aria-label={t.nudgeRight} disabled={busy !== ''} onClick={() => nudgeSelected(10, 0)}>→</button>
       </div>}
-      <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? t.enhanceBusy : t.enhance}</label>
+      <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? <WaitingText label={t.enhanceBusy} /> : t.enhance}</label>
       {enhanceNote && <p role="status">{enhanceNote}</p>}
       {enhance && originalUrl && currentUrl && <div data-testid="oneshot-enhance-compare" style={{ display: 'flex', gap: 12 }}>
         <figure style={{ margin: 0 }}><img src={originalUrl} alt={t.enhanceOriginal} width={120} /><figcaption>{t.enhanceOriginal}</figcaption></figure>
@@ -591,7 +592,7 @@ export default function OneshotStudio() {
       <h2>{t.result}</h2>
       <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame">
         {generating
-          ? <div className="generating-overlay" data-testid="oneshot-generating" role="status"><span>{busy === 'verify' ? t.verifying : t.generatingNote}</span></div>
+          ? <div className="generating-overlay" data-testid="oneshot-generating" role="status"><WaitingText label={busy === 'verify' ? t.verifying : t.generatingNote} /></div>
           : resultBlob && resultUrl
             ? <img data-testid="oneshot-result" className="oneshot-reveal" key={resultUrl} src={resultUrl} alt={t.result} />
             : <p>{t.resultEmpty}</p>}

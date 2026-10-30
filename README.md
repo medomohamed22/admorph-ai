@@ -75,6 +75,10 @@ The cutout used to bet everything on SAM's text grounding of the single word "pr
 
 Applying a saved brand whose logo asset was gone used to keep the previous brand's logo on screen (the early return in `applyBrand` never cleared the logo slot), logo previews and canvas images updated one render behind the blob (the object URL was created in an effect), and Delete hid behind a native confirm dialog that automated browsers dismiss silently. Now applying a brand always defines the logo slot and warns when its saved logo cannot be loaded, the object URL is derived during render, and delete is a two-step in-page confirm. Full detail is in [docs/RELEASE_BRAND_FIXES_REPORT.md](docs/RELEASE_BRAND_FIXES_REPORT.md).
 
+## Redesign Phase 1: universal waiting (Oct 30, 2026)
+
+Every network wait in the live paths now shows a spinner, the phase label, and a live seconds counter (one-shot generate/verify/cutout/ideas/extract/enhance, remix plan/generate, settings model test/catalog fetch), via a shared `WaitingText` component that stays still under `prefers-reduced-motion` while the counter advances. Full detail is in [docs/RELEASE_REDESIGN_PHASE1_REPORT.md](docs/RELEASE_REDESIGN_PHASE1_REPORT.md).
+
 ## Ad variants and seasonal themes (Oct 29, 2026)
 
 Two standalone remix pages leave one-shot untouched: `/variants` makes 2 or 3 new versions of a finished ad with fresh headlines and scenes, and `/themes` restyles one for Ramadan, Eid, Black Friday or Summer. Both pick their source from a saved-ads gallery (every finished ad saves itself there; the PNG download remains the reliable save), reuse the planner and the one-shot certificate, and paint the new headline with the model by the owner's explicit choice — a garbled headline lowers the certificate score instead of passing silently. Full detail is in [docs/RELEASE_AD_REMIX_REPORT.md](docs/RELEASE_AD_REMIX_REPORT.md).

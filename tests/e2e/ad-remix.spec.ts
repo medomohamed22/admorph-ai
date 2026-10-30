@@ -115,3 +115,23 @@ test('themes page makes a Ramadan and an Eid copy of a saved ad', async ({ page 
   await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
   await expect(page.getByText('Certificate score: 100').first()).toBeVisible();
 });
+
+test('waiting indicator shows a live seconds counter while generating', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.getByRole('link', { name: 'Variants', exact: true }).click();
+  await page.route('**/api/ai/plan', async (route) => { await route.fulfill({ body: JSON.stringify({ concepts }), contentType: 'application/json' }); });
+  await page.route('**/api/ai/ad-remix', async (route) => { await new Promise((resolve) => setTimeout(resolve, 3000)); await route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [{ id: 'headline', expected: 'x', found: 'x', match: true }] }), contentType: 'application/json' }); });
+  await expect(page.locator('[data-testid="remix-source-card"]')).toHaveCount(2);
+  await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
+  await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
+  const indicator = page.locator('[data-testid="waiting-indicator"]');
+  await expect(indicator).toBeVisible({ timeout: 60000 });
+  const first = await indicator.textContent();
+  await page.waitForTimeout(1300);
+  const second = await indicator.textContent();
+  expect(first).toMatch(/\d/);
+  expect(second).not.toBe(first);
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+});
