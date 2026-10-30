@@ -75,6 +75,10 @@ The cutout used to bet everything on SAM's text grounding of the single word "pr
 
 Applying a saved brand whose logo asset was gone used to keep the previous brand's logo on screen (the early return in `applyBrand` never cleared the logo slot), logo previews and canvas images updated one render behind the blob (the object URL was created in an effect), and Delete hid behind a native confirm dialog that automated browsers dismiss silently. Now applying a brand always defines the logo slot and warns when its saved logo cannot be loaded, the object URL is derived during render, and delete is a two-step in-page confirm. Full detail is in [docs/RELEASE_BRAND_FIXES_REPORT.md](docs/RELEASE_BRAND_FIXES_REPORT.md).
 
+## Redesign Phase 5: motion system (Oct 30, 2026)
+
+One shared motion language: a light opacity-only page fade, press feedback on buttons and picker cards, animated stepper state, and the one-shot blur reveal reused for remix results — all flattened under the existing reduced-motion rule. Full detail is in [docs/RELEASE_REDESIGN_PHASE5_REPORT.md](docs/RELEASE_REDESIGN_PHASE5_REPORT.md).
+
 ## Redesign Phases 3–4: modern pickers + button hierarchy (Oct 30, 2026)
 
 Card pickers replace every native select/checkbox in the live paths (settings role picker with a custom-ID option, one-shot brand cards with swatches, theme cards with color strips, segmented count control), deletes are unified as secondary danger buttons with the two-step confirm, and the active brand card gets a ring. Full detail is in [docs/RELEASE_REDESIGN_PHASE3_REPORT.md](docs/RELEASE_REDESIGN_PHASE3_REPORT.md).

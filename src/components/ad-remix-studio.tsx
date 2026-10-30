@@ -30,7 +30,7 @@ function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, con
 function ResultCard({ result, downloadLabel, scoreLabel }: { result: RemixResult; downloadLabel: string; scoreLabel: string }) {
   const url = useObjectUrl(result.blob);
   return <article data-testid="remix-result">
-    {url && <img src={url} alt="" style={{ maxWidth: '100%' }} />}
+    {url && <img className="media-reveal" src={url} alt="" style={{ maxWidth: '100%' }} />}
     <p>{result.headline}</p>
     {result.score !== null && <p>{scoreLabel}: {result.score}</p>}
     {result.certificate && <ul>

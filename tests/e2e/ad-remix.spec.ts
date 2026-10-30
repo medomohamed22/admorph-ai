@@ -52,6 +52,7 @@ test('variants page makes 2 new versions of a saved ad', async ({ page }) => {
   await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
   await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
   await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+  await expect(page.locator('[data-testid="remix-result"]').first().locator('img')).toHaveClass(/media-reveal/);
   await expect(page.getByText('Certificate score: 100').first()).toBeVisible();
   await expect(page.locator('[data-testid="remix-source-card"]')).toHaveCount(4);
 });
