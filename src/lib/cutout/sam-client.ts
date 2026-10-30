@@ -33,6 +33,42 @@ export function boxFractionsToPixels(box: { left: number; top: number; right: nu
   return { left, top, right, bottom };
 }
 
+/**
+ * A vision box is often drawn tight, or a little inside the product's edge,
+ * and SAM never masks past the box it is given: a tight box cuts the
+ * product. Grow the box by `pad` of its own size on every side first.
+ */
+export const BOX_PAD = 0.05;
+/** The one wider retry when the mask still runs into the box edge. */
+export const BOX_PAD_RETRY = 0.2;
+export function padBoxFractions(box: { left: number; top: number; right: number; bottom: number }, pad: number) {
+  const width = box.right - box.left, height = box.bottom - box.top;
+  return {
+    left: Math.max(0, box.left - width * pad),
+    top: Math.max(0, box.top - height * pad),
+    right: Math.min(1, box.right + width * pad),
+    bottom: Math.min(1, box.bottom + height * pad),
+  };
+}
+
+/**
+ * Sides where the mask runs into the box edge: the product most likely
+ * continues past it. A side on the image border never counts (the product
+ * may really end there). A side counts when more than `share` of that box
+ * edge is covered by the mask.
+ */
+export function clippedSides(alpha: Uint8ClampedArray, width: number, height: number, box: { left: number; top: number; right: number; bottom: number }, share = 0.08): ('left' | 'top' | 'right' | 'bottom')[] {
+  const sides: ('left' | 'top' | 'right' | 'bottom')[] = [];
+  const covered = (pixels: number[]) => pixels.filter(index => alpha[index] > 127).length / Math.max(1, pixels.length);
+  const column = (x: number) => Array.from({ length: box.bottom - box.top }, (_, i) => (box.top + i) * width + x);
+  const row = (y: number) => Array.from({ length: box.right - box.left }, (_, i) => y * width + box.left + i);
+  if (box.left > 0 && covered(column(box.left)) > share) sides.push('left');
+  if (box.right < width && covered(column(box.right - 1)) > share) sides.push('right');
+  if (box.top > 0 && covered(row(box.top)) > share) sides.push('top');
+  if (box.bottom < height && covered(row(box.bottom - 1)) > share) sides.push('bottom');
+  return sides;
+}
+
 /** Fractions to a pixel point, clamped inside the image. */
 export function pointFractionsToPixels(point: { x: number; y: number }, width: number, height: number) {
   return { x: Math.max(0, Math.min(width - 1, Math.floor(point.x * width))), y: Math.max(0, Math.min(height - 1, Math.floor(point.y * height))) };
@@ -103,31 +139,40 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
   const data = await blobToBase64(blob);
   if (!options.box && !options.point && !options.prompt) throw new Error('sam_prompt_missing');
   const size = { width: image.width, height: image.height };
-  const promptBody = options.box
-    ? { box: boxFractionsToPixels(options.box, image.width, image.height), size }
-    : options.point
-      ? { point: pointFractionsToPixels(options.point, image.width, image.height), size }
-      : { prompt: options.prompt };
-  const response = await fetch('/api/ai/segment', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      providerId: 'meta',
-      apiKey: options.apiKey,
-      modelId: options.modelId,
-      consent: true,
-      imageConsent: true,
-      image: { mimeType: blob.type, data },
-      ...promptBody,
-    }),
-    signal: options.signal,
-  });
-  const result = await response.json().catch(() => null);
-  if (!response.ok) throw segmentErrorBody(result, response.status);
-  const masks = parseSegmentResponse(result);
-  const picked = pickLargestMask(masks);
-  if (!picked) throw new ProviderError('sam_no_mask', 502, { source: 'application', message: 'segment response had no masks' });
-  const alpha = maskToAlpha(picked, image.width, image.height);
+  const ask = async (promptBody: Record<string, unknown>) => {
+    const response = await fetch('/api/ai/segment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        providerId: 'meta',
+        apiKey: options.apiKey,
+        modelId: options.modelId,
+        consent: true,
+        imageConsent: true,
+        image: { mimeType: blob.type, data },
+        ...promptBody,
+      }),
+      signal: options.signal,
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok) throw segmentErrorBody(result, response.status);
+    const picked = pickLargestMask(parseSegmentResponse(result));
+    if (!picked) throw new ProviderError('sam_no_mask', 502, { source: 'application', message: 'segment response had no masks' });
+    return maskToAlpha(picked, image.width, image.height);
+  };
+  let alpha: Uint8ClampedArray;
+  if (options.box) {
+    const pixels = boxFractionsToPixels(padBoxFractions(options.box, BOX_PAD), image.width, image.height);
+    alpha = await ask({ box: pixels, size });
+    // Still running into the box edge: the box was too tight. One wider try;
+    // the first cut stays if the retry fails.
+    if (clippedSides(alpha, image.width, image.height, pixels).length) {
+      try { alpha = await ask({ box: boxFractionsToPixels(padBoxFractions(options.box, BOX_PAD_RETRY), image.width, image.height), size }); }
+      catch { /* keep the first cut */ }
+    }
+  } else {
+    alpha = await ask(options.point ? { point: pointFractionsToPixels(options.point, image.width, image.height), size } : { prompt: options.prompt });
+  }
   const cutoutData = applySamAlpha(image.data, alpha);
   const maskData = new Uint8ClampedArray(alpha.length * 4);
   for (let i = 0; i < alpha.length; i++) {

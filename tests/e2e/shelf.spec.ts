@@ -19,8 +19,9 @@ async function mockMeta(page: Page) {
   await page.route('**/api/ai/segment', route => {
     calls.segment++;
     const body = route.request().postDataJSON() as { box: { left: number; top: number; right: number; bottom: number } };
-    const { left, top, right, bottom } = body.box;
-    return route.fulfill({ json: { masks: [{ objectId: 'product', left, top, right, bottom, width: 8, height: 8, rasterBase64: Buffer.alloc(64, 1).toString('base64') }] } });
+    // The product sits inside the (padded) box with air around it, so no wider retry is needed.
+    const { left, top, right, bottom } = body.box, dx = Math.round((right - left) * 0.12), dy = Math.round((bottom - top) * 0.12);
+    return route.fulfill({ json: { masks: [{ objectId: 'product', left: left + dx, top: top + dy, right: right - dx, bottom: bottom - dy, width: 8, height: 8, rasterBase64: Buffer.alloc(64, 1).toString('base64') }] } });
   });
   await page.route('**/api/ai/shelf-plan', route => { calls.plan.push(route.request().postDataJSON()); return route.fulfill({ json: plan }); });
   await page.route('**/api/ai/oneshot', route => { calls.paint.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
