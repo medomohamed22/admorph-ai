@@ -67,7 +67,7 @@ export async function encodeProduct(blob: Blob) {
   return { mimeType: blob.type as PlanRequest['product']['mimeType'], data: btoa(binary) };
 }
 export async function requestPlan(input: PlanRequest, signal: AbortSignal) {
-  const deadline = AbortSignal.timeout(45000);
+  const deadline = AbortSignal.timeout(65000);
   try {
     const response = await metaFetch('planner','/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input), signal: AbortSignal.any([signal, deadline]), cache: 'no-store' });

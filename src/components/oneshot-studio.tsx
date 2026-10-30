@@ -706,7 +706,7 @@ export default function OneshotStudio() {
         <div className="dialect-grid" role="radiogroup" aria-label={t.dialectLabel}>
           {PLAN_DIALECTS.map(value => <button key={value} type="button" role="radio" aria-checked={dialect === value} className={dialect === value ? 'dialect-chip selected' : 'dialect-chip'} onClick={() => setDialect(value)}>{t[`dialect_${value}`]}</button>)}
         </div>
-        <p className="dialect-preview" data-testid="dialect-preview" dir={dialectLanguage(dialect) === 'ar' ? 'rtl' : 'ltr'}><small>{t.dialectPreview}</small><span key={dialect}>{DIALECT_EXAMPLE[dialect]}</span></p>
+        <p className="dialect-preview"><small>{t.dialectPreview}</small><span key={dialect} data-testid="dialect-preview" dir={dialectLanguage(dialect) === 'ar' ? 'rtl' : 'ltr'}>{DIALECT_EXAMPLE[dialect]}</span></p>
       </fieldset>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
       <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
