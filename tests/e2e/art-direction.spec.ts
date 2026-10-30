@@ -63,33 +63,32 @@ test('ideas carry an art brief, the scene is built from it, and recent settings 
   await expect(fonts).toContainText('Headline font: Abril Fatface');
 });
 
-test('a finished ad comes in three sizes; the AI sizes are checked and scored', async ({ page }) => {
+test('the ad size is picked before painting: the mockup, the request and the result frame all follow it', async ({ page }) => {
   test.setTimeout(120_000);
   await prepare(page);
-  await page.route('**/api/ai/oneshot', route => route.fulfill({ body: pixel, contentType: 'image/png' }));
+  let painted: { format?: string; mockup: { data: string }; layout: { y: number; height: number }[] } | null = null;
+  await page.route('**/api/ai/oneshot', route => { painted = route.request().postDataJSON(); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', route => route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [], extraText: [] } }));
-  const resizes: Record<string, unknown>[] = [];
-  await page.route('**/api/ai/oneshot-resize', route => { resizes.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await wizardStep(page, 'Arrange');
+  const sizes = page.getByTestId('format-pick');
+  await expect(sizes.getByRole('radio', { name: '4:5 Feed' })).toHaveAttribute('aria-checked', 'true');
+  const canvas = page.getByTestId('oneshot-canvas').locator('canvas').first();
+  const feed = await canvas.boundingBox();
+  await sizes.getByRole('radio', { name: '9:16 Story' }).click();
+  await expect(sizes.getByRole('radio', { name: '9:16 Story' })).toHaveAttribute('aria-checked', 'true');
+  await expect.poll(async () => { const box = await canvas.boundingBox(); return box ? Math.round(box.height / box.width * 100) : 0; }).toBe(178);
+  expect(feed && Math.round(feed.height / feed.width * 100)).toBe(125);
+
   await wizardStep(page, 'Generate');
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
   await expect(generate).toBeEnabled({ timeout: 30000 });
   await generate.click();
-  const sizes = page.getByTestId('size-set');
-  await expect(sizes).toBeVisible({ timeout: 30000 });
-  await expect(sizes.getByTestId('size-1080x1350')).toContainText('4:5 · Feed');
-  // The local frames are ready at once, with no request.
-  await expect(sizes.getByTestId('size-1080x1080-badge')).toHaveText('Framed on your device');
-  await expect(sizes.getByTestId('size-1080x1920-badge')).toHaveText('Framed on your device');
-  expect(resizes).toHaveLength(0);
-
-  await sizes.getByTestId('size-1080x1080').getByRole('button', { name: 'Extend the scene (2 requests)', exact: true }).click();
-  await expect(sizes.getByTestId('size-1080x1080-badge')).toHaveText('Scene extended by Muse Image · Score 100');
-  expect(resizes[0]).toMatchObject({ format: '1080x1080', language: 'en' });
-  expect(resizes[0]).not.toHaveProperty('brand');
-  // A square answer for a story cannot be cover-fitted without losing words: it is framed instead.
-  await sizes.getByTestId('size-1080x1920').getByRole('button', { name: 'Extend the scene (2 requests)', exact: true }).click();
-  await expect(sizes.getByTestId('size-1080x1920-badge')).toHaveText('Muse Image returned another shape; framed to fit · Score 100');
-  const story = await sizes.getByTestId('size-1080x1920').locator('img').evaluate(image => [(image as HTMLImageElement).naturalWidth, (image as HTMLImageElement).naturalHeight]);
-  expect(story).toEqual([1080, 1920]);
-  await expect(sizes.getByTestId('size-1080x1920').getByRole('link', { name: 'Download', exact: true })).toHaveAttribute('download', 'admorph-1080x1920.png');
+  await expect(page.getByTestId('oneshot-result')).toBeVisible({ timeout: 30000 });
+  expect(painted!.format).toBe('1080x1920');
+  expect(painted!.layout.every(element => element.y + element.height <= 1920)).toBe(true);
+  const mockup = await page.evaluate(async data => { const image = new Image(); image.src = `data:image/png;base64,${data}`; await image.decode(); return [image.naturalWidth, image.naturalHeight]; }, painted!.mockup.data);
+  expect(mockup).toEqual([1080, 1920]);
+  await expect(page.getByTestId('oneshot-result-frame')).toHaveCSS('aspect-ratio', '1080 / 1920');
+  // No after-the-fact framing any more.
+  await expect(page.getByTestId('size-set')).toHaveCount(0);
 });

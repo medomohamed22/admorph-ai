@@ -25,7 +25,7 @@ function intersects(a: Box, b: Box): boolean {
  * pixels — it only reports what is measurably wrong. Blank text boxes
  * render nothing, so they are excluded from every rule.
  */
-export function inspectOneshotLayout(elements: OneshotCanvasElement[]): InspectFinding[] {
+export function inspectOneshotLayout(elements: OneshotCanvasElement[], frameHeight = 1350): InspectFinding[] {
   const findings: InspectFinding[] = [];
   const texts = elements.filter(item => (item.kind === 'text' || item.kind === 'phone') && item.text?.trim());
   const product = elements.find(item => item.kind === 'product');
@@ -45,7 +45,7 @@ export function inspectOneshotLayout(elements: OneshotCanvasElement[]): InspectF
     if (ratio < TEXT_CONTRAST_MIN) findings.push({ id: `low_contrast:${text.id}`, code: 'low_contrast', severity: 'warning', elementIds: [text.id], detail: ratio.toFixed(2) });
   }
   for (const text of texts) {
-    const margin = Math.min(text.x, text.y, 1080 - (text.x + text.width), 1350 - (text.y + text.height));
+    const margin = Math.min(text.x, text.y, 1080 - (text.x + text.width), frameHeight - (text.y + text.height));
     if (margin < SAFE_MARGIN) findings.push({ id: `outside_safe_zone:${text.id}`, code: 'outside_safe_zone', severity: 'warning', elementIds: [text.id], detail: `${margin}px` });
   }
   return findings;

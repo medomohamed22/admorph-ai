@@ -11,7 +11,7 @@ import { ProviderError } from '@/lib/ai/errors';
 import { extractedSchema, productBoxSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
-import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
+import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, reflowLayout, frameHeightOf, ONESHOT_FORMATS, type OneshotFormat, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { resolveBrandFontFamily, brandFontStylesheetUrl, fontsForScript } from '@/lib/brand/fonts';
 import { artBriefToScene, settingOf, type ArtBrief } from '@/lib/ai/art-brief';
 import { inspectOneshotLayout, INSPECT_RULE_VERSION, type InspectCode } from '@/lib/oneshot/rules';
@@ -27,7 +27,6 @@ import { IconArrow, IconCheck } from './ui/icons';
 import UploadCard from './upload-card';
 import { AgentPipeline, type RepairRecord } from './agent-pipeline';
 import { CertificateCard, TrustPanel } from './certificate-card';
-import { SizeSet } from './size-set';
 import { CanvasTools, MAX_ELEMENTS } from './canvas-tools';
 import { removeLogoBackground } from '@/lib/oneshot/logo-background';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
@@ -69,6 +68,14 @@ export default function OneshotStudio() {
   const [selectedBrandId, setSelectedBrandId] = useState('');
   const [logoMissing, setLogoMissing] = useState(false);
   const [logoNote, setLogoNote] = useState('');
+  // The ad's size is picked before painting: the mockup, the prompt and the result all use it.
+  const [format, setFormat] = useState<OneshotFormat>('1080x1350');
+  const frameHeight = frameHeightOf(format);
+  function changeFormat(next: OneshotFormat) {
+    if (next === format) return;
+    setElements(previous => reflowLayout(previous, frameHeightOf(format), frameHeightOf(next)));
+    setFormat(next);
+  }
   const [logoClearing, setLogoClearing] = useState(false);
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [headlineFont, setHeadlineFont] = useState<string | null>(null);
@@ -321,7 +328,7 @@ export default function OneshotStudio() {
         setCutoutMethod(draft.cutoutBlob ? 'meta-sam' : null); setLogoBlob(draft.logoBlob); setEnhance(draft.enhance);
         setBrand(draft.brand); setSelectedBrandId(draft.selectedBrandId); setHeadlineFont(draft.headlineFont);
         setBrief(draft.brief); setScene(draft.scene); setConcepts(draft.concepts); setSelectedConcept(draft.selectedConcept);
-        setSuggestedFonts(draft.suggestedFonts); setElements(draft.elements); if (draft.dialect) setDialect(draft.dialect); setStep(Math.min(4, Math.max(0, draft.step)));
+        setSuggestedFonts(draft.suggestedFonts); setElements(draft.elements); if (draft.format) setFormat(draft.format); if (draft.dialect) setDialect(draft.dialect); setStep(Math.min(4, Math.max(0, draft.step)));
         setRestoredNote(true);
       }
     }).catch(() => {}).finally(() => { if (alive) setRestored(true); });
@@ -330,10 +337,10 @@ export default function OneshotStudio() {
   useEffect(() => {
     if (!restored || !originalBlob) return;
     const timer = setTimeout(() => {
-      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, dialect: pickedDialect ?? undefined, savedAt: new Date().toISOString() }).catch(() => {});
+      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, format, dialect: pickedDialect ?? undefined, savedAt: new Date().toISOString() }).catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
-  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, pickedDialect]);
+  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, format, pickedDialect]);
 
   /** Start over: drop the saved draft and every piece of this ad. */
   function startOver() {
@@ -419,11 +426,11 @@ export default function OneshotStudio() {
   /** Explicit touch-friendly move/resize for the selected element. */
   function resizeSelected(factor: number) {
     if (!selected) return;
-    setElements(previous => previous.map(item => item.id === selected ? scaleOneshotElement(item, factor) : item));
+    setElements(previous => previous.map(item => item.id === selected ? scaleOneshotElement(item, factor, frameHeight) : item));
   }
   function nudgeSelected(dx: number, dy: number) {
     if (!selected) return;
-    setElements(previous => previous.map(item => item.id === selected ? clampOneshotElement({ ...item, x: item.x + dx, y: item.y + dy }) : item));
+    setElements(previous => previous.map(item => item.id === selected ? clampOneshotElement({ ...item, x: item.x + dx, y: item.y + dy }, frameHeight) : item));
   }
 
   function addElement(kind: 'text' | 'phone' | 'icon', blob?: Blob, text?: string) {
@@ -437,7 +444,7 @@ export default function OneshotStudio() {
   async function paintAndReview(mockup: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }, layout: ReturnType<typeof toServerLayout>, sanitizedBrand: BrandInput, fixNotes?: string[]): Promise<Attempt> {
     if (!imageModel) throw new ProviderError('invalid_model', 400);
     const language = workspace.locale === 'ar' ? 'ar' : 'en';
-    const body = { providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitizedBrand, scene: scene.trim(), language, layout, ...(fixNotes ? { fixNotes } : {}) };
+    const body = { providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitizedBrand, scene: scene.trim(), language, layout, format, ...(fixNotes ? { fixNotes } : {}) };
     if (!fixNotes) startStep('paint', body);
     setBusy('generate');
     const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000) });
@@ -447,7 +454,7 @@ export default function OneshotStudio() {
     // Finished ads save to the gallery automatically, so the variants
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
-    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format: '1080x1350', ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
+    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
     if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
     if (!verifyModel) return { blob: result, certificate: null, score: null };
@@ -607,7 +614,7 @@ export default function OneshotStudio() {
   // Deterministic mockup check: geometry and contrast only, recomputed on
   // every committed arrangement. It never calls a model and never fixes
   // anything by itself — it only shows what is wrong, measured.
-  const findings = useMemo(() => cutoutBlob ? inspectOneshotLayout(elements) : [], [cutoutBlob, elements]);
+  const findings = useMemo(() => cutoutBlob ? inspectOneshotLayout(elements, frameHeight) : [], [cutoutBlob, elements, frameHeight]);
   function elementLabel(id: string): string {
     const el = elements.find(item => item.id === id);
     if (!el) return id;
@@ -626,7 +633,7 @@ export default function OneshotStudio() {
   // inspect list re-runs on the new arrangement — that re-run IS the
   // verify step of the loop. No model is consulted anywhere in it.
   const [appliedRepairs, setAppliedRepairs] = useState<{ elementId: string; text: string }[]>([]);
-  const proposals = useMemo(() => cutoutBlob ? proposeOneshotRepairs(elements, brand.colors) : [], [cutoutBlob, elements, brand]);
+  const proposals = useMemo(() => cutoutBlob ? proposeOneshotRepairs(elements, brand.colors, frameHeight) : [], [cutoutBlob, elements, brand, frameHeight]);
   const liveRepairs = appliedRepairs.filter(entry => elements.some(item => item.id === entry.elementId));
   function applyRepair(proposal: RepairProposal) {
     const before = elements.find(item => item.id === proposal.elementId);
@@ -779,7 +786,8 @@ export default function OneshotStudio() {
       {!cutoutBlob && <p>{t.needProduct}</p>}
       <div className="arrange-layout">
       {cutoutBlob && <div className="oneshot-canvas-wrap">
-        <OneshotCanvas elements={canvasElements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />
+        <FormatPicker value={format} onChange={changeFormat} disabled={busy !== ''} labels={{ title: t.formatTitle, ['1080x1350']: t.formatFeed, ['1080x1080']: t.formatSquare, ['1080x1920']: t.formatStory }} />
+        <OneshotCanvas frameHeight={frameHeight} elements={canvasElements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />
       </div>}
       <div className="arrange-tools">
       <div>
@@ -801,7 +809,7 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" aria-label={t.nudgeLeft} disabled={busy !== ''} onClick={() => nudgeSelected(-10, 0)}>←</button>
         <button type="button" className="button secondary" aria-label={t.nudgeRight} disabled={busy !== ''} onClick={() => nudgeSelected(10, 0)}>→</button>
       </div>}
-      {cutoutBlob && <CanvasTools elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} colors={brand.colors} disabled={busy !== ''} headlineFont={headlineFont} setHeadlineFont={setHeadlineFont} loadFont={loadFont} />}
+      {cutoutBlob && <CanvasTools frameHeight={frameHeight} elements={elements} setElements={setElements} selected={selected} setSelected={setSelected} colors={brand.colors} disabled={busy !== ''} headlineFont={headlineFont} setHeadlineFont={setHeadlineFont} loadFont={loadFont} />}
       {cutoutBlob && <div>
         <h3>{t.inspectTitle}</h3>
         {findings.length === 0 ? <p>{t.inspectOk}</p> : <ul>
@@ -830,7 +838,7 @@ export default function OneshotStudio() {
       <div className="generate-layout">
       <AgentPipeline records={records} repair={repair} onRetry={{ locate: () => void isolateBackground(), cutout: () => void isolateBackground(), brand: () => void extractBrand(), ideas: () => void suggestIdeas(), paint: () => void generate(), critic: () => void generate(), repair: () => void generate() }} />
       <div className="generate-result">
-      <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame">
+      <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame" style={{ aspectRatio: `1080 / ${frameHeight}`, maxWidth: frameHeight > 1350 ? 360 : undefined }}>
         {generating
           ? <div className="generating-overlay" data-testid="oneshot-generating" role="status"><WaitingText label={busy === 'verify' ? t.verifying : t.generatingNote} /></div>
           : resultBlob && resultUrl
@@ -844,12 +852,13 @@ export default function OneshotStudio() {
       </div>}
       {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
       <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
-      {resultBlob && originalBlob && !generating && <TrustPanel key={resultUrl ?? ''} original={originalBlob} productSource={currentBlob ?? originalBlob} result={resultBlob} layout={generatedLayout ?? elements} certificateValid={!!certificate} />}
-      {resultBlob && !generating && <div className="result-next">
+      {/* Kept mounted (and only disabled) while painting: removing them shifted
+          the page under the fixed bars and left stale copies on some phones. */}
+      {resultBlob && originalBlob && <TrustPanel key={resultUrl ?? ''} original={originalBlob} productSource={currentBlob ?? originalBlob} result={resultBlob} layout={generatedLayout ?? elements} certificateValid={!!certificate} frameHeight={frameHeight} disabled={generating} />}
+      {resultBlob && <div className="result-next" aria-disabled={generating || undefined}>
         <Link className="button secondary" href="/variants">{t.makeVariants}</Link>
         <Link className="button secondary" href="/themes">{t.makeSeasonal}</Link>
       </div>}
-      {resultBlob && !generating && <SizeSet key={resultUrl ?? ""} ad={resultBlob} layout={toServerLayout(generatedLayout ?? elements)} brand={brand} language={workspace.locale === 'ar' ? 'ar' : 'en'} hasLogo={hasLogo} cutout={cutoutBlob} />}
       {certificate && score !== null && <CertificateCard certificate={certificate} score={score} hasLogo={hasLogo} />}
       </div>
       </div>
@@ -869,4 +878,16 @@ export default function OneshotStudio() {
       </div>
     </div>
   </main>;
+}
+
+/** The ad size, picked before painting. Changing it moves the arranged elements to the new frame. */
+function FormatPicker({ value, onChange, disabled, labels }: { value: OneshotFormat; onChange: (format: OneshotFormat) => void; disabled: boolean; labels: Record<OneshotFormat | 'title', string> }) {
+  return <fieldset className="format-pick" data-testid="format-pick">
+    <legend>{labels.title}</legend>
+    <div className="format-pick-row" role="radiogroup" aria-label={labels.title}>
+      {ONESHOT_FORMATS.map(format => <button key={format} type="button" role="radio" aria-checked={value === format} className="format-chip" disabled={disabled} onClick={() => onChange(format)}>
+        <i aria-hidden="true" className={`format-shape format-${format}`} />{labels[format]}
+      </button>)}
+    </div>
+  </fieldset>;
 }

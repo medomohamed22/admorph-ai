@@ -34,8 +34,8 @@ export async function sha256Hex(blob: Blob): Promise<string> {
 }
 
 /** One outcome per rule for a layout: pass when the rule finds nothing. */
-export function deterministicChecksFor(elements: OneshotCanvasElement[]): EvidenceCheck[] {
-  const findings = inspectOneshotLayout(elements);
+export function deterministicChecksFor(elements: OneshotCanvasElement[], frameHeight = 1350): EvidenceCheck[] {
+  const findings = inspectOneshotLayout(elements, frameHeight);
   return RULE_CODES.map(code => {
     const found = findings.filter(item => item.code === code);
     return { code, status: found.length === 0 ? 'pass' : 'fail', detail: found.map(item => item.elementIds.join(',')).join('; ') };

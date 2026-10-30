@@ -30,10 +30,12 @@ export type OneshotCanvasHandle = { exportPng: () => string };
  * paints over. Deliberately separate from the studio editor: this canvas
  * owns no creative state, only positions.
  */
-export default function OneshotCanvas({ elements, selected, select, change, handle, onReady, label, disabled }: {
+export default function OneshotCanvas({ elements, selected, select, change, handle, onReady, label, disabled, frameHeight = ONESHOT_HEIGHT }: {
   elements: OneshotCanvasElement[]; selected: string | null; select: (id: string | null) => void;
   change: (id: string, values: Partial<OneshotCanvasElement>) => void; handle: React.RefObject<OneshotCanvasHandle | null>;
   onReady: (id: string) => void; label: string; disabled: boolean;
+  /** The frame height of the size picked before generating (width is always 1080). */
+  frameHeight?: number;
 }) {
   const host = useRef<HTMLDivElement>(null), stage = useRef<Konva.Stage>(null), transformer = useRef<Konva.Transformer>(null);
   // A hidden wizard step reports width 0; keep the last real width so the
@@ -42,7 +44,7 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
   // Guide lines shown while an element snaps to the frame or to another element.
   const [guides, setGuides] = useState<Guide[]>([]);
   useEffect(() => { if (!host.current) return; const observer = new ResizeObserver(entries => { const next = entries[0].contentRect.width; if (next > 0) setWidth(next); }); observer.observe(host.current); return () => observer.disconnect(); }, []);
-  const scale = Math.min(1, (width - 20) / ONESHOT_WIDTH, 740 / ONESHOT_HEIGHT);
+  const scale = Math.min(1, (width - 20) / ONESHOT_WIDTH, 740 / frameHeight);
   useEffect(() => {
     const node = selected ? stage.current?.findOne(`#${selected}`) : null;
     transformer.current?.nodes(node?.isVisible() ? [node] : []);
@@ -52,19 +54,19 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
     const transform = transformer.current; transform?.hide();
     try {
       const canvas = stage.current.toCanvas({ pixelRatio: 1 / scale });
-      const output = document.createElement('canvas'); output.width = ONESHOT_WIDTH; output.height = ONESHOT_HEIGHT;
-      output.getContext('2d')!.drawImage(canvas, 0, 0, ONESHOT_WIDTH, ONESHOT_HEIGHT); return output.toDataURL('image/png');
+      const output = document.createElement('canvas'); output.width = ONESHOT_WIDTH; output.height = frameHeight;
+      output.getContext('2d')!.drawImage(canvas, 0, 0, ONESHOT_WIDTH, frameHeight); return output.toDataURL('image/png');
     } finally { transform?.show(); }
-  } }), [scale]);
+  } }), [scale, frameHeight]);
   return <div ref={host} className="design-canvas-host" data-testid="oneshot-canvas"><div className="design-canvas-scroll" tabIndex={0} role="group" aria-label={label} onKeyDown={event => {
     if (disabled || !selected || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
     const element = elements.find(item => item.id === selected); if (!element) return;
     event.preventDefault(); const step = event.shiftKey ? 10 : 1;
-    change(selected, clampOneshotElement({ ...element, x: element.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0), y: element.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0) }));
-  }}><Stage ref={stage} width={ONESHOT_WIDTH * scale} height={ONESHOT_HEIGHT * scale} scaleX={scale} scaleY={scale} onMouseDown={event => { if (event.target === stage.current) select(null); }}>
+    change(selected, clampOneshotElement({ ...element, x: element.x + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0), y: element.y + (event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0) }, frameHeight));
+  }}><Stage ref={stage} width={ONESHOT_WIDTH * scale} height={frameHeight * scale} scaleX={scale} scaleY={scale} onMouseDown={event => { if (event.target === stage.current) select(null); }}>
     <Layer>
       {/* Neutral mockup sheet: positions stay legible to the image model. */}
-      <Rect x={0} y={0} width={ONESHOT_WIDTH} height={ONESHOT_HEIGHT} fill="#e9e9e9" listening={false}/>
+      <Rect x={0} y={0} width={ONESHOT_WIDTH} height={frameHeight} fill="#e9e9e9" listening={false}/>
       {elements.map(element => {
         const isText = element.kind === 'text' || element.kind === 'phone';
         const rtl = ARABIC.test(element.text ?? '');
@@ -72,12 +74,12 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
           draggable={!disabled} onClick={() => select(element.id)} onTap={() => select(element.id)}
           onDragMove={event => {
             const others = elements.filter(item => item.id !== element.id);
-            const snapped = snapBox({ x: event.target.x(), y: event.target.y(), width: element.width, height: element.height }, others, Math.min(24, 8 / scale));
+            const snapped = snapBox({ x: event.target.x(), y: event.target.y(), width: element.width, height: element.height }, others, Math.min(24, 8 / scale), frameHeight);
             event.target.position({ x: snapped.x, y: snapped.y });
             setGuides(snapped.guides);
           }}
-          onDragEnd={event => { setGuides([]); const safe = clampOneshotElement({ ...element, x: event.target.x(), y: event.target.y() }); event.target.position({ x: safe.x, y: safe.y }); change(element.id, safe); }}
-          onTransformEnd={event => { const node = event.target; const safe = clampOneshotElement({ ...element, x: node.x(), y: node.y(), width: element.width * node.scaleX(), height: element.height * node.scaleY() }); node.setAttrs({ x: safe.x, y: safe.y, width: safe.width, height: safe.height, scaleX: 1, scaleY: 1 }); change(element.id, safe); }}>
+          onDragEnd={event => { setGuides([]); const safe = clampOneshotElement({ ...element, x: event.target.x(), y: event.target.y() }, frameHeight); event.target.position({ x: safe.x, y: safe.y }); change(element.id, safe); }}
+          onTransformEnd={event => { const node = event.target; const safe = clampOneshotElement({ ...element, x: node.x(), y: node.y(), width: element.width * node.scaleX(), height: element.height * node.scaleY() }, frameHeight); node.setAttrs({ x: safe.x, y: safe.y, width: safe.width, height: safe.height, scaleX: 1, scaleY: 1 }); change(element.id, safe); }}>
           {/* Invisible hit area: the image child below is non-listening, so
               without this rect the group has nothing to grab — taps and
               drags on product/logo/icon pixels passed through to the stage.
@@ -89,7 +91,7 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
         </Group>;
       })}
       {guides.map(guide => guide.axis === 'x'
-        ? <Line key={`x${guide.at}`} points={[guide.at, 0, guide.at, ONESHOT_HEIGHT]} stroke="#e0218a" strokeWidth={2 / scale} dash={[12 / scale, 8 / scale]} listening={false}/>
+        ? <Line key={`x${guide.at}`} points={[guide.at, 0, guide.at, frameHeight]} stroke="#e0218a" strokeWidth={2 / scale} dash={[12 / scale, 8 / scale]} listening={false}/>
         : <Line key={`y${guide.at}`} points={[0, guide.at, ONESHOT_WIDTH, guide.at]} stroke="#e0218a" strokeWidth={2 / scale} dash={[12 / scale, 8 / scale]} listening={false}/>)}
       <Transformer ref={transformer} rotateEnabled={false} flipEnabled={false} enabledAnchors={!disabled && selected ? ['top-left', 'top-right', 'bottom-left', 'bottom-right'] : []} boundBoxFunc={(old, next) => Math.abs(next.width) < 24 * scale || Math.abs(next.height) < 24 * scale ? old : next}/>
     </Layer>

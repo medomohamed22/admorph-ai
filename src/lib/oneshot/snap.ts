@@ -7,8 +7,8 @@ export type Guide = { axis: 'x' | 'y'; at: number };
 /** Snap distance in canvas pixels (the 1080-wide frame, not screen pixels). */
 export const SNAP_DISTANCE = 10;
 
-function stops(boxes: Box[], axis: 'x' | 'y'): number[] {
-  const size = axis === 'x' ? ONESHOT_WIDTH : ONESHOT_HEIGHT;
+function stops(boxes: Box[], axis: 'x' | 'y', frameHeight: number): number[] {
+  const size = axis === 'x' ? ONESHOT_WIDTH : frameHeight;
   const lines = [0, size / 2, size];
   for (const box of boxes) {
     const start = axis === 'x' ? box.x : box.y, length = axis === 'x' ? box.width : box.height;
@@ -33,9 +33,9 @@ function snapAxis(start: number, length: number, lines: number[], threshold: num
  * centers of the other elements, whichever is nearest within the threshold,
  * and report the guide lines to draw. Each axis snaps on its own.
  */
-export function snapBox(box: Box, others: Box[], threshold = SNAP_DISTANCE): { x: number; y: number; guides: Guide[] } {
-  const x = snapAxis(box.x, box.width, stops(others, 'x'), threshold);
-  const y = snapAxis(box.y, box.height, stops(others, 'y'), threshold);
+export function snapBox(box: Box, others: Box[], threshold = SNAP_DISTANCE, frameHeight = ONESHOT_HEIGHT): { x: number; y: number; guides: Guide[] } {
+  const x = snapAxis(box.x, box.width, stops(others, 'x', frameHeight), threshold);
+  const y = snapAxis(box.y, box.height, stops(others, 'y', frameHeight), threshold);
   const guides: Guide[] = [];
   if (x.guide !== null) guides.push({ axis: 'x', at: x.guide });
   if (y.guide !== null) guides.push({ axis: 'y', at: y.guide });
@@ -45,14 +45,14 @@ export function snapBox(box: Box, others: Box[], threshold = SNAP_DISTANCE): { x
 export type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom';
 
 /** Align one box to the frame. */
-export function alignToFrame(box: Box, alignment: Alignment): { x: number; y: number } {
+export function alignToFrame(box: Box, alignment: Alignment, frameHeight = ONESHOT_HEIGHT): { x: number; y: number } {
   switch (alignment) {
     case 'left': return { x: 0, y: box.y };
     case 'center': return { x: (ONESHOT_WIDTH - box.width) / 2, y: box.y };
     case 'right': return { x: ONESHOT_WIDTH - box.width, y: box.y };
     case 'top': return { x: box.x, y: 0 };
-    case 'middle': return { x: box.x, y: (ONESHOT_HEIGHT - box.height) / 2 };
-    case 'bottom': return { x: box.x, y: ONESHOT_HEIGHT - box.height };
+    case 'middle': return { x: box.x, y: (frameHeight - box.height) / 2 };
+    case 'bottom': return { x: box.x, y: frameHeight - box.height };
   }
 }
 

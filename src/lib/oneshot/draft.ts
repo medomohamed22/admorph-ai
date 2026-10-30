@@ -1,6 +1,6 @@
 import { getDatabase, type AdMorphDB } from '../db/dexie';
 import type { BrandInput } from '../db/schema';
-import type { OneshotCanvasElement } from '../ai/oneshot';
+import type { OneshotCanvasElement, OneshotFormat } from '../ai/oneshot';
 import type { PlanDialect } from '../campaign/dialects';
 import type { ArtBrief } from '../ai/art-brief';
 
@@ -27,6 +27,7 @@ export type OneshotDraft = {
   suggestedFonts: string[];
   elements: OneshotCanvasElement[];
   dialect?: PlanDialect;
+  format?: OneshotFormat;
   savedAt: string;
 };
 
