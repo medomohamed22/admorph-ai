@@ -1,4 +1,5 @@
 'use client';
+import { imageFileName } from '@/lib/image-name';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -41,7 +42,7 @@ function ResultCard({ result, downloadLabel, scoreLabel, axisLabel }: { result: 
       <li>{result.certificate.logoNote}</li>
       <li>{result.certificate.layoutNote}</li>
     </ul>}
-    {url && <a className="button secondary" href={url} download="admorph-remix.png">{downloadLabel}</a>}
+    {url && <a className="button secondary" href={url} download={imageFileName('admorph-remix', result.blob)}>{downloadLabel}</a>}
   </article>;
 }
 

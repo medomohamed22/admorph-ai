@@ -1,4 +1,5 @@
 'use client';
+import { imageFileName } from '@/lib/image-name';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -220,8 +221,8 @@ export default function OneshotStudio() {
   // Geometric first: a vision box tells SAM where the product is, so the
   // cutout no longer bets on the text grounding of one word. The noun
   // phrase is the fallback, and tapping the photo is the last resort.
-  async function isolateBackground() {
-    const blob = currentBlob ?? originalBlob;
+  async function isolateBackground(source?: Blob) {
+    const blob = source ?? currentBlob ?? originalBlob;
     if (!blob || cutting) return;
     setError(''); setCutting(true); setTapCutout(false);
     try {
@@ -406,8 +407,8 @@ export default function OneshotStudio() {
     if (!originalBlob || enhanceBusy) return;
     setEnhanceNote('');
     if (!on) {
-      try { await runCutout(originalBlob); setCurrentBlob(originalBlob); setEnhance(false); }
-      catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+      setCurrentBlob(originalBlob); setEnhance(false);
+      await isolateBackground(originalBlob);
       return;
     }
     const model = provider.taskModel('image_edit') ?? imageModel;
@@ -418,7 +419,12 @@ export default function OneshotStudio() {
       await requireMetaSuccess(response);
       const improved = await response.blob(); await validateGeneratedImage(improved);
       const fitted = await fitProductImage(improved);
-      setCurrentBlob(fitted); await runCutout(fitted); setEnhance(true); setEnhanceNote(t.enhanceDone);
+      // The improved photo is kept even if the cut that follows fails: the cut
+      // runs the same box-guided path as "Isolate background" (Muse Spark box,
+      // then SAM, then the text prompt, then tap-to-cut), never the text prompt alone.
+      setCurrentBlob(fitted); setEnhance(true); setEnhanceNote(t.enhanceDone);
+      setEnhanceBusy(false);
+      await isolateBackground(fitted);
     } catch (cause) { setEnhanceNote(t.enhanceFailed); setError(metaErrorMessage(cause, errorText)); }
     finally { setEnhanceBusy(false); }
   }
@@ -850,7 +856,7 @@ export default function OneshotStudio() {
         <p>{t.attemptsNote}</p>
         <div className="attempt-grid">{attempts.map((attempt, index) => <AttemptCard key={index} attempt={attempt} label={index === 0 ? t.attemptFirst : t.attemptRepaired} scoreLabel={t.score} active={attempt.blob === resultBlob} useLabel={t.attemptUse} activeLabel={t.attemptShown} onUse={() => showAttempt(attempt)} />)}</div>
       </div>}
-      {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
+      {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download={imageFileName('admorph-oneshot', resultBlob)}>{t.download}</a>}
       <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
       {/* Kept mounted (and only disabled) while painting: removing them shifted
           the page under the fixed bars and left stale copies on some phones. */}

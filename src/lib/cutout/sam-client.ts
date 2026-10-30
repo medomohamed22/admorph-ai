@@ -69,6 +69,38 @@ export function clippedSides(alpha: Uint8ClampedArray, width: number, height: nu
   return sides;
 }
 
+/**
+ * Remove small pieces of the mask that do not touch the product: a box that
+ * also covers a price tag or a shelf edge can leave detached fragments under
+ * the product. Every connected piece smaller than `share` of the largest one
+ * is cleared; a product made of several large parts keeps them all.
+ */
+export function dropSmallIslands(alpha: Uint8ClampedArray, width: number, height: number, share = 0.15): number {
+  const labels = new Int32Array(width * height);
+  const sizes: number[] = [0];
+  const stack = new Int32Array(width * height);
+  for (let start = 0; start < alpha.length; start++) {
+    if (alpha[start] <= 127 || labels[start]) continue;
+    const label = sizes.length; let top = 0, size = 0;
+    stack[top++] = start; labels[start] = label;
+    while (top) {
+      const pixel = stack[--top]; size++;
+      const x = pixel % width;
+      const next = [x > 0 ? pixel - 1 : -1, x < width - 1 ? pixel + 1 : -1, pixel - width, pixel + width];
+      for (const n of next) if (n >= 0 && n < alpha.length && !labels[n] && alpha[n] > 127) { labels[n] = label; stack[top++] = n; }
+    }
+    sizes.push(size);
+  }
+  const largest = Math.max(0, ...sizes);
+  let cleared = 0;
+  if (sizes.length <= 2) return 0;
+  for (let i = 0; i < alpha.length; i++) {
+    const label = labels[i];
+    if (label && sizes[label] < largest * share) { alpha[i] = 0; cleared++; }
+  }
+  return cleared;
+}
+
 /** Fractions to a pixel point, clamped inside the image. */
 export function pointFractionsToPixels(point: { x: number; y: number }, width: number, height: number) {
   return { x: Math.max(0, Math.min(width - 1, Math.floor(point.x * width))), y: Math.max(0, Math.min(height - 1, Math.floor(point.y * height))) };
@@ -173,6 +205,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
   } else {
     alpha = await ask(options.point ? { point: pointFractionsToPixels(options.point, image.width, image.height), size } : { prompt: options.prompt });
   }
+  dropSmallIslands(alpha, image.width, image.height);
   const cutoutData = applySamAlpha(image.data, alpha);
   const maskData = new Uint8ClampedArray(alpha.length * 4);
   for (let i = 0; i < alpha.length; i++) {

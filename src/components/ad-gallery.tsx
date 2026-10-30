@@ -1,4 +1,5 @@
 'use client';
+import { imageFileName } from '@/lib/image-name';
 import { useEffect, useState } from 'react';
 import { useMessages } from './workspace';
 import { useObjectUrl } from './logo';
@@ -20,7 +21,7 @@ function GalleryCard({ ad, armed, onDelete }: { ad: SavedAd; armed: boolean; onD
     <div className="gallery-card-actions">
       <ButtonLink size="sm" href={`/variants?ad=${ad.id}`} icon={<IconLayers size={15} />}>{t.makeVariants}</ButtonLink>
       <ButtonLink size="sm" href={`/themes?ad=${ad.id}`} icon={<IconCalendar size={15} />}>{t.makeSeasonal}</ButtonLink>
-      {url && <a className="ui-btn ui-btn--ghost ui-btn--sm" href={url} download="admorph-ad.png">{t.download}</a>}
+      {url && <a className="ui-btn ui-btn--ghost ui-btn--sm" href={url} download={imageFileName('admorph-ad', ad.blob)}>{t.download}</a>}
       <Button size="sm" variant="danger" onClick={onDelete}>{armed ? t.confirmDelete : t.delete}</Button>
     </div>
   </article>;

@@ -1,4 +1,5 @@
 'use client';
+import { imageFileName } from '@/lib/image-name';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useMessages, useWorkspace } from './workspace';
@@ -79,7 +80,7 @@ function AdCard({ item, ad, index, labels, onRetry }: { item: Item; ad: Ad; inde
   ];
   async function share() {
     if (!ad.blob) return;
-    const file = new File([ad.blob], `${item.name || 'ad'}.png`, { type: 'image/png' });
+    const file = new File([ad.blob], imageFileName(item.name || 'ad', ad.blob), { type: ad.blob.type || 'image/png' });
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
     if (nav.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], text: ad.caption }); return; } catch { /* cancelled */ } }
     window.open(`https://wa.me/?text=${encodeURIComponent(`${ad.headline}\n${ad.caption}`)}`, '_blank', 'noopener');
@@ -97,7 +98,7 @@ function AdCard({ item, ad, index, labels, onRetry }: { item: Item; ad: Ad; inde
     {ad.state === 'done' && <p className="shelf-ad-caption" dir="auto">{ad.caption}</p>}
     {ad.state === 'failed' && <><p className="shelf-card-error" role="alert">{ad.error}</p><Button size="sm" onClick={onRetry}>{labels.retry}</Button></>}
     {ad.state === 'done' && url && <div className="shelf-ad-actions">
-      <a className="ui-btn ui-btn--secondary ui-btn--sm" href={url} download={`${item.name || 'ad'}.png`}>{labels.download}</a>
+      <a className="ui-btn ui-btn--secondary ui-btn--sm" href={url} download={imageFileName(item.name || 'ad', ad.blob)}>{labels.download}</a>
       <Button size="sm" variant="ghost" onClick={() => void share()}>{labels.share}</Button>
     </div>}
   </article>;
@@ -297,7 +298,7 @@ export default function ShelfStudio() {
         const ad = ads[item.id];
         if (!ad?.blob) continue;
         const slug = `${String(index + 1).padStart(2, '0')}-${item.name.replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 30) || 'product'}`;
-        files.push({ name: `${slug}.png`, data: new Uint8Array(await ad.blob.arrayBuffer()) });
+        files.push({ name: imageFileName(slug, ad.blob), data: new Uint8Array(await ad.blob.arrayBuffer()) });
         files.push({ name: `${slug}.txt`, data: new TextEncoder().encode(`${ad.headline}\n${ad.cta}\n\n${ad.caption}\n`) });
         summary.push({ product: item.name, price: item.priceText, headline: ad.headline, cta: ad.cta, score: ad.score ?? null, extraText: ad.certificate?.extraText ?? [] });
       }
