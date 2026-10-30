@@ -12,6 +12,8 @@ test('wizard progress survives a reload and Start over clears it', async ({ page
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('cutout-compare')).toBeVisible();
+  // The cutout plays the SAM reveal (edge glow and scan) once.
+  await expect(page.getByTestId('sam-reveal').locator('.sam-scan')).toHaveCount(1);
   await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Saved Sora');
