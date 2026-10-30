@@ -58,12 +58,15 @@
 @keyframes shelf-pulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--model-sam) 40%, transparent), 0 0 36px var(--model-sam); } }
 .shelf-box.is-cut { border-color: transparent; box-shadow: none; }
 .shelf-box.is-failed { border-color: var(--bad); border-style: dashed; }
-.shelf-box-label { position: absolute; inset-inline-start: -2px; bottom: calc(100% + 6px); display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 3px 10px 3px 3px; border-radius: var(--radius-pill); background: rgba(11, 11, 16, .86); color: #fff; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shelf-box-label { position: absolute; left: -2px; bottom: calc(100% + 6px); display: inline-flex; align-items: center; gap: 6px; max-width: 220px; padding: 3px 10px 3px 3px; border-radius: var(--radius-pill); background: rgba(11, 11, 16, .86); color: #fff; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 [dir=rtl] .shelf-box-label { padding: 3px 3px 3px 10px; }
+/* The photo is not mirrored in Arabic, so labels sit by physical side; a box near the right edge keeps its label inside the photo. */
+.shelf-box.is-end .shelf-box-label { left: auto; right: -2px; }
 .shelf-box-label b { display: grid; place-items: center; min-width: 20px; height: 20px; border-radius: 50%; background: var(--model-spark); font-size: 11px; }
 .shelf-box-label em { font-style: normal; color: #fde68a; }
 .shelf-box.is-cut .shelf-box-label b { background: var(--model-sam); color: #04131a; }
-.shelf-box-text { display: inline-flex; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.shelf-box-text { display: inline-block; min-width: 0; max-width: 190px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; vertical-align: middle; }
+.shelf-box-text em { margin-inline-start: 6px; }
 @media (max-width: 640px) { .shelf-box-text { display: none; } .shelf-box-label, [dir=rtl] .shelf-box-label { padding: 3px; } }
 .shelf-cut-glow { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; animation: sam-trace 1.6s var(--ease-out) both; }
 

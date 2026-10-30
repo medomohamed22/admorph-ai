@@ -147,3 +147,38 @@ Owner-requested direct Meta use: removed mandatory test/receipt gates in client 
 
 **Not verified live:** everything merged after PR #84 (batches A–D, the SAM box padding, the size picker, the phone repaint fix) has only been tested with intercepted Meta routes. A new live run needs the owner's key and consent. The demo video is still open.
 
+## 2026-10-30 — Second live run: every feature once, on production
+
+With the owner's key and consent, every feature was run once on <https://admorph-ai-app.vercel.app> with real Meta models (72 requests, 11 of them refused by the app's own per-minute limit before reaching Meta). The key was used only at run time and never written to a file, log or commit.
+
+**Worked first time:**
+- **Wizard at 9:16:** a 1152×2048 story ad scored 85. It used an art-brief scene on the Nile Corniche, a price badge and an icon.
+- **Brand reading, ideas with art briefs, the font picker, and the local transparent-logo button** all worked.
+- **Shelf flow:**
+  - detection found 3 products with their names and prices
+  - SAM cut each one
+  - the campaign was planned in Egyptian Arabic
+  - 2 of the 3 ads scored 100
+
+**Bugs found and fixed:**
+- PR #93:
+  - Muse Image PNGs over 3 MB were refused; they are now re-encoded under the response cap.
+  - "Improve product" cut the improved photo with the text prompt only and threw the improvement away; it now uses the box path.
+  - Price-tag fragments left in shelf cutouts are now removed.
+- PR #94:
+  - SAM sometimes returned the background inside the box (an inverted headphones cutout); the product mask is now chosen.
+  - Variants failed on the per-minute limit; they now pause and retry.
+- This entry's PR:
+  - the built-in icon library is removed (owner's request; uploading your own icon stays)
+  - variants and seasonal copies are written in the source ad's language, not the interface language
+  - the cutout edge is pulled in and softened against the white halo
+  - shelf labels stay inside the photo
+
+**After the fixes, run again on production:**
+- Improve product followed by the cut worked.
+- The Ramadan copy (lanterns, crescent, dates) scored 100.
+- Two variants scored 90 and 100.
+- The shelf campaign: 3 ads at 100, with a correct headphones cutout.
+
+**Still open:** the repeated "Why trust this ad?" seen on the owner's phone was not reproducible here, so its fix is unconfirmed on a phone.
+

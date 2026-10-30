@@ -165,6 +165,44 @@ export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, heigh
   return inverted;
 }
 
+/**
+ * SAM's mask is smaller than the photo and is scaled up, so its edge is
+ * blocky and a strip of background (the white halo) rides along with the
+ * product. Pull the edge in by `radius` pixels, then soften it over one
+ * pixel so the cutout keeps a clean anti-aliased outline.
+ */
+export function tightenEdge(alpha: Uint8ClampedArray, width: number, height: number, radius: number): void {
+  if (radius < 1) return;
+  const solid = new Uint8Array(alpha.length), row = new Uint8Array(alpha.length);
+  for (let i = 0; i < alpha.length; i++) solid[i] = alpha[i] > 127 ? 1 : 0;
+  // Erode with a (2r+1) square: horizontal pass, then vertical.
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    let keep = 1;
+    for (let dx = -radius; dx <= radius && keep; dx++) { const nx = x + dx; if (nx >= 0 && nx < width && !solid[y * width + nx]) keep = 0; }
+    row[y * width + x] = keep;
+  }
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    let keep = row[y * width + x];
+    for (let dy = -radius; dy <= radius && keep; dy++) { const ny = y + dy; if (ny >= 0 && ny < height && !row[ny * width + x]) keep = 0; }
+    solid[y * width + x] = keep;
+  }
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    let sum = 0, count = 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      sum += solid[ny * width + nx]; count++;
+    }
+    alpha[y * width + x] = Math.round(255 * sum / count);
+  }
+}
+
+/** How much a mask was scaled up to the photo, which sets how far the edge is pulled in (1 to 4 px). */
+export function edgeRadius(masks: SamMask[]): number {
+  const scale = Math.max(1, ...masks.map(mask => Math.max((mask.right - mask.left) / Math.max(1, mask.width), (mask.bottom - mask.top) / Math.max(1, mask.height))));
+  return Math.min(4, Math.max(1, Math.round(scale / 2)));
+}
+
 /** Fractions to a pixel point, clamped inside the image. */
 export function pointFractionsToPixels(point: { x: number; y: number }, width: number, height: number) {
   return { x: Math.max(0, Math.min(width - 1, Math.floor(point.x * width))), y: Math.max(0, Math.min(height - 1, Math.floor(point.y * height))) };
@@ -235,6 +273,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
   const data = await blobToBase64(blob);
   if (!options.box && !options.point && !options.prompt) throw new Error('sam_prompt_missing');
   const size = { width: image.width, height: image.height };
+  let radius = 1;
   const ask = async (promptBody: Record<string, unknown>, box?: { left: number; top: number; right: number; bottom: number }) => {
     const response = await fetch('/api/ai/segment', {
       method: 'POST',
@@ -253,6 +292,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
     const result = await response.json().catch(() => null);
     if (!response.ok) throw segmentErrorBody(result, response.status);
     const masks = parseSegmentResponse(result);
+    radius = masks.length ? edgeRadius(masks) : radius;
     if (box) {
       const chosen = chooseBoxAlpha(masks.map(mask => maskToAlpha(mask, image.width, image.height)), image.width, image.height, box);
       if (!chosen) throw new ProviderError('sam_no_mask', 502, { source: 'application', message: 'segment response had no masks' });
@@ -277,6 +317,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
     alpha = await ask(options.point ? { point: pointFractionsToPixels(options.point, image.width, image.height), size } : { prompt: options.prompt });
   }
   dropSmallIslands(alpha, image.width, image.height);
+  tightenEdge(alpha, image.width, image.height, radius);
   const cutoutData = applySamAlpha(image.data, alpha);
   const maskData = new Uint8ClampedArray(alpha.length * 4);
   for (let i = 0; i < alpha.length; i++) {

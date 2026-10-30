@@ -106,3 +106,25 @@ describe('a product larger than its box is not mistaken for background', () => {
     expect(isBackgroundMask(round, width, height, box)).toBe(false);
   });
 });
+
+import { tightenEdge, edgeRadius } from '../../src/lib/cutout/sam-client';
+
+describe('cutout edge', () => {
+  it('pulls the edge in by the radius and softens the new edge', () => {
+    const width = 20, height = 20, alpha = new Uint8ClampedArray(width * height);
+    for (let y = 4; y < 16; y++) for (let x = 4; x < 16; x++) alpha[y * width + x] = 255;
+    tightenEdge(alpha, width, height, 2);
+    expect(alpha[10 * width + 10]).toBe(255);   // deep inside: untouched
+    expect(alpha[10 * width + 3]).toBe(0);
+    expect(alpha[10 * width + 4]).toBe(0);      // the old edge strip is gone
+    expect(alpha[10 * width + 5]).toBeGreaterThan(0); // the new edge is soft, not hard
+    expect(alpha[10 * width + 5]).toBeLessThan(255);
+    expect(alpha[10 * width + 7]).toBe(255);
+  });
+  it('sets the radius from how far the mask was scaled up', () => {
+    const mask = (boxWidth: number, maskWidth: number) => ({ objectId: 'p', left: 0, top: 0, right: boxWidth, bottom: boxWidth, width: maskWidth, height: maskWidth, raster: new Uint8Array(0) });
+    expect(edgeRadius([mask(300, 300)])).toBe(1);
+    expect(edgeRadius([mask(1200, 300)])).toBe(2);
+    expect(edgeRadius([mask(4000, 256)])).toBe(4);
+  });
+});

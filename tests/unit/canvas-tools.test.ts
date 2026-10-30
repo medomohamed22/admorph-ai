@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { snapBox, alignToFrame, moveLayer } from '../../src/lib/oneshot/snap';
 import { clearEdgeBackground } from '../../src/lib/oneshot/logo-background';
-import { iconSvg, textOn, ICONS } from '../../src/lib/oneshot/icons';
+import { textOn } from '../../src/lib/oneshot/badge-color';
 import { buildOneshotPrompt, toServerLayout, oneshotElementSchema, type OneshotCanvasElement } from '../../src/lib/ai/oneshot';
 import { inspectOneshotLayout } from '../../src/lib/oneshot/rules';
 
@@ -56,12 +56,7 @@ describe('logo background', () => {
   });
 });
 
-describe('icons and badges', () => {
-  it('draws every icon in one safe color', () => {
-    expect(ICONS).toHaveLength(12);
-    expect(iconSvg('star', '#ff0000')).toContain('fill="#ff0000"');
-    expect(iconSvg('star', 'red;x')).toContain('fill="#16100C"');
-  });
+describe('badges', () => {
   it('picks readable badge text', () => {
     expect(textOn('#16100C')).toBe('#FFFFFF');
     expect(textOn('#F5D76E')).toBe('#16100C');

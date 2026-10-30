@@ -71,7 +71,10 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const plannerModel = provider.taskModel('planner');
   const key = provider.configs.meta.apiKey.trim();
   const errorText = { errors: m.settings.errors, aiError: m.meta.aiError };
-  const language = workspace.locale === 'ar' ? 'ar' : 'en';
+  // New copies are written in the language of the ad they come from (an
+  // Arabic ad gets Arabic variants), not in the language of the interface.
+  const languageOf = (ad: SavedAd | null): 'en' | 'ar' => ad?.headline.trim() ? (/[\u0600-\u06FF]/.test(ad.headline) ? 'ar' : 'en') : workspace.locale === 'ar' ? 'ar' : 'en';
+  const language = languageOf(selected);
 
   // The gallery links here with ?ad=<id>; that ad starts selected.
   const preselect = useSearchParams().get('ad');
