@@ -29,6 +29,8 @@ export const oneshotRequestSchema = metaBase.extend({
   scene: z.string().trim().min(1).max(1000),
   language: z.enum(['en', 'ar']),
   layout: z.array(oneshotElementSchema).min(1).max(12),
+  /** The critic's notes on a failed first attempt; present only on the one repair retry. */
+  fixNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(8).optional(),
 }).strict();
 
 export const verifyRequestSchema = metaBase.extend({
@@ -68,7 +70,7 @@ export function zoneOf(element: Pick<OneshotElement, 'x' | 'y' | 'width' | 'heig
  * ad while keeping every element where the user put it. The mockup image is
  * the layout authority; the words below only name what is already drawn.
  */
-export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: OneshotElement[], language: 'en' | 'ar'): string {
+export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: OneshotElement[], language: 'en' | 'ar', fixNotes: string[] = []): string {
   const lines = [
     'Turn this rough mockup into a finished photorealistic advertising image at 1080x1350.',
     'Keep every element exactly where it is in the mockup. Do not move, resize, add, or remove any element.',
@@ -85,6 +87,7 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
   lines.push(`Brand: ${brand.name}. Brand colors: ${brand.colors.join(', ')}. Echo them in the scene.`);
   if (language === 'ar') lines.push('Any text in the image is Arabic unless it is the Latin brand name.');
   lines.push('No extra text, no extra logos, no watermark, no objects cropped by the frame edges.');
+  if (fixNotes.length) lines.push(`A previous attempt failed review. Fix exactly these problems: ${fixNotes.map((note, index) => `(${index + 1}) ${note}`).join(' ')}`);
   return lines.join(' ');
 }
 

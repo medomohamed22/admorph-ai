@@ -21,12 +21,25 @@ import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { saveAd } from '@/lib/db/repository';
 import UploadCard from './upload-card';
+import { AgentPipeline, type RepairRecord } from './agent-pipeline';
+import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
 
+type Attempt = { blob: Blob; certificate: VerifyResult | null; score: number | null };
+
 type Concept = { angle: string; title: string; headline: string; caption: string; visualDirection: string };
+
+function AttemptCard({ attempt, label, scoreLabel, active, useLabel, activeLabel, onUse }: { attempt: Attempt; label: string; scoreLabel: string; active: boolean; useLabel: string; activeLabel: string; onUse: () => void }) {
+  const url = useObjectUrl(attempt.blob);
+  return <figure className={active ? 'attempt-card active' : 'attempt-card'} data-testid="oneshot-attempt">
+    {url && <img src={url} alt={label} />}
+    <figcaption><strong>{label}</strong>{attempt.score !== null && <span>{scoreLabel}: {attempt.score}</span>}</figcaption>
+    <button type="button" className="ui-btn ui-btn--secondary ui-btn--sm" aria-pressed={active} disabled={active} onClick={onUse}>{active ? activeLabel : useLabel}</button>
+  </figure>;
+}
 
 /**
  * One-shot ad studio (the site's single ad mode).
@@ -71,6 +84,10 @@ export default function OneshotStudio() {
   const [generatedLayout, setGeneratedLayout] = useState<OneshotCanvasElement[] | null>(null);
   const [certSignature, setCertSignature] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  // The visible agent: one record per pipeline step, plus the one repair loop.
+  const [records, setRecords] = useState<AgentRecords>(emptyRecords);
+  const [repair, setRepair] = useState<RepairRecord | null>(null);
+  const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [past, setPast] = useState<OneshotCanvasElement[][]>([]);
   const [future, setFuture] = useState<OneshotCanvasElement[][]>([]);
   const prevElements = useRef(elements);
@@ -89,6 +106,11 @@ export default function OneshotStudio() {
   const segmentModel = provider.taskModel('segment');
   const key = provider.configs.meta.apiKey.trim();
   const errorText = { errors: m.settings.errors, aiError: m.meta.aiError };
+  const record = (id: AgentStepId, patch: Partial<StepRecord>) => setRecords(previous => ({ ...previous, [id]: { ...previous[id], ...patch } }));
+  const startStep = (id: AgentStepId, request?: Record<string, unknown>) => record(id, { status: 'running', startedAt: Date.now(), endedAt: undefined, error: undefined, result: undefined, detail: request ? { request: redactForDetails(request) } : undefined });
+  const finishStep = (id: AgentStepId, result: string, response?: unknown) => setRecords(previous => ({ ...previous, [id]: { ...previous[id], status: 'done', endedAt: Date.now(), result, detail: response === undefined ? previous[id].detail : { ...previous[id].detail, response } } }));
+  const failStep = (id: AgentStepId, cause: unknown) => record(id, { status: 'failed', endedAt: Date.now(), error: metaErrorMessage(cause, errorText) });
+  const imageNote = (blob: Blob) => `[${blob.type || 'image'} image, ${Math.round(blob.size / 1024)} KB]`;
 
   useEffect(() => { let alive = true; Promise.all([document.fonts.load('48px Inter'), document.fonts.load('48px Cairo')]).then(() => { if (alive) return; }); return () => { alive = false; }; }, []);
   // Load an extracted brand font from Google Fonts the first time it is
@@ -144,6 +166,7 @@ export default function OneshotStudio() {
       setPast([]); setFuture([]);
       setSuggestedFonts([]);
       setAppliedRepairs([]);
+      setRecords(emptyRecords()); setRepair(null); setAttempts([]);
       setLoaded(new Set());
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
@@ -153,10 +176,14 @@ export default function OneshotStudio() {
     if (!visionModel || !key) return null;
     try {
       const fitted = await fitProductImage(blob);
-      const response = await metaFetch('vision', '/api/ai/product-box', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: visionModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted) }), signal: AbortSignal.timeout(65000) });
+      const body = { providerId: 'meta', modelId: visionModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted) };
+      startStep('locate', body);
+      const response = await metaFetch('vision', '/api/ai/product-box', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000) });
       await requireMetaSuccess(response);
-      return productBoxSchema.parse(await response.json());
-    } catch { return null; }
+      const box = productBoxSchema.parse(await response.json());
+      finishStep('locate', t.agentBox.replace('{box}', [box.left, box.top, box.right, box.bottom].map(value => value.toFixed(2)).join(', ')), box);
+      return box;
+    } catch (cause) { failStep('locate', cause); return null; }
   }
 
   // SAM runs only when the user presses the button — never on upload.
@@ -169,13 +196,14 @@ export default function OneshotStudio() {
     setError(''); setCutting(true); setTapCutout(false);
     try {
       const box = await detectProductBox(blob);
-      if (box) { try { await runCutout(blob, { box }); return; } catch { /* fall through to text */ } }
-      try { await runCutout(blob); return; }
+      startStep('cutout', { modelId: segmentModel?.modelId, prompt: box ? { box } : { text: SAM_PRODUCT_PROMPT } });
+      if (box) { try { const cut = await runCutout(blob, { box }); finishStep('cutout', t.agentCutBox, imageNote(cut)); return; } catch { /* fall through to text */ } }
+      try { const cut = await runCutout(blob); finishStep('cutout', t.agentCutText, imageNote(cut)); return; }
       catch (cause) {
-        if (cause instanceof ProviderError && (cause.code === 'sam_no_mask' || cause.code === 'invalid_response')) { setTapCutout(true); setError(metaErrorMessage(cause, errorText)); return; }
+        if (cause instanceof ProviderError && (cause.code === 'sam_no_mask' || cause.code === 'invalid_response')) { setTapCutout(true); setError(metaErrorMessage(cause, errorText)); failStep('cutout', cause); return; }
         throw cause;
       }
-    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); failStep('cutout', cause); }
     finally { setCutting(false); }
   }
 
@@ -187,8 +215,9 @@ export default function OneshotStudio() {
     if (rect.width === 0 || rect.height === 0) return;
     const point = { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) };
     setError(''); setCutting(true);
-    try { await runCutout(blob, { point }); setTapCutout(false); }
-    catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    startStep('cutout', { modelId: segmentModel?.modelId, prompt: { point } });
+    try { const cut = await runCutout(blob, { point }); setTapCutout(false); finishStep('cutout', t.agentCutTap, imageNote(cut)); }
+    catch (cause) { setError(metaErrorMessage(cause, errorText)); failStep('cutout', cause); }
     finally { setCutting(false); }
   }
 
@@ -210,6 +239,7 @@ export default function OneshotStudio() {
    *  previous brand's logo on screen: clear the logo slot and say so. */
   function applyBrand(saved: Brand) {
     setBrand({ name: saved.name, description: saved.description, colors: saved.colors });
+    setRecords(previous => ({ ...previous, brand: { status: 'skipped', result: t.agentBrandKit.replace('{name}', saved.name) } }));
     const blob = saved.logoAssetId ? workspace.assets.find(asset => asset.id === saved.logoAssetId)?.blob ?? null : null;
     setLogoMissing(!!saved.logoAssetId && !blob);
     setLogoBlob(blob);
@@ -249,13 +279,16 @@ export default function OneshotStudio() {
     setBusy('extract'); setError('');
     try {
       const image = await encodeProduct(currentBlob);
-      const response = await metaFetch('vision', '/api/ai/brand-extract', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: model.modelId, apiKey: key, consent: true, imageConsent: true, image }), signal: AbortSignal.timeout(65000) });
+      const body = { providerId: 'meta', modelId: model.modelId, apiKey: key, consent: true, imageConsent: true, image };
+      startStep('brand', body);
+      const response = await metaFetch('vision', '/api/ai/brand-extract', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000) });
       await requireMetaSuccess(response);
       const result = extractedSchema.parse(await response.json());
+      finishStep('brand', `${result.suggestedName} · ${result.primaryHex} ${result.secondaryHex} ${result.accentHex}`, result);
       setBrand({ name: result.suggestedName, description: (workspace.locale === 'ar' ? result.shortDescriptionAr : result.shortDescriptionEn) || result.suggestedName, colors: [result.primaryHex, result.secondaryHex, result.accentHex] });
       setHeadlineFont(resolveBrandFontFamily(result.fontFamily));
       setSelectedBrandId('');
-    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); failStep('brand', cause); }
     finally { setBusy(''); }
   }
 
@@ -263,7 +296,10 @@ export default function OneshotStudio() {
     if (!plannerModel || !key || !currentBlob || !brandValid) return;
     setBusy('ideas'); setError('');
     try {
-      const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: brief.trim(), goal: 'awareness', creativeLanguage: workspace.locale === 'ar' ? 'ar' : 'en', format: '1080x1350', product: await encodeProduct(currentBlob) }, AbortSignal.timeout(65000));
+      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: workspace.locale === 'ar' ? 'ar' as const : 'en' as const, format: '1080x1350' as const, product: await encodeProduct(currentBlob) };
+      startStep('ideas', planBody);
+      const plan = await requestPlan(planBody, AbortSignal.timeout(65000));
+      finishStep('ideas', plan.concepts.map(item => item.headline).join(' · '), plan);
       const next = plan.concepts.map(item => ({ angle: item.angle, title: item.title, headline: item.headline, caption: item.caption, visualDirection: item.visualDirection }));
       setConcepts(next); pickConcept(next, 0);
       // The planner suggests up to three headline fonts with the ideas;
@@ -271,7 +307,7 @@ export default function OneshotStudio() {
       const fonts: string[] = [];
       for (const name of plan.fonts ?? []) { const resolved = resolveBrandFontFamily(name); if (resolved && !fonts.includes(resolved)) fonts.push(resolved); }
       setSuggestedFonts(fonts);
-    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); failStep('ideas', cause); }
     finally { setBusy(''); }
   }
 
@@ -318,9 +354,47 @@ export default function OneshotStudio() {
     setElements(previous => [...previous, element]); setSelected(element.id);
   }
 
+  /** One painting pass plus its review. `fixNotes` turns it into the repair retry. */
+  async function paintAndReview(mockup: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }, layout: ReturnType<typeof toServerLayout>, sanitizedBrand: BrandInput, fixNotes?: string[]): Promise<Attempt> {
+    if (!imageModel) throw new ProviderError('invalid_model', 400);
+    const language = workspace.locale === 'ar' ? 'ar' : 'en';
+    const body = { providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitizedBrand, scene: scene.trim(), language, layout, ...(fixNotes ? { fixNotes } : {}) };
+    if (!fixNotes) startStep('paint', body);
+    setBusy('generate');
+    const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000) });
+    await requireMetaSuccess(response);
+    const result = await response.blob(); await validateGeneratedImage(result);
+    if (!fixNotes) finishStep('paint', t.agentPainted, imageNote(result));
+    // Finished ads save to the gallery automatically, so the variants
+    // and themes pages can pick them up without re-uploading. A gallery
+    // failure must never break the ad itself.
+    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString() }).catch(() => {});
+    const verifyModel = visionModel ?? provider.taskModel('critic');
+    if (!verifyModel) return { blob: result, certificate: null, score: null };
+    setBusy('verify');
+    const fitted = await fitProductImage(result);
+    const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language };
+    if (!fixNotes) startStep('critic', verifyBody);
+    const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(verifyBody), signal: AbortSignal.timeout(65000) });
+    await requireMetaSuccess(verifyResponse);
+    const verified = verifyResultSchema.parse(await verifyResponse.json());
+    const attemptScore = oneshotScore(verified, hasLogo);
+    if (!fixNotes) finishStep('critic', t.agentScore.replace('{score}', String(attemptScore)), verified);
+    return { blob: result, certificate: verified, score: attemptScore };
+  }
+
+  function showAttempt(attempt: Attempt) {
+    setResultBlob(attempt.blob);
+    setCertificate(attempt.certificate); setScore(attempt.score);
+    setCertSignature(attempt.certificate ? mockupSignature(elements, brand) : null);
+  }
+
   async function generate() {
     if (!cutoutBlob || !imageModel || !key || !scene.trim() || !canvasHandle.current || !canvasReady) return;
     setBusy('generate'); setError(''); setCertificate(null); setScore(null); setCertSignature(null); setGeneratedLayout(null);
+    setRepair(null); setAttempts([]);
+    setRecords(previous => ({ ...previous, paint: { status: 'waiting' }, critic: { status: 'waiting' } }));
+    let step: AgentStepId = 'paint';
     try {
       // The headline font must be loaded before the mockup export, or the
       // canvas falls back to Cairo/Inter and the model sees the wrong font.
@@ -330,29 +404,41 @@ export default function OneshotStudio() {
       // Blank text boxes render nothing on the mockup; never send them as
       // quoted strings to the model.
       const layout = toServerLayout(elements).filter(element => element.kind !== 'text' && element.kind !== 'phone' ? true : (element.text?.trim().length ?? 0) > 0);
+      // The deterministic check is a pipeline step too: recorded on the
+      // exact layout that goes to the painter.
+      record('check', { status: 'done', startedAt: Date.now(), endedAt: Date.now(), result: findings.length === 0 ? t.inspectOk : t.agentIssues.replace('{count}', String(findings.length)), detail: { response: findings } });
       // The evidence manifest describes this layout, not whatever the user
       // arranges afterwards.
       setGeneratedLayout(elements);
       const sanitizedBrand: BrandInput = { ...brand, colors: brand.colors.map(color => /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#16100C') as [string, string, string] };
-      const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup: await encodeProduct(fittedMockup), brand: sanitizedBrand, scene: scene.trim(), language: workspace.locale === 'ar' ? 'ar' : 'en', layout }), signal: AbortSignal.timeout(65000) });
-      await requireMetaSuccess(response);
-      const result = await response.blob(); await validateGeneratedImage(result);
-      setResultBlob(result);
-      // Finished ads save to the gallery automatically, so the variants
-      // and themes pages can pick them up without re-uploading. A gallery
-      // failure must never break the ad itself.
-      void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString() }).catch(() => {});
-      const verifyModel = visionModel ?? provider.taskModel('critic');
-      if (verifyModel) {
-        setBusy('verify');
-        const fitted = await fitProductImage(result);
-        const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language: workspace.locale === 'ar' ? 'ar' : 'en' }), signal: AbortSignal.timeout(65000) });
-        await requireMetaSuccess(verifyResponse);
-        const certificate = verifyResultSchema.parse(await verifyResponse.json());
-        setCertificate(certificate); setScore(oneshotScore(certificate, hasLogo));
-        setCertSignature(mockupSignature(elements, brand));
+      const encodedMockup = await encodeProduct(fittedMockup);
+      const first = await paintAndReview(encodedMockup, layout, sanitizedBrand);
+      setAttempts([first]); showAttempt(first);
+      if (navigator.vibrate) navigator.vibrate(30);
+      // One repair loop: a weak certificate sends the critic's notes back to
+      // the painter for exactly one more attempt; both versions stay visible.
+      const notes = first.certificate && first.score !== null && first.score < REPAIR_THRESHOLD ? repairNotes(first.certificate, hasLogo) : [];
+      if (notes.length > 0) {
+        step = 'critic';
+        const started = Date.now();
+        setRepair({ status: 'running', startedAt: started, firstScore: first.score ?? undefined, detail: { request: { fixNotes: notes } } });
+        try {
+          const second = await paintAndReview(encodedMockup, layout, sanitizedBrand, notes);
+          setAttempts([first, second]);
+          const better = (second.score ?? -1) > (first.score ?? -1) ? second : first;
+          showAttempt(better);
+          setRepair({ status: 'done', startedAt: started, endedAt: Date.now(), firstScore: first.score ?? undefined, secondScore: second.score ?? undefined, result: t.agentRepairResult.replace('{first}', String(first.score)).replace('{second}', String(second.score ?? '—')), detail: { request: { fixNotes: notes }, response: second.certificate } });
+        } catch (cause) {
+          setRepair({ status: 'failed', startedAt: started, endedAt: Date.now(), firstScore: first.score ?? undefined, error: metaErrorMessage(cause, errorText), detail: { request: { fixNotes: notes } } });
+        }
       }
-    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+    } catch (cause) {
+      setError(metaErrorMessage(cause, errorText));
+      setRecords(previous => {
+        const failing: AgentStepId = previous.paint.status === 'running' ? 'paint' : previous.critic.status === 'running' ? 'critic' : step;
+        return { ...previous, [failing]: { ...previous[failing], status: 'failed', endedAt: Date.now(), error: metaErrorMessage(cause, errorText) } };
+      });
+    }
     finally { setBusy(''); }
   }
 
@@ -588,6 +674,8 @@ export default function OneshotStudio() {
       </div>}
     </section>
 
+    <AgentPipeline records={records} repair={repair} onRetry={{ locate: () => void isolateBackground(), cutout: () => void isolateBackground(), brand: () => void extractBrand(), ideas: () => void suggestIdeas(), paint: () => void generate(), critic: () => void generate(), repair: () => void generate() }} />
+
     <section className="feature-card">
       <h2>{t.result}</h2>
       <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame">
@@ -597,6 +685,11 @@ export default function OneshotStudio() {
             ? <img data-testid="oneshot-result" className="oneshot-reveal" key={resultUrl} src={resultUrl} alt={t.result} />
             : <p>{t.resultEmpty}</p>}
       </div>
+      {attempts.length === 2 && !generating && <div className="attempt-compare" data-testid="oneshot-attempts">
+        <h3>{t.attemptsTitle}</h3>
+        <p>{t.attemptsNote}</p>
+        <div className="attempt-grid">{attempts.map((attempt, index) => <AttemptCard key={index} attempt={attempt} label={index === 0 ? t.attemptFirst : t.attemptRepaired} scoreLabel={t.score} active={attempt.blob === resultBlob} useLabel={t.attemptUse} activeLabel={t.attemptShown} onUse={() => showAttempt(attempt)} />)}</div>
+      </div>}
       {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
       <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
       {certificate && score !== null && <div data-testid="oneshot-certificate">

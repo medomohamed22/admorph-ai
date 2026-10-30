@@ -143,7 +143,10 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByText('SAM returned text but no usable mask for this photo.')).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('alert').filter({ hasText: 'SAM returned text but no usable mask for this photo.' })).toBeVisible({ timeout: 30000 });
+  // The agent's cutout card fails with the same precise diagnosis.
+  await expect(page.getByTestId('agent-step-cutout')).toHaveAttribute('data-status', 'failed');
+  await expect(page.getByTestId('agent-step-cutout')).toContainText('SAM returned text but no usable mask for this photo.');
   await expect(page.getByTestId('oneshot-canvas')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
