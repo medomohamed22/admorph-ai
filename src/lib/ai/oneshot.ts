@@ -28,7 +28,7 @@ export const oneshotRequestSchema = metaBase.extend({
   brand: brandInputSchema,
   scene: z.string().trim().min(1).max(1000),
   language: z.enum(['en', 'ar']),
-  layout: z.array(oneshotElementSchema).min(1).max(12),
+  layout: z.array(oneshotElementSchema).min(1).max(20),
   /** The critic's notes on a failed first attempt; present only on the one repair retry. */
   fixNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(8).optional(),
 }).strict();
@@ -36,8 +36,10 @@ export const oneshotRequestSchema = metaBase.extend({
 export const verifyRequestSchema = metaBase.extend({
   imageConsent: z.literal(true),
   image: inputImage,
-  layout: z.array(oneshotElementSchema).min(1).max(12),
+  layout: z.array(oneshotElementSchema).min(1).max(20),
   language: z.enum(['en', 'ar']),
+  /** A seasonal remix asks the critic to name the season cues it can see. */
+  season: z.enum(['ramadan', 'eid', 'black-friday', 'summer']).optional(),
 }).strict();
 
 export const verifyResultSchema = z.object({
@@ -52,7 +54,11 @@ export const verifyResultSchema = z.object({
     expected: z.string().max(200),
     found: z.string().max(200),
     match: z.boolean(),
-  })).max(12),
+  })).max(20),
+  /** Words painted in the ad that the mockup never had (not counting text printed on the product itself). */
+  extraText: z.array(z.string().max(120)).max(8).optional(),
+  /** Seasonal elements the critic can see, when a season was asked for. */
+  seasonCues: z.array(z.string().max(80)).max(10).optional(),
 }).strict();
 export type VerifyResult = z.infer<typeof verifyResultSchema>;
 
@@ -84,9 +90,13 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled.`);
   }
   lines.push(`Background: ${scene}.`);
-  lines.push(`Brand: ${brand.name}. Brand colors: ${brand.colors.join(', ')}. Echo them in the scene.`);
-  if (language === 'ar') lines.push('Any text in the image is Arabic unless it is the Latin brand name.');
-  lines.push('No extra text, no extra logos, no watermark, no objects cropped by the frame edges.');
+  lines.push(`Brand colors: ${brand.colors.join(', ')}. Echo them in the scene. The brand's name is context only: never write it as text.`);
+  const allowed = layout.filter(element => (element.kind === 'text' || element.kind === 'phone') && element.text?.trim()).map(element => `"${element.text!.trim()}"`);
+  lines.push(allowed.length
+    ? `The only words allowed anywhere in the image are ${allowed.join(', ')}, plus text already printed on the product itself. Write no other word, name, slogan or label.`
+    : 'Write no words at all, except text already printed on the product itself.');
+  if (language === 'ar') lines.push('Arabic text reads right to left with correctly joined letters.');
+  lines.push('No extra logos, no watermark, no objects cropped by the frame edges.');
   if (fixNotes.length) lines.push(`A previous attempt failed review. Fix exactly these problems: ${fixNotes.map((note, index) => `(${index + 1}) ${note}`).join(' ')}`);
   return lines.join(' ');
 }
@@ -100,7 +110,10 @@ export function oneshotScore(result: VerifyResult, logoExpected: boolean): numbe
   const textTotal = result.texts.length === 0 ? 25 : 25 * (result.texts.filter(item => item.match).length / result.texts.length);
   const earned = (result.productKept ? 40 : 0) + (result.layoutKept ? 20 : 0) + (logoExpected && result.logoKept ? 15 : 0) + textTotal;
   const possible = 40 + 20 + (logoExpected ? 15 : 0) + 25;
-  return Math.round((earned / possible) * 100);
+  // Painted words the mockup never had cost 10 each (at most 30), so an ad
+  // that invents a slogan falls under the repair threshold.
+  const extraPenalty = Math.min(30, 10 * (result.extraText?.length ?? 0));
+  return Math.max(0, Math.round((earned / possible) * 100) - extraPenalty);
 }
 
 /** Canvas-side element: the server layout plus the local render payload. */

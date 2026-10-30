@@ -419,7 +419,7 @@ export default function OneshotStudio() {
     // Finished ads save to the gallery automatically, so the variants
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
-    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString() }).catch(() => {});
+    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
     if (!verifyModel) return { blob: result, certificate: null, score: null };
     setBusy('verify');

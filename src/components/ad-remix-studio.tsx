@@ -8,7 +8,7 @@ import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
 import { encodeProduct, fitProductImage, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
 import { oneshotScore, verifyResultSchema, type OneshotElement, type VerifyResult } from '@/lib/ai/oneshot';
-import { REMIX_THEMES, type RemixThemeId } from '@/lib/ai/remix';
+import { REMIX_THEMES, MIN_SEASON_CUES, type RemixThemeId } from '@/lib/ai/remix';
 import { loadSavedAds, saveAd, deleteSavedAd } from '@/lib/db/repository';
 import type { SavedAd, BrandInput } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
@@ -86,23 +86,33 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     ];
   }
 
-  async function runJob(source: SavedAd, fittedSource: Blob, headline: string, scene: string) {
+  /** One remix and its review. A seasonal copy that shows too few season
+   *  cues is painted once more and the better of the two is kept. */
+  async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId) {
     if (!imageModel) return;
-    const remixResponse = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedSource), brand: source.brand, scene, headline, language }), signal: AbortSignal.timeout(65000) });
-    await requireMetaSuccess(remixResponse);
-    const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
-    let score: number | null = null, certificate: VerifyResult | null = null;
-    const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
-    if (verifyModel) {
-      const fittedResult = await fitProductImage(blob);
-      const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language }), signal: AbortSignal.timeout(65000) });
-      await requireMetaSuccess(verifyResponse);
-      certificate = verifyResultSchema.parse(await verifyResponse.json());
-      score = oneshotScore(certificate, source.hasLogo);
+    const paint = async () => {
+      const remixResponse = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) });
+      await requireMetaSuccess(remixResponse);
+      const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
+      let score: number | null = null, certificate: VerifyResult | null = null;
+      const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
+      if (verifyModel) {
+        const fittedResult = await fitProductImage(blob);
+        const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language, ...(theme ? { season: theme } : {}) }), signal: AbortSignal.timeout(65000) });
+        await requireMetaSuccess(verifyResponse);
+        certificate = verifyResultSchema.parse(await verifyResponse.json());
+        score = oneshotScore(certificate, false) - (theme && (certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES ? 20 : 0);
+      }
+      return { blob, score, certificate };
+    };
+    let best = await paint();
+    if (theme && best.certificate && (best.certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES) {
+      const again = await paint();
+      if ((again.score ?? -1) > (best.score ?? -1)) best = again;
     }
-    const result: RemixResult = { id: crypto.randomUUID(), blob, headline, score, certificate };
+    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate };
     setResults(previous => [...previous, result]);
-    try { await saveAd({ id: crypto.randomUUID(), blob, source: mode, brand: source.brand, headline, hasLogo: source.hasLogo, createdAt: new Date().toISOString() }); } catch { /* gallery is best-effort */ }
+    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
 
   async function generate() {
@@ -115,22 +125,26 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       // like one-shot fits its mockup and result — otherwise the planner,
       // the remix and the verify all fail with invalid_request.
       const fittedSource = await fitProductImage(selected.blob);
-      let jobs: { headline: string; scene: string }[] = [];
+      // Redesign from the product cutout when the ad kept one, so each copy
+      // is a new design rather than a repaint of the finished ad.
+      const fromProduct = !!selected.cutout;
+      const remixImage = selected.cutout ? await fitProductImage(selected.cutout) : fittedSource;
+      let jobs: { headline: string; scene: string; theme?: RemixThemeId }[] = [];
       if (mode === 'variants') {
         const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: '', goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
         jobs = plan.concepts.slice(0, count).map(item => ({ headline: item.headline, scene: item.visualDirection }));
       } else {
         for (const themeId of themes) {
           const theme = REMIX_THEMES.find(item => item.id === themeId)!;
-          const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id} — ${theme.scene}. Create concepts with a ${theme.id} headline angle and scene direction.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
+          const plan = await requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: await encodeProduct(fittedSource) }, AbortSignal.timeout(65000));
           const first = plan.concepts[0];
-          if (first) jobs.push({ headline: first.headline, scene: first.visualDirection });
+          if (first) jobs.push({ headline: first.headline, scene: first.visualDirection, theme: themeId });
         }
       }
       setBusy('generate');
       let failures = 0;
       for (const job of jobs) {
-        try { await runJob(selected, fittedSource, job.headline, job.scene); }
+        try { await runJob(selected, remixImage, fromProduct, job.headline, job.scene, job.theme); }
         catch (cause) { failures += 1; setError(metaErrorMessage(cause, errorText)); }
       }
       setFailed(failures);

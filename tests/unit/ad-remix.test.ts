@@ -19,13 +19,24 @@ function ad(partial: Partial<SavedAd>): SavedAd {
 }
 
 describe('ad remix prompt', () => {
-  it('keeps the product and logo, swaps scene and headline', () => {
+  it('keeps the product, swaps scene and headline, and never writes the brand name', () => {
     const prompt = buildRemixPrompt(BRAND, 'Ramadan lantern light', 'Ramadan nights taste better', 'ar');
     expect(prompt).toContain('Ramadan nights taste better');
     expect(prompt).toContain('Ramadan lantern light');
-    expect(prompt).toContain('NOUR');
+    expect(prompt).not.toContain('NOUR');
+    expect(prompt).toContain('never write it as text');
     expect(prompt).toContain('same product');
     expect(prompt).toContain('Arabic');
+  });
+  it('a seasonal redesign from the product names its palette and at least three required cues', () => {
+    const prompt = buildRemixPrompt(BRAND, 'a festive table', 'Ramadan Kareem', 'ar', 'product', 'ramadan');
+    expect(prompt).toContain('product photo');
+    expect(prompt).toContain('fresh composition');
+    expect(prompt).toContain('emerald green');
+    expect(prompt).toContain('At least three of these must be clearly visible');
+    expect(prompt).toContain('lantern');
+    expect(remixRequestSchema.safeParse({ ...BASE, image: IMAGE, brand: BRAND, scene: 'x', headline: 'y', language: 'ar', source: 'product', theme: 'ramadan' }).success).toBe(true);
+    expect(remixRequestSchema.safeParse({ ...BASE, image: IMAGE, brand: BRAND, scene: 'x', headline: 'y', language: 'ar', theme: 'diwali' }).success).toBe(false);
   });
   it('omits the Arabic note for English ads', () => {
     expect(buildRemixPrompt(BRAND, 'beach', 'Summer fresh', 'en')).not.toContain('Arabic');

@@ -21,6 +21,7 @@ export function CertificateCard({ certificate, score, hasLogo }: { certificate: 
     { key: 'product', label: t.productKept, ok: certificate.productKept, note: certificate.productNote },
     { key: 'logo', label: t.logoKept, ok: hasLogo ? certificate.logoKept : null, note: hasLogo ? certificate.logoNote : t.certNoLogo },
     { key: 'layout', label: t.layoutKept, ok: certificate.layoutKept, note: certificate.layoutNote },
+    ...(certificate.extraText !== undefined ? [{ key: 'extra', label: t.certExtra, ok: certificate.extraText.length === 0, note: certificate.extraText.length ? t.certExtraFound.replace('{list}', certificate.extraText.map(item => `“${item}”`).join(', ')) : t.certExtraNone }] : []),
     { key: 'text', label: t.certText, ok: certificate.texts.length ? textsOk : null, note: certificate.texts.length ? certificate.texts.map(item => item.match ? `“${item.expected}” ✓` : `“${item.expected}” → “${item.found}”`).join(' · ') : t.certNoText },
   ];
   return <div className="cert-card" data-testid="oneshot-certificate">
