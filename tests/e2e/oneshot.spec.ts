@@ -1,3 +1,4 @@
+import { wizardStep, fillBrand } from './wizard';
 import { test, expect } from '@playwright/test';
 
 // Geometric cutout: isolate first asks vision for a product box. Tests
@@ -42,13 +43,15 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
   await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   // Generate enables once the canvas is ready (cutout decoded, brand
   // filled, scene present, image model + key set).
+  await wizardStep(page, 'Generate');
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
   await expect(generate).toBeEnabled({ timeout: 30000 });
 
@@ -102,12 +105,14 @@ test('One-shot enhance shows a success note and a before/after preview', async (
 
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   // The enhance checkbox only flips to checked after the async makeover +
   // re-cutout finish, so click (not check) and wait for the success note.
+  await wizardStep(page, 'Product');
   await page.getByRole('checkbox', { name: /Improve product/ }).click();
   await expect(page.getByText('Product improved — compare it with the original below.')).toBeVisible({ timeout: 30000 });
   await expect(page.getByTestId('oneshot-enhance-compare')).toBeVisible();
@@ -144,9 +149,8 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'SAM returned text but no usable mask for this photo.' })).toBeVisible({ timeout: 30000 });
-  // The agent's cutout card fails with the same precise diagnosis.
-  await expect(page.getByTestId('agent-step-cutout')).toHaveAttribute('data-status', 'failed');
-  await expect(page.getByTestId('agent-step-cutout')).toContainText('SAM returned text but no usable mask for this photo.');
+  // Without a cutout the wizard stays on the product step.
+  await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
   await expect(page.getByTestId('oneshot-canvas')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
@@ -174,7 +178,16 @@ test('brand picker fills identity and logo from a saved brand kit', async ({ pag
     });
     return brandId;
   });
-  await page.goto('/oneshot');
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
+  // The brand step opens once the product is cut out.
+  const mask = Buffer.alloc(300 * 330, 1);
+  await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
+  await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
+  await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByRole('button', { name: 'Picker Brand', exact: true }).click();
   await page.getByText('Edit brand details', { exact: true }).click();
   await expect(page.getByLabel('Brand name')).toHaveValue('Picker Brand');
@@ -182,6 +195,7 @@ test('brand picker fills identity and logo from a saved brand kit', async ({ pag
   await expect(page.getByLabel('color-1')).toHaveValue('#111111');
   await expect(page.getByLabel('color-2')).toHaveValue('#eeeeee');
   await expect(page.getByLabel('color-3')).toHaveValue('#336699');
+  // The logo slot lives on the brand step, next to the kit it came from.
   await expect(page.getByTestId('upload-card-logo').locator('img')).toBeVisible();
 });
 
@@ -216,10 +230,12 @@ test('ideas generate from the product photo and brand with no written brief', as
   });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  await wizardStep(page, 'Idea');
   await expect(page.getByLabel('Extra direction (optional)')).toHaveValue('');
   await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cold Offer — Ice Cold One', exact: true })).toBeVisible();
@@ -251,31 +267,36 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   await expect(steps).toHaveCount(5);
   await expect(steps.first()).toHaveClass(/current/);
   await expect(steps.first()).toContainText('Product');
-  // The result frame is visible from the start, above the generate button.
+  // One step at a time: Next waits for the product with a visible reason,
+  // and later steps cannot be opened yet.
+  const next = page.getByRole('button', { name: 'Next', exact: true });
+  await expect(next).toBeDisabled();
+  await expect(page.getByTestId('wizard-reason')).toHaveText('Upload a product photo, then press Isolate background.');
+  await expect(page.getByRole('navigation', { name: 'Your ad in 5 steps' }).getByRole('button', { name: 'Generate', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeDisabled();
   const frame = page.getByTestId('oneshot-result-frame');
-  await expect(frame).toBeVisible();
-  await expect(frame).toContainText('Your finished ad will appear here.');
-  const framePrecedesGenerate = await page.evaluate(() => {
-    const frameEl = document.querySelector('[data-testid="oneshot-result-frame"]');
-    const button = document.querySelector('.generate-main');
-    return !!frameEl && !!button && Boolean(frameEl.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING);
-  });
-  expect(framePrecedesGenerate).toBe(true);
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await expect(next).toBeEnabled();
+  await expect(page.getByTestId('wizard-reason')).toHaveCount(0);
+  await next.click();
+  await expect(steps.nth(1)).toHaveClass(/current/);
   await expect(steps.first()).toHaveClass(/done/);
+  // The line after a finished step fills.
+  await expect(steps.first().locator('.wizard-link i')).toHaveAttribute('style', /scaleX\(1\)/);
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
-  // The sticky bar carries the same generate button for small screens; the
-  // in-flow button is hidden there, so exactly one is ever visible.
-  await expect(page.locator('.sticky-generate button')).toHaveCount(1);
+  // The bottom bar always holds Back and Next.
+  await expect(page.locator('.sticky-generate button')).toHaveCount(2);
   const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   await page.route('**/api/ai/oneshot', async (route) => { await new Promise(resolve => setTimeout(resolve, 1500)); await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await wizardStep(page, 'Generate');
+  await expect(frame).toContainText('Your finished ad will appear here.');
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-generating')).toBeVisible();
   await expect(page.getByTestId('oneshot-generating')).toContainText('Painting your finished ad…');
@@ -300,7 +321,8 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   // The finished image lands inside the same frame that blurred.
   await expect(frame.getByTestId('oneshot-result')).toBeVisible();
   await expect(page.getByTestId('oneshot-certificate')).toBeVisible({ timeout: 30000 });
-  await expect(steps.nth(4)).toHaveClass(/done/);
+  await expect(steps.nth(3)).toHaveClass(/done/);
+  await expect(steps.nth(4)).toHaveClass(/current/);
 });
 
 test('brand extraction applies its font to the headline', async ({ page }) => {
@@ -327,7 +349,8 @@ test('brand extraction applies its font to the headline', async ({ page }) => {
   await page.route('**/api/ai/brand-extract', async (route) => { await route.fulfill({ body: JSON.stringify({ suggestedName: 'Sora', primaryHex: '#52633c', secondaryHex: '#dce5bb', accentHex: '#f2d1bc', brandTone: 'calm', shortDescriptionEn: 'A sample matcha brand.', shortDescriptionAr: 'براند ماتشا تجريبي.', recommendedFontEn: 'Inter', recommendedFontAr: 'Cairo', rationale: 'Fixture.', fontFamily: 'Montserrat' }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
@@ -360,12 +383,14 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   // An added text line becomes the selected element, so the move/resize
   // buttons appear for it. It starts at 800x120 at (140, 500).
+  await wizardStep(page, 'Arrange');
   await page.getByLabel('Your headline').fill('Hello');
   await page.getByRole('button', { name: 'Add text', exact: true }).click();
   await page.getByRole('button', { name: 'Enlarge', exact: true }).click();
@@ -375,6 +400,7 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
   const captured: { layout?: LayoutItem[] } = {};
   await page.route('**/api/ai/oneshot', async (route) => { captured.layout = (route.request().postDataJSON() as { layout: LayoutItem[] }).layout; await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await wizardStep(page, 'Generate');
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-result')).toBeVisible({ timeout: 30000 });
   // Enlarge x1.2 around the center, then one 10px nudge left.
@@ -409,7 +435,9 @@ test('canvas undo and redo restore the selected text', async ({ page }) => {
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await fillBrand(page);
+  await wizardStep(page, 'Arrange');
   await expect(page.getByRole('button', { name: 'Undo', exact: true })).toBeDisabled();
   await page.getByLabel('Your headline').fill('Hello');
   await page.getByRole('button', { name: 'Add text', exact: true }).click();
@@ -443,7 +471,9 @@ test('mockup check flags text overlapping the product', async ({ page }) => {
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await fillBrand(page);
+  await wizardStep(page, 'Arrange');
   await expect(page.getByText('No issues found.')).toBeVisible();
   // The added line starts at (140, 500) 800x120, squarely over the product
   // box (340, 380) 400x600.
@@ -478,13 +508,15 @@ test('evidence export downloads a ZIP and editing clears the certificate', async
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   await page.route('**/api/ai/oneshot', async (route) => { await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await wizardStep(page, 'Generate');
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-certificate')).toBeVisible({ timeout: 30000 });
   const downloadPromise = page.waitForEvent('download');
@@ -493,6 +525,7 @@ test('evidence export downloads a ZIP and editing clears the certificate', async
   expect(download.suggestedFilename()).toMatch(/\.zip$/);
   // Any mockup edit after verification invalidates the on-screen
   // certificate: it described a mockup that no longer exists.
+  await wizardStep(page, 'Arrange');
   await page.getByLabel('Your headline').fill('Hello');
   await page.getByRole('button', { name: 'Add text', exact: true }).click();
   await expect(page.getByTestId('oneshot-certificate')).toHaveCount(0);
@@ -527,10 +560,12 @@ test('planner suggests three fonts and picking one applies it to the headline', 
   ], fonts: ['Montserrat', 'Poppins', 'Oswald'] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
+  await wizardStep(page, 'Idea');
   await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
   await expect(page.getByText('Suggested fonts')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Poppins', exact: true })).toBeVisible();
@@ -563,7 +598,9 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await fillBrand(page);
+  await wizardStep(page, 'Arrange');
   await page.getByTestId('oneshot-canvas').scrollIntoViewIfNeeded();
   // The canvas owns the gesture: no page scroll starts from it.
   const touchAction = await page.locator('.design-canvas-host').evaluate((element) => getComputedStyle(element).touchAction);
@@ -583,14 +620,12 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   await page.mouse.down();
   await page.mouse.move(startX + 80 * scale, startY + 60 * scale, { steps: 5 });
   await page.mouse.up();
-  await page.getByText('Edit brand details', { exact: true }).click();
-  await page.getByLabel('Brand name').fill('Sora');
-  await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   type LayoutItem = { id: string; kind: string; x: number; y: number; width: number; height: number; text?: string };
   const captured: { layout?: LayoutItem[] } = {};
   await page.route('**/api/ai/oneshot', async (route) => { captured.layout = (route.request().postDataJSON() as { layout: LayoutItem[] }).layout; await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await wizardStep(page, 'Generate');
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-result')).toBeVisible({ timeout: 30000 });
   // The product started at (340, 380); the drag adds (80, 60), within a
@@ -640,12 +675,14 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByRole('button', { name: 'Brand A', exact: true }).click();
   await page.getByText('Edit brand details', { exact: true }).click();
   await expect(page.getByLabel('Brand name')).toHaveValue('Brand A');
   // Select the logo by clicking its center, then nudge it 10px left: the
   // logo starts at (830, 40) 200x80, so it must land at x 820.
+  await wizardStep(page, 'Arrange');
   await page.getByTestId('oneshot-canvas').scrollIntoViewIfNeeded();
   const stageBox = await page.locator('.design-canvas-host canvas').first().boundingBox();
   expect(stageBox).not.toBeNull();
@@ -654,6 +691,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   await page.getByRole('button', { name: 'Move left', exact: true }).click();
   // Picking another brand swaps the logo image only — the arranged
   // position must survive.
+  await wizardStep(page, 'Brand');
   await page.getByRole('button', { name: 'Brand B', exact: true }).click();
   await expect(page.getByLabel('Brand name')).toHaveValue('Brand B');
   const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
@@ -661,6 +699,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   const captured: { layout?: LayoutItem[] } = {};
   await page.route('**/api/ai/oneshot', async (route) => { captured.layout = (route.request().postDataJSON() as { layout: LayoutItem[] }).layout; await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
+  await wizardStep(page, 'Generate');
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-result')).toBeVisible({ timeout: 30000 });
   const logo = captured.layout?.find(item => item.kind === 'logo');
@@ -694,9 +733,11 @@ test('repair loop proposes a fix, applies it, and undo reverses it', async ({ pa
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
   // The added line starts at (140, 500) 800x120, squarely over the product
   // box (340, 380) 400x600.
+  await fillBrand(page);
+  await wizardStep(page, 'Arrange');
   await page.getByLabel('Your headline').fill('Hello');
   await page.getByRole('button', { name: 'Add text', exact: true }).click();
   await expect(page.getByText('Element overlaps the product')).toBeVisible();
@@ -748,7 +789,7 @@ test('Geometric cutout rescues a product the noun phrase cannot ground', async (
 
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
   await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
   expect(seen.some((body) => body.box)).toBe(true);
   expect(seen.some((body) => body.prompt)).toBe(false);
@@ -791,7 +832,7 @@ test('Tap-to-cut rescues a product when automatic cutout fails twice', async ({ 
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByText(/Tap the product in the photo/)).toBeVisible({ timeout: 30000 });
   await page.getByTestId('cutout-tap-photo').click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
   await expect(page.getByText('Cutout: Meta (SAM) cutout')).toBeVisible();
   expect(errors).toEqual([]);
 });

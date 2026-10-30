@@ -35,8 +35,10 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
   onReady: (id: string) => void; label: string; disabled: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null), stage = useRef<Konva.Stage>(null), transformer = useRef<Konva.Transformer>(null);
+  // A hidden wizard step reports width 0; keep the last real width so the
+  // stage (and its export) stays valid while another step is on screen.
   const [width, setWidth] = useState(360);
-  useEffect(() => { if (!host.current) return; const observer = new ResizeObserver(entries => setWidth(entries[0].contentRect.width)); observer.observe(host.current); return () => observer.disconnect(); }, []);
+  useEffect(() => { if (!host.current) return; const observer = new ResizeObserver(entries => { const next = entries[0].contentRect.width; if (next > 0) setWidth(next); }); observer.observe(host.current); return () => observer.disconnect(); }, []);
   const scale = Math.min(1, (width - 20) / ONESHOT_WIDTH, 740 / ONESHOT_HEIGHT);
   useEffect(() => {
     const node = selected ? stage.current?.findOne(`#${selected}`) : null;

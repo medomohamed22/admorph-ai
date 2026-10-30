@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { wizardStep } from './wizard';
 
 // Brand fixes: a saved brand whose logo asset is missing must not keep the
 // previous brand's logo on screen, and deleting a brand must not depend on
@@ -44,7 +45,8 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByRole('button', { name: 'Brand A', exact: true }).click();
   await expect(page.getByTestId('upload-card-logo').locator('img.upload-preview')).toBeVisible();
   await page.getByRole('button', { name: 'Brand B', exact: true }).click();
