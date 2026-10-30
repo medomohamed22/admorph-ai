@@ -11,6 +11,7 @@ import { REMIX_THEMES, type RemixThemeId } from '@/lib/ai/remix';
 import { loadSavedAds, saveAd, deleteSavedAd } from '@/lib/db/repository';
 import type { SavedAd, BrandInput } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
+import { WaitingText } from './waiting';
 
 type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null };
 
@@ -167,7 +168,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
         return <label key={theme.id}><input type="checkbox" checked={checked} disabled={busy !== '' || (!checked && themes.length >= 3)} onChange={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])} />{label}</label>;
       })}
     </fieldset>}
-    <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{busy ? busyLabel : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
+    <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{busy ? <WaitingText label={busyLabel} /> : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
     {failed > 0 && <p role="status">{t.failedSome}</p>}
     {selected && expected > 0 && <div>
       <h2>{mode === 'variants' ? t.resultsVariants : t.resultsThemes}</h2>
