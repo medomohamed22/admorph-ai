@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { messages } from '@/lib/i18n';
 import { getDatabase } from '@/lib/db/dexie';
@@ -21,13 +21,19 @@ function useWorkspaceState() {
   const [storageError, setStorageError] = useState(false);
   const [previewColors, setPreviewColors] = useState<BrandInput['colors'] | null>(null);
   const [brandDraft, setBrandDraft] = useState<BrandDraft | null>(null);
+  // A language picked before the stored workspace finished loading. It wins
+  // over the stored value and is saved once storage is ready, so a quick tap
+  // is neither overwritten by the load nor lost.
+  const earlyLocale = useRef<Locale | null>(null);
   useEffect(() => {
     let alive = true;
     const timeout = setTimeout(() => { if (alive) { setPhase('ephemeral'); setStorageError(true); alive = false; } }, 5000);
     loadWorkspace().then(data => {
       if (!alive) return;
       clearTimeout(timeout);
-      updateLocale(data.locale); setBrands(data.brands); setAssets(data.assets);
+      const picked = earlyLocale.current;
+      updateLocale(picked ?? data.locale); setBrands(data.brands); setAssets(data.assets);
+      if (picked && picked !== data.locale) void getDatabase().settings.put({ key: 'locale', value: picked }).catch(() => setStorageError(true));
       updateActiveBrandId(data.activeBrandId); setPhase('ready');
     }).catch(() => { if (alive) { clearTimeout(timeout); setPhase('ephemeral'); setStorageError(true); } });
     return () => { alive = false; clearTimeout(timeout); };
@@ -53,7 +59,11 @@ function useWorkspaceState() {
     try { await getDatabase().settings.put({ key, value }); return true; }
     catch { setStorageError(true); return false; }
   }
-  function setLocale(value: Locale) { updateLocale(value); void writeSetting('locale', value); }
+  function setLocale(value: Locale) {
+    updateLocale(value);
+    if (phase === 'loading') { earlyLocale.current = value; return; }
+    void writeSetting('locale', value);
+  }
   async function activateBrand(id: string | null) { updateActiveBrandId(id); return writeSetting('activeBrandId', id); }
   async function commitBrand(input: BrandInput, logo: Blob | null, previous?: Brand) {
     const data = brandInputSchema.parse(input);
