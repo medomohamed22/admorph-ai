@@ -1,0 +1,29 @@
+{
+  "nav": {
+    "createAd": "Create"
+  },
+  "footer": {
+    "notice": "Built for the Meta Global AI Developer Hackathon · Powered by Muse Spark, SAM 3.1 and Muse Image."
+  },
+  "models": {
+    "eyebrow": "Settings",
+    "title": "Settings",
+    "lead": "Three Meta models power every ad. Add your key once and you are ready.",
+    "sectionTitle": "The three models",
+    "sectionNote": "Each model has one fixed job, so there is nothing to choose.",
+    "spark": "Reads the product photo, extracts your brand, writes ideas and copy in your dialect, and reviews every finished ad.",
+    "image": "Paints the finished ad from your mockup, enhances phone photos, and creates variants and seasonal themes.",
+    "sam": "Cuts the product out of its photo, guided by a box from Muse Spark or a tap from you.",
+    "test": "Test",
+    "testing": "Testing",
+    "testNote": "A test sends one small request with your key and may be billed. It never blocks a feature.",
+    "ready": "Ready",
+    "needsKey": "Needs your key",
+    "passed": "Test passed",
+    "failed": "Test failed",
+    "keyTitle": "Your Meta key",
+    "keyLead": "Stays in this tab's memory. Optional encrypted saving is below.",
+    "language": "Language",
+    "dataTitle": "Your data"
+  }
+}

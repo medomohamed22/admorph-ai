@@ -7,6 +7,7 @@ import { getDatabase } from '@/lib/db/dexie';
 import { loadWorkspace, saveBrand, removeBrand } from '@/lib/db/repository';
 import { brandInputSchema, type Brand, type BrandInput, type Asset } from '@/lib/db/schema';
 import { themeColors } from '@/lib/brand/theme';
+import { LogoMark } from './ui/icons';
 
 export type Locale = 'en' | 'ar';
 type BrandDraft = BrandInput & { logo: Blob | null };
@@ -99,5 +100,5 @@ export function WorkspaceChrome() {
   useEffect(()=>{const update=()=>setOffline(!navigator.onLine),timer=setTimeout(update,0);window.addEventListener('online',update);window.addEventListener('offline',update);return()=>{clearTimeout(timer);window.removeEventListener('online',update);window.removeEventListener('offline',update);};},[]);
   return <>{offline&&<p className="storage-banner" role="status">{m.meta.offline}</p>}{phase==='loading'?<p className="storage-banner" role="status">{m.common.loading}</p>:storageError?<p className="storage-banner warning" role="alert">{m.common.storageWarning}</p>:null}</>;
 }
-export function Footer() { const m = useMessages(); return <footer><span className="wordmark">ad<span>morph</span><sup>✳</sup></span><div><p>{m.footer.notice}</p><Link className="hackathon-link" href="/hackathon">{m.hackathon.footerLink} ↗</Link></div><span>{m.footer.milestone}</span></footer>; }
+export function Footer() { const m = useMessages(); return <footer className="site-footer"><span className="brand-mark"><LogoMark size={24} /><span><b>ad</b>morph</span></span><div className="footer-meta"><p>{m.footer.notice}</p><Link className="hackathon-link" href="/hackathon">{m.hackathon.footerLink} ↗</Link></div></footer>; }
 export function SkipLink() { const m = useMessages(); return <a className="skip" href="#main">{m.nav.skip}</a>; }

@@ -38,7 +38,7 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
   });
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.route('**/api/ai/product-box', async (route) => { await route.fulfill({ body: JSON.stringify({ left: 0, top: 0, right: 1, bottom: 1 }), contentType: 'application/json' }); });
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });

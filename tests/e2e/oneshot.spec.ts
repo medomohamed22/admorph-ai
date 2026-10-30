@@ -33,7 +33,7 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
   // Client-side navigation only from here, so the session key survives.
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
   // Upload the sample product; the SAM cutout is intercepted with a
@@ -91,7 +91,7 @@ test('One-shot enhance shows a success note and a before/after preview', async (
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
   const mask = Buffer.alloc(300 * 330, 1);
@@ -135,7 +135,7 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
   // SAM answers but with zero masks: the page must show the precise
@@ -199,7 +199,7 @@ test('ideas generate from the product photo and brand with no written brief', as
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   let planBody: Record<string, unknown> | null = null;
@@ -243,7 +243,7 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const steps = page.locator('.oneshot-stepper li');
   await expect(steps).toHaveCount(5);
   await expect(steps.first()).toHaveClass(/current/);
@@ -318,7 +318,7 @@ test('brand extraction applies its font to the headline', async ({ page }) => {
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.route('**/api/ai/brand-extract', async (route) => { await route.fulfill({ body: JSON.stringify({ suggestedName: 'Sora', primaryHex: '#52633c', secondaryHex: '#dce5bb', accentHex: '#f2d1bc', brandTone: 'calm', shortDescriptionEn: 'A sample matcha brand.', shortDescriptionAr: 'براند ماتشا تجريبي.', recommendedFontEn: 'Inter', recommendedFontAr: 'Cairo', rationale: 'Fixture.', fontFamily: 'Montserrat' }), contentType: 'application/json' }); });
@@ -352,7 +352,7 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -401,7 +401,7 @@ test('canvas undo and redo restore the selected text', async ({ page }) => {
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -435,7 +435,7 @@ test('mockup check flags text overlapping the product', async ({ page }) => {
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -470,7 +470,7 @@ test('evidence export downloads a ZIP and editing clears the certificate', async
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -514,7 +514,7 @@ test('planner suggests three fonts and picking one applies it to the headline', 
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.route('**/api/ai/plan', async (route) => { await route.fulfill({ body: JSON.stringify({ concepts: [
@@ -555,7 +555,7 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -632,7 +632,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   });
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -686,7 +686,7 @@ test('repair loop proposes a fix, applies it, and undo reverses it', async ({ pa
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
@@ -729,7 +729,7 @@ test('Geometric cutout rescues a product the noun phrase cannot ground', async (
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
   // The noun phrase fails for this product, but the vision box cuts it.
@@ -772,7 +772,7 @@ test('Tap-to-cut rescues a product when automatic cutout fails twice', async ({ 
   }));
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
-  await page.getByRole('link', { name: 'One-shot', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
   // Box and text both fail; only the tap point cuts.

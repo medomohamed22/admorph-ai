@@ -1,38 +1,126 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
-import {z} from 'zod';
-import {metaModelId} from '@/lib/ai/model-id';
-import {useProviderSession} from './provider-session';
-import {useMessages,useWorkspace} from './workspace';
-import {WaitingText} from './waiting';
-import {CredentialVault} from './credential-vault';
-import {StorageControls} from './storage-controls';
-import {SessionPrivacy} from './session-privacy';
-import {MetaSmoke} from './meta-smoke';
-import {fetchCatalog} from '@/lib/ai/client';
-import {taskSchema,type MetaTask,supportOutcome} from '@/lib/ai/task-support';
-import {errorCode,type ErrorCode,ProviderError} from '@/lib/ai/errors';
-import type {ModelRole} from '@/lib/ai/schemas';
-import {ProjectBackup} from './project-backup';
-export function MetaSettings(){
- const session=useProviderSession(),m=useMessages(),s=m.settings,t=m.meta,w=useWorkspace();
- const [drafts,setDrafts]=useState<Partial<Record<MetaTask,string>>>({}),[consent,setConsent]=useState(false),[show,setShow]=useState(false),[search,setSearch]=useState('');
- const [customOpen,setCustomOpen]=useState<Record<string,boolean>>({});
- const [pending,setPending]=useState(''),[error,setError]=useState<ErrorCode|null>(null),[notice,setNotice]=useState('');const abort=useRef<AbortController|null>(null),token=useRef(0);
- const key=session.configs.meta.apiKey,models=session.catalogs.meta?.models??[],epoch=session.keyEpoch;
- useEffect(()=>()=>{token.current++;abort.current?.abort();},[key,epoch]);
- useEffect(()=>{let alive=true;Promise.resolve().then(()=>{if(alive){setPending('');setConsent(false);setShow(false);}});return()=>{alive=false;};},[key,epoch]);
- async function catalog(){if(!key.trim()){setError('missing_key');return;}const id=++token.current,controller=new AbortController();abort.current=controller;setPending('catalog');setError(null);setNotice('');try{const result=await fetchCatalog({providerId:'meta',apiKey:key,baseUrl:'',consent:true},'models',controller.signal);if(id!==token.current)return;session.setCatalogs(previous=>({...previous,meta:result}));await session.rememberCatalog('meta',result);setNotice(s.fetched);}catch(error){if(id===token.current)setError(errorCode(error));}finally{if(id===token.current){setPending('');setConsent(false);}}}
- async function save(){setError(null);setNotice('');const next={...session.roles},extra={...session.extraRoles};try{for(const task of taskSchema.options){if(!(task in drafts))continue;const modelId=drafts[task]!.trim();if(modelId&&!metaModelId.safeParse(modelId).success)throw new ProviderError('manual_id');const value=modelId?{provider:'meta' as const,modelId,manual:true}:null;if(['planner','image','critic','edit'].includes(task))next[task as ModelRole]=value;else if(value)extra[task]=value;else delete extra[task];}const persisted=await session.persistSettings(next);session.setRoles(next);session.setSavedRoles(next);const extrasSaved=await session.saveExtra(extra);setNotice(persisted&&extrasSaved?s.saved:s.savedEphemeral);}catch(error){setError(errorCode(error));}}
- async function test(task:MetaTask){const modelId=(drafts[task]??session.taskModel(task)?.modelId??'').trim();if(!key||!modelId||!consent)return;const id=++token.current,controller=new AbortController();abort.current=controller;setPending(task);setError(null);setNotice('');try{const response=await fetch('/api/providers/task-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({providerId:'meta',apiKey:key,modelId,task,consent:true,imageConsent:true}),signal:controller.signal});const result=await response.json();if(id!==token.current)return;if(!response.ok)throw new ProviderError(result.error?.code??'invalid_response',response.status);const parsed=z.object({task:taskSchema,modelId:z.string(),status:z.literal('verified_supported'),checkedAt:z.string(),proof:z.string().max(1500)}).parse(result);if(parsed.task!==task||parsed.modelId!==modelId)throw new ProviderError('invalid_response');await session.recordSupport(task,modelId,'verified_supported','task_response_validated',parsed.proof);const choice={provider:'meta' as const,modelId,manual:true};if(['planner','image','critic','edit'].includes(task)){const roles={...session.roles,[task]:choice};await session.persistSettings(roles);session.setRoles(roles);session.setSavedRoles(roles);}else await session.saveExtra({...session.extraRoles,[task]:choice});setNotice(t.testPassed);}catch(error){if(id===token.current){const code=errorCode(error);setError(code);await session.recordSupport(task,modelId,supportOutcome(code),code);}}finally{if(id===token.current){setPending('');setConsent(false);}}}
- const legacy=Object.values(session.savedRoles??{}).some(value=>value&&value.provider!=='meta');
- return <div className="settings-page"><div className="page-heading"><span className="eyebrow">META ONLY</span><h1>{s.title}</h1><p>{t.only}</p></div><SessionPrivacy/>{session.invalidRecords&&<p className="campaign-notice">{t.invalidRecords}</p>}{legacy&&<p className="campaign-notice">{t.legacy}</p>}
- <section className="settings-card"><h2>Meta</h2><label htmlFor="language">{s.language}</label><select id="language" value={w.locale} onChange={e=>w.setLocale(e.target.value as 'en'|'ar')}><option value="en">{s.english}</option><option value="ar">{s.arabic}</option></select>
- <label htmlFor="api-key">{s.key}</label><div className="key-field"><input id="api-key" dir="ltr" type={show?'text':'password'} autoComplete="off" maxLength={4096} value={key} onChange={e=>session.setConfigs(previous=>({...previous,meta:{...previous.meta,apiKey:e.target.value,consent:false}}))}/><button onClick={()=>setShow(!show)}>{show?s.hide:s.show}</button></div>
- <p>{t.keyNote}</p><button className="text-button" onClick={()=>void session.forgetKey('meta')}>{s.clear}</button><label className="check-label"><input type="checkbox" checked={consent} disabled={!!pending} onChange={e=>setConsent(e.target.checked)}/><span>{t.paidConsent}</span></label><p>{t.cost}</p><p>{t.catalogNote}</p><button className="button secondary" disabled={!!pending} onClick={()=>void catalog()}>{pending === 'catalog' ? <WaitingText label={s.fetch} /> : s.fetch}</button>
- <label htmlFor="meta-search">{s.search}</label><input id="meta-search" type="search" value={search} onChange={e=>setSearch(e.target.value)}/><p>{t.unknown}</p>
- {session.catalogs.meta&&models.length===0&&<p role="status">{t.noModels}</p>}<div className="model-list">{models.filter(model=>`${model.id} ${model.name}`.toLowerCase().includes(search.toLowerCase())).slice(0,60).map(model=><article data-testid="model-card" key={model.id}><strong>{model.name}</strong><p><bdi>{model.id}</bdi></p><small>{t.unverified}</small></article>)}</div>
- <div className="role-grid">{taskSchema.options.map(task=>{const id=drafts[task]??session.taskModel(task)?.modelId??'',custom=id!==''&&!models.some(model=>model.id===id),status=session.taskState(task,id);return <div className="role-card" key={task}><label htmlFor={`meta-${task}`}>{t.tasks[task]}</label><select aria-label={`${t.chooseModel} · ${t.tasks[task]}`} value={custom||customOpen[task]?'__custom__':models.some(model=>model.id===id)?id:''} onChange={e=>{const value=e.target.value;if(value==='__custom__')setCustomOpen(previous=>({...previous,[task]:true}));else if(value){setDrafts(previous=>({...previous,[task]:value}));setCustomOpen(previous=>({...previous,[task]:false}));}else setCustomOpen(previous=>({...previous,[task]:false}));}}><option value="">{t.chooseModel}</option>{models.map(model=><option key={model.id} value={model.id}>{model.name} · {model.id}</option>)}<option value="__custom__">{t.customModel}</option></select>{(custom||customOpen[task])&&<input id={`meta-${task}`} aria-label={`${t.customModel} · ${t.tasks[task]}`} list="meta-model-ids" value={id} maxLength={240} dir="ltr" onChange={e=>setDrafts(previous=>({...previous,[task]:e.target.value}))}/>}<span data-testid={`support-${task}`}>{t[status]}</span><button className="button secondary" disabled={!!pending||!key||!id||!consent} onClick={()=>void test(task)}>{pending === task ? <WaitingText label={t.testTask} /> : t.testTask}</button></div>;})}</div><datalist id="meta-model-ids">{models.map(model=><option key={model.id} value={model.id}>{model.name}</option>)}</datalist>
- <div className="sticky-save"><button className="button primary" disabled={!session.ready||!!pending} onClick={()=>void save()}>{s.save}</button>{pending&&<button className="button secondary" onClick={()=>{token.current++;abort.current?.abort();setPending('');setConsent(false);}}>{m.campaign.cancel}</button>}</div>
- {error&&<p className="request-error" role="alert">{s.errors[error]}</p>}{notice&&<p className="request-status" role="status">{notice}</p>}<CredentialVault key={epoch}/></section><MetaSmoke/><ProjectBackup/><StorageControls/></div>;
+import { useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
+import { useProviderSession } from './provider-session';
+import { useMessages, useWorkspace } from './workspace';
+import { CredentialVault } from './credential-vault';
+import { StorageControls } from './storage-controls';
+import { SessionPrivacy } from './session-privacy';
+import { ProjectBackup } from './project-backup';
+import { taskSchema, supportOutcome } from '@/lib/ai/task-support';
+import { errorCode, type ErrorCode, ProviderError } from '@/lib/ai/errors';
+import { META_MODELS, META_MODEL_ORDER, type MetaModelKey } from '@/lib/ai/models';
+import { Button, Card, ModelBadge, Segmented, StatusChip } from './ui';
+import { IconEye, IconEyeOff, IconKey } from './ui/icons';
+
+type TestState = 'idle' | 'running' | 'passed' | 'failed';
+
+export function MetaSettings() {
+  const session = useProviderSession(), m = useMessages(), s = m.settings, t = m.meta, x = m.models, w = useWorkspace();
+  const [show, setShow] = useState(false);
+  const [tests, setTests] = useState<Partial<Record<MetaModelKey, TestState>>>({});
+  const [error, setError] = useState<ErrorCode | null>(null), [notice, setNotice] = useState('');
+  const abort = useRef<AbortController | null>(null), token = useRef(0);
+  const key = session.configs.meta.apiKey, epoch = session.keyEpoch, hasKey = key.trim().length > 0;
+  useEffect(() => () => { token.current++; abort.current?.abort(); }, [key, epoch]);
+  useEffect(() => { let alive = true; Promise.resolve().then(() => { if (alive) setTests({}); }); return () => { alive = false; }; }, [key, epoch]);
+
+  // Optional diagnostic: one small request for the model's main task. Never gates a feature.
+  async function test(model: MetaModelKey) {
+    const { id: modelId, testTask: task } = META_MODELS[model];
+    if (!hasKey) { setError('missing_key'); return; }
+    const id = ++token.current, controller = new AbortController(); abort.current = controller;
+    setTests(previous => ({ ...previous, [model]: 'running' })); setError(null); setNotice('');
+    try {
+      const response = await fetch('/api/providers/task-test', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId: 'meta', apiKey: key, modelId, task, consent: true, imageConsent: true }), signal: controller.signal });
+      const result = await response.json();
+      if (id !== token.current) return;
+      if (!response.ok) throw new ProviderError(result.error?.code ?? 'invalid_response', response.status);
+      const parsed = z.object({ task: taskSchema, modelId: z.string(), status: z.literal('verified_supported'), checkedAt: z.string(), proof: z.string().max(1500) }).parse(result);
+      if (parsed.task !== task || parsed.modelId !== modelId) throw new ProviderError('invalid_response');
+      await session.recordSupport(task, modelId, 'verified_supported', 'task_response_validated', parsed.proof);
+      setTests(previous => ({ ...previous, [model]: 'passed' })); setNotice(t.testPassed);
+    } catch (caught) {
+      if (id !== token.current) return;
+      const code = errorCode(caught); setError(code);
+      setTests(previous => ({ ...previous, [model]: 'failed' }));
+      await session.recordSupport(task, modelId, supportOutcome(code), code);
+    }
+  }
+
+  function status(model: MetaModelKey) {
+    const state = tests[model] ?? 'idle';
+    if (state === 'running') return <StatusChip busy>{x.testing}</StatusChip>;
+    if (state === 'passed') return <StatusChip tone="ok">{x.passed}</StatusChip>;
+    if (state === 'failed') return <StatusChip tone="bad">{x.failed}</StatusChip>;
+    return hasKey ? <StatusChip tone="ok">{x.ready}</StatusChip> : <StatusChip tone="warn">{x.needsKey}</StatusChip>;
+  }
+
+  const legacy = Object.values(session.savedRoles ?? {}).some(value => value && value.provider !== 'meta');
+  return (
+    <div className="page settings-v2 settings-page">
+      <div className="page-head reveal-up">
+        <div><span className="eyebrow-chip">{x.eyebrow}</span><h1>{x.title}</h1><p>{x.lead}</p></div>
+      </div>
+      {session.invalidRecords && <p className="campaign-notice">{t.invalidRecords}</p>}
+      {legacy && <p className="campaign-notice">{t.legacy}</p>}
+
+      <section aria-labelledby="models-title" className="stack">
+        <div><h2 id="models-title" className="section-title">{x.sectionTitle}</h2><p className="section-note">{x.sectionNote}</p></div>
+        <div className="model-grid stagger">
+          {META_MODEL_ORDER.map(model => {
+            const info = META_MODELS[model];
+            return (
+              <Card as="article" key={model} interactive className="model-card" data-model={model} data-testid={`model-${model}`}>
+                <div className="model-card-head">
+                  <span className="model-role">{info.role[w.locale]}</span>{status(model)}
+                </div>
+                <h3><ModelBadge model={model} /></h3>
+                <p>{x[model]}</p>
+                <code className="model-id" dir="ltr">{info.id}</code>
+                <div className="model-card-foot">
+                  <Button size="sm" variant="secondary" loading={tests[model] === 'running'} disabled={!hasKey || tests[model] === 'running'}
+                    onClick={() => void test(model)} aria-label={`${x.test} · ${info.name}`}>{tests[model] === 'running' ? x.testing : x.test}</Button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+        <p className="field-note">{x.testNote}</p>
+        {error && <p className="request-error" role="alert">{s.errors[error]}</p>}
+        {notice && <p className="request-status" role="status">{notice}</p>}
+      </section>
+
+      <div className="settings-split section-gap">
+        <Card className="settings-card">
+          <h2 className="section-title with-icon"><IconKey size={18} />{x.keyTitle}</h2>
+          <p className="section-note">{x.keyLead}</p>
+          <label htmlFor="api-key">{s.key}</label>
+          <div className="key-row">
+            <input id="api-key" dir="ltr" type={show ? 'text' : 'password'} autoComplete="off" spellCheck={false} maxLength={4096} value={key}
+              placeholder={s.keyPlaceholder}
+              onChange={e => session.setConfigs(previous => ({ ...previous, meta: { ...previous.meta, apiKey: e.target.value, consent: false } }))} />
+            <Button variant="secondary" onClick={() => setShow(!show)} aria-label={show ? s.hide : s.show} icon={show ? <IconEyeOff size={16} /> : <IconEye size={16} />} />
+          </div>
+          <p className="field-note">{t.keyNote}</p>
+          <div className="inline-actions"><Button size="sm" variant="ghost" disabled={!hasKey} onClick={() => void session.forgetKey('meta')}>{s.clear}</Button></div>
+          <CredentialVault key={epoch} />
+        </Card>
+        <Card className="settings-card">
+          <h2 className="section-title">{x.language}</h2>
+          <p className="section-note">{s.languageNote}</p>
+          <Segmented label={s.language} value={w.locale} onChange={value => w.setLocale(value)}
+            options={[{ value: 'en', label: s.english }, { value: 'ar', label: s.arabic }]} />
+        </Card>
+      </div>
+
+      <div className="stack section-gap">
+        <h2 className="section-title">{x.dataTitle}</h2>
+        <SessionPrivacy />
+        <ProjectBackup />
+        <StorageControls />
+      </div>
+    </div>
+  );
 }
