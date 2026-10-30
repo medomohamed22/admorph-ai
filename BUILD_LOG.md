@@ -103,3 +103,20 @@ Development stability follow-up: scoped Tailwind discovery to application source
 Meta models follow-up: corrected catalog timeout, fetched-model task selection, successful-test selection persistence and consistent exact model ID handling. 148 unit and 21 focused browser tests passed; types/lint and independent build passed. No paid Meta request.
 
 Owner-requested direct Meta use: removed mandatory test/receipt gates in client and server for all tasks; added on-page model choices; kept explicit consent and keys. 148 unit tests and 6 direct-flow browser checks passed, plus types/lint/build.
+
+## 2026-10-30 — Winning-plan features, one PR each
+
+**Completed and merged into `main` (each deployed as a Vercel preview, then merged):**
+
+- PR #75 — three fixed Meta models, dark design system, cleanup of unreachable screens.
+- PR #76 — four-item navigation with **My gallery**; Arabic first visit for Arabic browsers; milestone reports moved to `docs/archive`; five stale E2E specs fixed.
+- PR #77 — visible agent pipeline (seven step cards with model badges, timers, details, retry) and one critic-driven repair loop (`fixNotes`).
+- PR #78 — one-shot becomes a five-step wizard with progress saved in IndexedDB.
+- PR #79 — new home page (before/after hero, models strip, showcase driven by `public/showcase/showcase.json`).
+- PR #80 — certificate card with score ring, **Why trust this ad?** panel, SAM cutout reveal.
+- PR #81 — dialect picker for the copy (`dialect` on the plan request), colourful season cards, toasts.
+- This entry's PR — new README with the model table and pipeline diagram, a screen-matrix E2E spec (360–1440px, English and Arabic).
+
+**Verification:** each PR ran lint (0 errors), `tsc`, unit tests, `next build` and the full Playwright suite against `next start` on desktop, 375px touch and 320px; every Meta route was intercepted. Schema changes (`fixNotes`, `dialect`) were also checked with direct HTTP requests to a freshly started local server, using deliberately invalid images so no request could reach Meta.
+
+**Not done:** no paid or live Meta calls were made; real showcase ads, the demo video, demo mode with a server key and the per-platform canvas sizes (Status/Reels) remain open.
