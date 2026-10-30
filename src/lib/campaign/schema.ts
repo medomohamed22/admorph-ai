@@ -1,4 +1,5 @@
 import {metaModelId} from '../ai/model-id';
+import { planDialectSchema } from './dialects';
 import { z } from 'zod';
 import { brandInputSchema } from '../db/schema';
 import { selectionSchema } from '../db/schema';
@@ -44,6 +45,8 @@ export const planRequestSchema = z.object({
   modelId:metaModelId,
   consent: z.literal(true), imageConsent: z.literal(true), brand: brandInputSchema,
   brief: z.string().trim().max(2000).default(''), goal: goalSchema, creativeLanguage: z.enum(['en', 'ar']), format: z.enum(SIZE_FORMATS),
+  /** Optional copy dialect; when present the planner writes every headline and caption in it. */
+  dialect: planDialectSchema.optional(),
   product: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     data: z.string().min(4).max(4 * Math.ceil(MAX_PRODUCT_BYTES / 3)).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
 }).strict();

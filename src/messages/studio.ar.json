@@ -113,7 +113,15 @@
     "trustHashing": "جارٍ حساب البصمات…",
     "trustChecks": "فحوصات الترتيب الحتمية",
     "trustCertValid": "الشهادة: صالحة لهذه المسودة بالضبط.",
-    "trustCertCleared": "الشهادة: أُلغيت لأن المسودة تغيّرت بعد المراجعة."
+    "trustCertCleared": "الشهادة: أُلغيت لأن المسودة تغيّرت بعد المراجعة.",
+    "dialectLabel": "اكتب النصوص بـ",
+    "dialectPreview": "مثال على الأسلوب (عيّنة ثابتة، غير مولّدة):",
+    "dialect_ar_eg": "مصري",
+    "dialect_ar_gulf": "خليجي",
+    "dialect_ar_lev": "شامي",
+    "dialect_ar_sd": "سوداني",
+    "dialect_ar_msa": "فصحى",
+    "dialect_en": "English"
   },
   "home": {
     "eyebrow": "مبني على ثلاثة نماذج من Meta",

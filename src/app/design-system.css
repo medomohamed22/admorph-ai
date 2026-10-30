@@ -583,3 +583,10 @@ details > summary { color: var(--text); }
 .empty-state h2 { margin: 0; }
 .empty-state p { margin: 0; color: var(--muted); }
 .empty-state-art { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--accent-gradient, linear-gradient(135deg, #7C5CFF, #FF5C8A)); color: #fff; }
+
+/* ---------------- Toast ---------------- */
+.ui-toast { position: fixed; z-index: 90; top: calc(76px + env(safe-area-inset-top)); left: 50%; max-width: min(92vw, 420px); padding: 12px 18px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--line-strong, var(--line)); color: var(--text); font-weight: 600; box-shadow: 0 18px 40px -16px rgba(0, 0, 0, .7); transform: translateX(-50%); animation: toast-in var(--dur-base) var(--ease-out) both; }
+.ui-toast--ok { border-color: color-mix(in srgb, var(--ok) 50%, transparent); }
+.ui-toast--bad { border-color: color-mix(in srgb, var(--bad) 60%, transparent); color: var(--bad); }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .ui-toast { animation: none; } }

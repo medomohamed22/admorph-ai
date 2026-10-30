@@ -21,6 +21,7 @@ import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { saveAd } from '@/lib/db/repository';
 import { loadDraft, saveDraft, clearDraft, draftHasWork } from '@/lib/oneshot/draft';
+import { PLAN_DIALECTS, DIALECT_EXAMPLE, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
 import { IconArrow, IconCheck } from './ui/icons';
 import UploadCard from './upload-card';
 import { AgentPipeline, type RepairRecord } from './agent-pipeline';
@@ -66,6 +67,9 @@ export default function OneshotStudio() {
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [headlineFont, setHeadlineFont] = useState<string | null>(null);
   const [brief, setBrief] = useState('');
+  // The copy dialect; starts from the interface language until the user picks one.
+  const [pickedDialect, setDialect] = useState<PlanDialect | null>(null);
+  const dialect: PlanDialect = pickedDialect ?? (workspace.locale === 'ar' ? 'ar_eg' : 'en');
   const [concepts, setConcepts] = useState<Concept[]>([]);
   const [selectedConcept, setSelectedConcept] = useState<number | null>(null);
   const [suggestedFonts, setSuggestedFonts] = useState<string[]>([]);
@@ -292,7 +296,7 @@ export default function OneshotStudio() {
         setCutoutMethod(draft.cutoutBlob ? 'meta-sam' : null); setLogoBlob(draft.logoBlob); setEnhance(draft.enhance);
         setBrand(draft.brand); setSelectedBrandId(draft.selectedBrandId); setHeadlineFont(draft.headlineFont);
         setBrief(draft.brief); setScene(draft.scene); setConcepts(draft.concepts); setSelectedConcept(draft.selectedConcept);
-        setSuggestedFonts(draft.suggestedFonts); setElements(draft.elements); setStep(Math.min(4, Math.max(0, draft.step)));
+        setSuggestedFonts(draft.suggestedFonts); setElements(draft.elements); if (draft.dialect) setDialect(draft.dialect); setStep(Math.min(4, Math.max(0, draft.step)));
         setRestoredNote(true);
       }
     }).catch(() => {}).finally(() => { if (alive) setRestored(true); });
@@ -301,10 +305,10 @@ export default function OneshotStudio() {
   useEffect(() => {
     if (!restored || !originalBlob) return;
     const timer = setTimeout(() => {
-      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, savedAt: new Date().toISOString() }).catch(() => {});
+      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, dialect: pickedDialect ?? undefined, savedAt: new Date().toISOString() }).catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
-  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements]);
+  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, pickedDialect]);
 
   /** Start over: drop the saved draft and every piece of this ad. */
   function startOver() {
@@ -313,7 +317,7 @@ export default function OneshotStudio() {
     setOriginalBlob(null); setCurrentBlob(null); setCutoutBlob(null); setCutoutMethod(null); setLogoBlob(null); setLogoMissing(false);
     setEnhance(false); setEnhanceNote(''); setTapCutout(false); setSelectedBrandId('');
     setBrand({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] }); setHeadlineFont(null);
-    setBrief(''); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
+    setBrief(''); setDialect(null); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
     setElements([]); setSelected(null); setPast([]); setFuture([]); setAppliedRepairs([]); setLoaded(new Set());
     setResultBlob(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
     setRecords(emptyRecords()); setRepair(null); setAttempts([]); setError(''); setRestoredNote(false);
@@ -343,7 +347,7 @@ export default function OneshotStudio() {
     if (!plannerModel || !key || !currentBlob || !brandValid) return;
     setBusy('ideas'); setError('');
     try {
-      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: workspace.locale === 'ar' ? 'ar' as const : 'en' as const, format: '1080x1350' as const, product: await encodeProduct(currentBlob) };
+      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, product: await encodeProduct(currentBlob) };
       startStep('ideas', planBody);
       const plan = await requestPlan(planBody, AbortSignal.timeout(65000));
       finishStep('ideas', plan.concepts.map(item => item.headline).join(' · '), plan);
@@ -697,6 +701,13 @@ export default function OneshotStudio() {
     <section {...panel(2)}>
       <h2 id="wizard-title-2">{t.stepIdea}</h2>
       <p className="wizard-lead">{t.stepIdeaLead}</p>
+      <fieldset className="dialect-pick">
+        <legend>{t.dialectLabel}</legend>
+        <div className="dialect-grid" role="radiogroup" aria-label={t.dialectLabel}>
+          {PLAN_DIALECTS.map(value => <button key={value} type="button" role="radio" aria-checked={dialect === value} className={dialect === value ? 'dialect-chip selected' : 'dialect-chip'} onClick={() => setDialect(value)}>{t[`dialect_${value}`]}</button>)}
+        </div>
+        <p className="dialect-preview" data-testid="dialect-preview" dir={dialectLanguage(dialect) === 'ar' ? 'rtl' : 'ltr'}><small>{t.dialectPreview}</small><span key={dialect}>{DIALECT_EXAMPLE[dialect]}</span></p>
+      </fieldset>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
       <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
       {busy === 'ideas' && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}

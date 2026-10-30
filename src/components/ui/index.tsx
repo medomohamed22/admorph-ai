@@ -155,3 +155,16 @@ export function ScoreRing({ value, size = 132, stroke = 10, label }: { value: nu
     </div>
   );
 }
+
+/* ---------------- Toast ---------------- */
+/** A short message that floats in, stays readable for a few seconds, then leaves. */
+export function Toast({ message, tone = 'neutral', onDone, duration = 3200 }: { message: string; tone?: 'neutral' | 'ok' | 'bad'; onDone: () => void; duration?: number }) {
+  // The latest onDone, so a parent re-render never restarts the timer.
+  const done = useRef(onDone);
+  useEffect(() => { done.current = onDone; });
+  useEffect(() => {
+    const timer = setTimeout(() => done.current(), duration);
+    return () => clearTimeout(timer);
+  }, [message, duration]);
+  return <div className={cx('ui-toast', tone !== 'neutral' && `ui-toast--${tone}`)} role={tone === 'bad' ? 'alert' : 'status'} data-testid="toast">{message}</div>;
+}
