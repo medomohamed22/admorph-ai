@@ -151,7 +151,7 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
 test('brand picker fills identity and logo from a saved brand kit', async ({ page }) => {
   await page.goto('/settings');
   await expect(page.locator('#api-key')).toBeEnabled();
-  const brandId = await page.evaluate(async () => {
+  await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const brandId = crypto.randomUUID();
     const assetId = crypto.randomUUID();
@@ -172,7 +172,7 @@ test('brand picker fills identity and logo from a saved brand kit', async ({ pag
     return brandId;
   });
   await page.goto('/oneshot');
-  await page.getByLabel('Choose your brand').selectOption(brandId);
+  await page.getByRole('button', { name: 'Picker Brand', exact: true }).click();
   await page.getByText('Edit brand details', { exact: true }).click();
   await expect(page.getByLabel('Brand name')).toHaveValue('Picker Brand');
   await expect(page.getByLabel('Brand description')).toHaveValue('Picked from the kit.');
@@ -638,7 +638,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
-  await page.getByLabel('Choose your brand').selectOption(ids.brandA);
+  await page.getByRole('button', { name: 'Brand A', exact: true }).click();
   await page.getByText('Edit brand details', { exact: true }).click();
   await expect(page.getByLabel('Brand name')).toHaveValue('Brand A');
   // Select the logo by clicking its center, then nudge it 10px left: the
@@ -651,7 +651,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   await page.getByRole('button', { name: 'Move left', exact: true }).click();
   // Picking another brand swaps the logo image only — the arranged
   // position must survive.
-  await page.getByLabel('Choose your brand').selectOption(ids.brandB);
+  await page.getByRole('button', { name: 'Brand B', exact: true }).click();
   await expect(page.getByLabel('Brand name')).toHaveValue('Brand B');
   const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   type LayoutItem = { id: string; kind: string; x: number; y: number; width: number; height: number; text?: string };

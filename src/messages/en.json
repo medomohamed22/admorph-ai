@@ -1194,7 +1194,8 @@
     "polishHelp": "Shadow and grade are derived overlays: product pixels never change.",
     "wordmark": "Wordmark font",
     "wordmarkBold": "bold",
-    "wordmarkRegular": "regular"
+    "wordmarkRegular": "regular",
+    "customModel": "Custom model ID"
   },
   "remix": {
     "titleVariants": "Ad variants",

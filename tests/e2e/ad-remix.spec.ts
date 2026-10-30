@@ -110,7 +110,7 @@ test('themes page makes a Ramadan and an Eid copy of a saved ad', async ({ page 
   await interceptRemix(page);
   await expect(page.locator('[data-testid="remix-source-card"]')).toHaveCount(2);
   await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
-  await page.getByLabel('Eid', { exact: true }).check();
+  await page.getByRole('button', { name: 'Eid', exact: true }).click();
   await page.getByRole('button', { name: 'Generate themed copies', exact: true }).click();
   await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
   await expect(page.getByText('Certificate score: 100').first()).toBeVisible();

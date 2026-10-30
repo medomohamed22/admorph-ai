@@ -11,7 +11,7 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
   await expect(page.locator('#api-key')).toBeEnabled();
-  const ids = await page.evaluate(async () => {
+  await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const brandA = crypto.randomUUID();
     const brandB = crypto.randomUUID();
@@ -45,10 +45,10 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
-  await page.getByLabel('Choose your brand').selectOption(ids.brandA);
+  await page.getByRole('button', { name: 'Brand A', exact: true }).click();
   await expect(page.getByTestId('upload-card-logo').locator('img.upload-preview')).toBeVisible();
-  await page.getByLabel('Choose your brand').selectOption(ids.brandB);
-  await expect(page.getByLabel('Choose your brand')).toHaveValue(ids.brandB);
+  await page.getByRole('button', { name: 'Brand B', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Brand B', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(page.getByTestId('upload-card-logo').locator('img.upload-preview')).toHaveCount(0);
   await expect(page.getByText("This brand's saved logo could not be loaded, so no logo is shown.")).toBeVisible();
   expect(errors).toEqual([]);
