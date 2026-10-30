@@ -19,3 +19,25 @@ describe('geometric cutout coordinates', () => {
     expect(pointFractionsToPixels({ x: 1.4, y: -0.2 }, 300, 330)).toEqual({ x: 299, y: 0 });
   });
 });
+
+import { padBoxFractions, clippedSides, BOX_PAD } from '../../src/lib/cutout/sam-client';
+
+describe('tight vision boxes', () => {
+  it('grows the box by a share of its own size and stays inside the image', () => {
+    const padded = padBoxFractions({ left: 0.2, top: 0.2, right: 0.6, bottom: 0.8 }, BOX_PAD);
+    expect(padded.left).toBeCloseTo(0.18); expect(padded.right).toBeCloseTo(0.62);
+    expect(padded.top).toBeCloseTo(0.17); expect(padded.bottom).toBeCloseTo(0.83);
+    expect(padBoxFractions({ left: 0, top: 0.01, right: 1, bottom: 0.99 }, 0.2)).toEqual({ left: 0, top: 0, right: 1, bottom: 1 });
+  });
+  it('flags a mask that runs into the box edge, but not into the image border', () => {
+    const width = 20, height = 20, alpha = new Uint8ClampedArray(width * height);
+    // Mask fills x 5..14, y 2..17; the box is x 5..15, y 0..20 (top and bottom on the image border).
+    for (let y = 2; y < 18; y++) for (let x = 5; x < 15; x++) alpha[y * width + x] = 255;
+    expect(clippedSides(alpha, width, height, { left: 5, top: 0, right: 15, bottom: 20 })).toEqual(['left', 'right']);
+    // With room around it, the same mask is whole.
+    expect(clippedSides(alpha, width, height, { left: 3, top: 0, right: 17, bottom: 20 })).toEqual([]);
+    // A mask touching the box edge at one point (a rounded corner) is not a clip.
+    const dot = new Uint8ClampedArray(width * height); dot[10 * width + 3] = 255;
+    expect(clippedSides(dot, width, height, { left: 3, top: 1, right: 17, bottom: 19 })).toEqual([]);
+  });
+});
