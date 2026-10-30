@@ -1,6 +1,13 @@
+## Update — 30 October 2026
+
+- Three fixed Meta models replace the per-role model pickers; a dark design system and a cleanup of unreachable screens landed (PR #75).
+- Navigation is down to four items (Create, My gallery, Brand kits, Settings); variants and seasonal themes open from each saved ad in the gallery.
+- First visits from an Arabic browser start in Arabic; everyone else starts in English. A saved choice always wins.
+- Milestone validation and release reports moved to `docs/archive/`.
+
 ## Compliance and completion record — 28 October 2026
 
-This section is the current record. Everything below it is the historical record from 26–27 October 2026.
+This section is the 28 October record. Everything below it is the historical record from 26–27 October 2026.
 
 ### Dates established from the repository history (all times Cairo, UTC+3)
 
@@ -28,7 +35,7 @@ This section is the current record. Everything below it is the historical record
 - Demo video: not recorded yet. It must open with: "This project started with an initial baseline uploaded on the afternoon of October 26, before the evening kickoff; all further development shown here was built during the hackathon, October 26 to November 4, 2026."
 - Submission: not submitted yet. Deadline: 4 November 2026, 9:00 PM ET (5 November 2026, 4:00 AM Cairo).
 
-> Current source: 1.0.0, Meta-only expansion integrated on 27 October 2026. Earlier sections below record the historical baseline. See [current verification](META_ONLY_VERIFICATION.md); live Meta account access and remote publication remain unverified.
+> Current source: 1.0.0, Meta-only expansion integrated on 27 October 2026. Earlier sections below record the historical baseline. See [current verification](docs/archive/META_ONLY_VERIFICATION.md); live Meta account access and remote publication remain unverified.
 
 # AdMorph AI — Hackathon development record
 
@@ -40,28 +47,29 @@ This section is the current record. Everything below it is the historical record
 
 ## Statement for judges
 
-> AdMorph AI is an AI-assisted creative studio being developed for the Meta Global AI Developer Hackathon. The first working baseline documented in this project was prepared on 26 October 2026, and development is planned to continue through 4 November 2026. The current implementation includes a responsive English/Arabic demo, provider catalogs, local Brand Kits, campaign product uploads and editable approval of three creative concepts. Gemini planning requires the user's key and explicit image-sharing consent; the no-key mode uses local templates. The current studio adds a Gemini background adapter, independent editable composition and PNG export. Automatic local checks and optional Gemini Critic explanations are implemented. Approved repairs, before/after comparison and undo/redo are implemented, alongside separate consent-gated Meta text/image smoke adapters. Authenticated Meta and Gemini repair calls remain unverified. Authenticated Gemini image generation remains unverified without an owner-authorized live request. Meaningful changes, verification results and deployments will be recorded as they happen in the repository history and build log.
+> AdMorph AI is an AI-assisted ad-creative studio built for the Meta Global AI Developer Hackathon. The first working baseline documented in this project was prepared on 26 October 2026, and development continues through 4 November 2026. The app runs only on three Meta models with fixed jobs: Muse Spark 1.3 (understanding, brand extraction, ideas, copy and the critic), Muse Image 1.0 (painting the finished ad, enhancement, variants and seasonal themes) and SAM 3.1 (product cutout). Every AI request uses the visitor's own key and an explicit user action; local checks, repairs and the evidence export run without any model. Meaningful changes, verification results and deployments are recorded as they happen in the repository history and build log.
 
 The labels “Day 1”, “Day 2” and “Day 3” in the technical plan refer to implementation milestones. All three were completed in this working session on **26 October 2026**; they are not three separate calendar-day claims. The original plan is retained as a planning document, and actual progress is recorded in [BUILD_LOG.md](BUILD_LOG.md).
 
 ## Current evidence
 
-- Source code and milestone validation reports: `DAY1_VALIDATION.md`, `DAY2_VALIDATION.md`, `DAY3_VALIDATION.md`.
+- Source code and milestone validation reports: `docs/archive/DAY1_VALIDATION.md`, `docs/archive/DAY2_VALIDATION.md`, `docs/archive/DAY3_VALIDATION.md`.
 - The current no-key interactive sample uses bundled local artwork.
 - Provider adapters support catalog listing, credential-test handling and model roles.
-- A real public OpenRouter catalog was checked without a key. Provider fixtures are explicitly identified in tests.
+- Provider fixtures are explicitly identified in tests.
 - Meta catalog and separate text/image smoke adapters exist; **authenticated Meta requests and image generation are not verified in this snapshot**. Owner-triggered smoke requests require a suitable model, key and explicit consent. Fixture results are not live evidence.
 - The source is prepared for the owner to upload to GitHub and deploy through Vercel. No remote repository or live deployment is claimed by this package alone.
-- Campaign workflow validation: `CAMPAIGN_UPDATE_VALIDATION.md`. Gemini request handling is verified with synthetic fixtures, not a paid authenticated live call. The campaign update was implemented on 26 October as another real update on the same date.
-- The 27 October studio implementation adds a Gemini background adapter, independent editable image/text layers, local sample backgrounds and exact-size PNG export. `STUDIO_VALIDATION.md` records actual checks. Authenticated image generation remains unverified; no new GitHub upload or deployment was performed during this phase.
-- The subsequent 27 October review implementation adds measured local design checks and optional Gemini visual opinions with explicit preview-sharing consent. `CRITIC_VALIDATION.md` records that milestone. Authenticated Gemini Critic calls are fixture-tested, not demonstrated with a real key.
-- The 27 October repair implementation adds validated proposals, explicit approval, measured regression blocking, real before/after renders and durable undo/redo. Separate Meta text/image smoke adapters are fixture-tested. `REPAIR_VALIDATION.md` records current verification and live-provider limitations. No GitHub update or deployment was prepared during this phase.
+- Campaign workflow validation: `docs/archive/CAMPAIGN_UPDATE_VALIDATION.md`. The campaign update was implemented on 26 October as another real update on the same date.
+- The 27 October studio implementation adds independent editable image/text layers, local sample backgrounds and exact-size PNG export. `docs/archive/STUDIO_VALIDATION.md` records actual checks. Authenticated image generation remains unverified; no new GitHub upload or deployment was performed during this phase.
+- The subsequent 27 October review implementation adds measured local design checks and optional model visual opinions with explicit preview-sharing consent. `docs/archive/CRITIC_VALIDATION.md` records that milestone.
+- The earliest 26–27 October milestones also carried non-Meta provider adapters. They were removed in the Meta-only expansion (PR #2) and are not part of the app; the archived validation reports keep the original wording.
+- The 27 October repair implementation adds validated proposals, explicit approval, measured regression blocking, real before/after renders and durable undo/redo. Separate Meta text/image smoke adapters are fixture-tested. `docs/archive/REPAIR_VALIDATION.md` records current verification and live-provider limitations. No GitHub update or deployment was prepared during this phase.
 
 ## How subsequent work will be recorded
 
-The release preparation on **27 October 2026** adds real local browser-demo footage, screenshots, source-package integrity checks, an MIT source license, updated deployment/submission instructions and a production-browser CI configuration. `DAY9_VALIDATION.md` records local verification. The owner previously chose manual publication: no remote repository URL, Vercel URL, remote CI success or organiser submission is invented. Authenticated Meta/Gemini use remains unverified in the supplied local footage.
+The release preparation on **27 October 2026** adds real local browser-demo footage, screenshots, source-package integrity checks, an MIT source license, updated deployment/submission instructions and a production-browser CI configuration. `docs/archive/DAY9_VALIDATION.md` records local verification. The owner previously chose manual publication: no remote repository URL, Vercel URL, remote CI success or organiser submission is invented. Authenticated Meta use remains unverified in the supplied local footage.
 
-The next implementation on **27 October 2026** completes the three-design local workflow with independent templates, saved gallery previews, individual PNG/caption exports, direct creative switching and session-wide key locking. `DAY8_VALIDATION.md` records desktop/mobile/RTL, persistence, cancellation and public BYOK checks. No shared generation key, paid provider demonstration or remote publication is claimed. The numbered milestone is another feature iteration on the same actual date.
+The next implementation on **27 October 2026** completes the three-design local workflow with independent templates, saved gallery previews, individual PNG/caption exports, direct creative switching and session-wide key locking. `docs/archive/DAY8_VALIDATION.md` records desktop/mobile/RTL, persistence, cancellation and public BYOK checks. No shared generation key, paid provider demonstration or remote publication is claimed. The numbered milestone is another feature iteration on the same actual date.
 
 1. Make a real implementation change and run appropriate checks.
 2. Add a dated factual entry to `BUILD_LOG.md`, linking the actual commit and verification evidence when available.

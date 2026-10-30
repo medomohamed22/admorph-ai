@@ -7,6 +7,13 @@ const fixtureKey = 'fixture-key-never-real';
 const fixturePassphrase = 'fixture passphrase with enough length';
 const catalog = { models: [{ id: 'fixture-text', name: 'Fixture Text', provider: 'meta', capabilities: ['text'], availability: 'unknown' }],
   fetchedAt: '2026-10-26T10:00:00.000Z', credentialStatus: 'accepted' };
+async function openVault(page: Page) {
+  // The vault auto-opens when a key needs saving or unlocking; clicking the
+  // summary then would close it again.
+  const input = page.getByLabel('Encryption passphrase', { exact: true });
+  if (!(await input.isVisible())) await page.getByText('Optional encrypted key storage', { exact: true }).click();
+  await expect(input).toBeVisible();
+}
 async function persistedStore(page: Page, name: string): Promise<unknown[]> {
   return page.evaluate(store => new Promise<unknown[]>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
@@ -27,13 +34,17 @@ async function fillBrand(page: Page) {
   await page.getByLabel('Accent color HEX', { exact: true }).fill('#29b8a0');
 }
 
-test('English remains the fresh-browser default even with an Arabic device locale', async ({ browser }) => {
-  const context = await browser.newContext({ locale: 'ar-EG', baseURL: 'http://localhost:3000' }); const page = await context.newPage();
+test('a fresh Arabic browser starts in Arabic and other browsers start in English', async ({ browser }) => {
+  const arabic = await browser.newContext({ locale: 'ar-EG', baseURL: 'http://localhost:3000' }); const page = await arabic.newPage();
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('One product.');
-  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-  await context.close();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await arabic.close();
+  const english = await browser.newContext({ locale: 'en-US', baseURL: 'http://localhost:3000' }); const other = await english.newPage();
+  await other.goto('/');
+  await expect(other.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(other.locator('html')).toHaveAttribute('dir', 'ltr');
+  await english.close();
 });
 
 test('the key never persists in plaintext and the three models are fixed', async ({ page }) => {
@@ -52,7 +63,7 @@ test('the key never persists in plaintext and the three models are fixed', async
 test('optional encrypted credentials need a passphrase after reload and clear removes ciphertext', async ({ page }) => {
   await page.goto('/settings');
   await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
-  await page.getByText('Optional encrypted key storage', { exact: true }).click();
+  await openVault(page);
   await page.getByLabel('Encryption passphrase', { exact: true }).fill(fixturePassphrase);
   await page.getByRole('button', { name: 'Remember key on this device', exact: true }).click();
   await expect(page.locator('.vault-result')).toContainText('Encrypted key saved');
@@ -61,7 +72,7 @@ test('optional encrypted credentials need a passphrase after reload and clear re
   expect(encrypted).not.toContain(fixtureKey); expect(encrypted).not.toContain(fixturePassphrase);
   await page.reload();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
-  await page.getByText('Optional encrypted key storage', { exact: true }).click();
+  await openVault(page);
   await page.getByLabel('Encryption passphrase', { exact: true }).fill('wrong passphrase');
   await page.getByRole('button', { name: 'Unlock saved key', exact: true }).click();
   await expect(page.locator('.vault-result')).toContainText('Could not unlock');
@@ -108,8 +119,8 @@ test('brand logo, palette, theme and portable import/export survive reload', asy
   await page.getByLabel('Brand name', { exact: true }).fill('Edited brand');
   await page.getByRole('button', { name: 'Save changes', exact: true }).click();
   await expect(page.getByTestId('brand-card').first()).toContainText('Edited brand');
-  page.once('dialog', dialog => dialog.accept());
   await page.getByTestId('brand-card').first().getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByTestId('brand-card').first().getByRole('button', { name: 'Confirm delete', exact: true }).click();
   await expect(page.getByTestId('brand-card')).toHaveCount(1);
   await page.reload(); await expect(page.getByTestId('brand-card')).toHaveCount(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

@@ -46,6 +46,7 @@ async function interceptRemix(page: import('@playwright/test').Page) {
 test('variants page makes 2 new versions of a saved ad', async ({ page }) => {
   test.setTimeout(120_000);
   await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
   await page.getByRole('link', { name: 'Variants', exact: true }).click();
   await interceptRemix(page);
   await expect(page.locator('[data-testid="remix-source-card"]')).toHaveCount(2);
@@ -91,6 +92,7 @@ test('variants page fits an oversized saved ad before sending it', async ({ page
   expect(oversizedBytes).toBeGreaterThan(2 * 1024 * 1024);
   await page.reload();
   await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
   await page.getByRole('link', { name: 'Variants', exact: true }).click();
   let planBytes = 0;
   await page.route('**/api/ai/plan', async (route) => { planBytes = JSON.stringify(route.request().postDataJSON()).length; await route.fulfill({ body: JSON.stringify({ concepts }), contentType: 'application/json' }); });
@@ -107,6 +109,7 @@ test('variants page fits an oversized saved ad before sending it', async ({ page
 test('themes page makes a Ramadan and an Eid copy of a saved ad', async ({ page }) => {
   test.setTimeout(120_000);
   await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
   await page.getByRole('link', { name: 'Themes', exact: true }).click();
   await interceptRemix(page);
   await expect(page.locator('[data-testid="remix-source-card"]')).toHaveCount(2);
@@ -120,6 +123,7 @@ test('themes page makes a Ramadan and an Eid copy of a saved ad', async ({ page 
 test('waiting indicator shows a live seconds counter while generating', async ({ page }) => {
   test.setTimeout(120_000);
   await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
   await page.getByRole('link', { name: 'Variants', exact: true }).click();
   await page.route('**/api/ai/plan', async (route) => { await route.fulfill({ body: JSON.stringify({ concepts }), contentType: 'application/json' }); });
   await page.route('**/api/ai/ad-remix', async (route) => { await new Promise((resolve) => setTimeout(resolve, 3000)); await route.fulfill({ body: pixel, contentType: 'image/png' }); });
@@ -135,4 +139,24 @@ test('waiting indicator shows a live seconds counter while generating', async ({
   expect(first).toMatch(/\d/);
   expect(second).not.toBe(first);
   await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+});
+
+test('gallery lists saved ads and opens variants with that ad preselected', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('My gallery');
+  await expect(page.getByTestId('gallery-card')).toHaveCount(2);
+  await page.getByTestId('gallery-card').first().getByRole('link', { name: 'Make variants', exact: true }).click();
+  await expect(page).toHaveURL(/\/variants\?ad=/);
+  await expect(page.locator('[data-testid="remix-source-card"] button[aria-pressed="true"]')).toHaveCount(1);
+  // The gallery owns the nav item on the remix pages too.
+  const nav = page.locator((page.viewportSize()?.width ?? 1280) <= 860 ? '.bottom-nav' : '.site-nav');
+  await expect(nav.locator('a[aria-current=page]')).toHaveAttribute('href', '/gallery');
+});
+
+test('empty gallery shows one clear call to action', async ({ page }) => {
+  await page.goto('/gallery');
+  await expect(page.getByTestId('gallery-empty')).toBeVisible();
+  await expect(page.getByTestId('gallery-empty').getByRole('link', { name: 'Create your first ad', exact: true })).toHaveAttribute('href', '/oneshot');
 });

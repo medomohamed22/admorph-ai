@@ -8,10 +8,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const releases = path.join(root, 'releases');
 const rootFiles = ['package.json', 'package-lock.json', 'next.config.ts', 'tsconfig.json', 'eslint.config.mjs',
   'vitest.config.mts', 'playwright.config.ts', '.gitignore', '.gitattributes', '.vercelignore', '.env.example',
-  'vercel.json', 'README.md', 'AGENTS.md', 'ADMORPH_BUILD_PLAN.md', 'DAY1_VALIDATION.md', 'DAY2_VALIDATION.md',
-  'DAY3_VALIDATION.md', 'HACKATHON.md', 'BUILD_LOG.md', 'DEPLOY_GITHUB_VERCEL_AR.md', 'RELEASE_VERIFICATION.md', 'CAMPAIGN_UPDATE_VALIDATION.md',
-  'STUDIO_VALIDATION.md', 'CRITIC_VALIDATION.md', 'REPAIR_VALIDATION.md', 'DAY8_VALIDATION.md', 'DAY9_VALIDATION.md',
-  'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SUBMISSION_GUIDE.md','META_ONLY_IMPLEMENTATION.md','META_ONLY_VERIFICATION.md'];
+  'vercel.json', 'README.md', 'AGENTS.md', 'ADMORPH_BUILD_PLAN.md',
+  'HACKATHON.md', 'BUILD_LOG.md', 'DEPLOY_GITHUB_VERCEL_AR.md',
+  'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SUBMISSION_GUIDE.md'];
 const directories = ['src', 'public', 'scripts', 'tests', '.github', 'docs'];
 const blocked = new Set(['node_modules', '.next', '.git', '.vercel', 'test-results', 'playwright-report', 'coverage', 'releases']);
 async function exists(file) { try { await access(file); return true; } catch { return false; } }

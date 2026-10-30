@@ -14,7 +14,7 @@ Snapshot: **AdMorph AI 0.3.0 — milestone 3**. Prepared on **26 October 2026**.
 - Next.js build and output-tracing roots are explicitly the current project directory. The verified release does not resolve source files outside its own root.
 - A production server from the independent copy ran at `http://localhost:3101`.
 - Production smoke checked the homepage, `/hackathon` in English/Arabic, RTL/mobile overflow, Brand Kit save/reload, health, missing-key rejection and Custom proxy rejection. **All passed; zero browser errors**.
-- The actual local-production check completed at **2026-10-26T11:41:46.057Z**. See [structured report](docs/evidence/production-smoke.json) and [Arabic mobile capture](docs/evidence/hackathon-mobile-ar.png).
+- The actual local-production check completed at **2026-10-26T11:41:46.057Z**. See [structured report](../evidence/production-smoke.json) and [Arabic mobile capture](../evidence/hackathon-mobile-ar.png).
 
 ## Package contents and safeguards
 

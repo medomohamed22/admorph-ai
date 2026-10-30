@@ -1,0 +1,15 @@
+# dependencies and build output
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+# test output
+test-results/
+playwright-report/
+coverage/
+# local env and packaging
+.env*
+!.env.example
+.vercel/
+releases/

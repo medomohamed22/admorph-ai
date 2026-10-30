@@ -17,6 +17,10 @@ function merge<B extends Record<string, unknown>, S extends Record<string, Recor
 const en = merge(baseEn, studioEn);
 const ar: typeof en = merge(baseAr, studioAr) as typeof en;
 
-// Both dictionaries cover current screens; English is the first-visit default.
+// Both dictionaries cover current screens. A first visit uses Arabic when the
+// browser prefers it and English otherwise; a saved choice always wins.
 export const messages = { en, ar };
 export const defaultLocale = 'en';
+export function browserPrefersArabic(languages: readonly string[] | undefined = typeof navigator === 'undefined' ? undefined : navigator.languages) {
+  return !!languages?.[0]?.toLowerCase().startsWith('ar');
+}

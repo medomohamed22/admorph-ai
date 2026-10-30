@@ -1,6 +1,7 @@
 {
   "nav": {
-    "createAd": "إنشاء"
+    "createAd": "إنشاء",
+    "gallery": "معرضي"
   },
   "footer": {
     "notice": "صُنع لهاكاثون Meta العالمي لمطوّري الذكاء الاصطناعي · مدعوم بـ Muse Spark و SAM 3.1 و Muse Image."
@@ -25,5 +26,25 @@
     "keyLead": "يبقى في ذاكرة هذا التبويب. الحفظ المشفّر الاختياري بالأسفل.",
     "language": "اللغة",
     "dataTitle": "بياناتك"
+  },
+  "gallery": {
+    "title": "معرضي",
+    "lead": "كل إعلان مكتمل يُحفظ هنا على هذا الجهاز. اصنع منه نسخًا أو نسخة لموسم.",
+    "variants": "النسخ",
+    "themes": "المواسم",
+    "makeVariants": "اصنع نسخًا",
+    "makeSeasonal": "حوّله لموسم",
+    "download": "تحميل PNG",
+    "delete": "حذف",
+    "confirmDelete": "تأكيد الحذف",
+    "deleted": "تم حذف الإعلان المحفوظ.",
+    "deleteFailed": "تعذّر حذف الإعلان المحفوظ.",
+    "loadFailed": "تعذّرت قراءة المعرض من هذا المتصفح.",
+    "emptyTitle": "لا توجد إعلانات بعد",
+    "emptyLead": "إعلاناتك المكتملة تظهر هنا تلقائيًا.",
+    "emptyCta": "اصنع أول إعلان",
+    "source_oneshot": "إنشاء",
+    "source_variants": "نسخة",
+    "source_themes": "موسم"
   }
 }

@@ -1,6 +1,6 @@
 # Meta-only integration verification — 1.0.0
 
-Verified locally on **27 October 2026**. Implementation stages: [M0–M12 ledger](META_ONLY_IMPLEMENTATION.md). Current setup and Vercel instructions: [README](README.md).
+Verified locally on **27 October 2026**. Implementation stages: [M0–M12 ledger](META_ONLY_IMPLEMENTATION.md). Current setup and Vercel instructions: [README](../../README.md).
 
 | Check | Actual result |
 |---|---|
@@ -15,7 +15,7 @@ Verified locally on **27 October 2026**. Implementation stages: [M0–M12 ledger
 
 Final browser matrix started at **2026-10-27 13:10:49 UTC**, duration **192.6 seconds**, against `next start` on localhost:3000. Profiles: desktop **1440×1000**, mobile **375×812** with touch emulation, and **320×800**. English and Arabic, Cairo/Inter fonts and horizontal overflow checks are included. Chrome emulation does not constitute physical iPhone/Safari/Android verification.
 
-Machine-readable evidence: [unit results](docs/evidence/meta-unit-final.json), [browser results](docs/evidence/meta-browser-final.json), [production smoke](docs/evidence/meta-production-smoke.json), [local HTTP checks](docs/evidence/release-local-http.json), [explicitly skipped catalog check](docs/evidence/meta-catalog-check.json).
+Machine-readable evidence: [unit results](../evidence/meta-unit-final.json), [browser results](../evidence/meta-browser-final.json), [production smoke](../evidence/meta-production-smoke.json), [local HTTP checks](../evidence/release-local-http.json), [explicitly skipped catalog check](../evidence/meta-catalog-check.json).
 
 ## What was verified
 
@@ -45,7 +45,7 @@ Earlier integration failures were corrected, rather than suppressed: production 
 
 ## Prepared manual-upload package
 
-A clean source folder and ZIP were prepared locally: `releases/AdMorph-1.0.0-GitHub-Vercel`. The folder has **241 manifest-listed source/assets/evidence files** and no node_modules/.next; the ZIP has 242 verified entries including the manifest. A separate verification copy installed **395 packages with npm ci --offline** and completed its own production build successfully. See [package evidence](docs/evidence/meta-release-check.json).
+A clean source folder and ZIP were prepared locally: `releases/AdMorph-1.0.0-GitHub-Vercel`. The folder has **241 manifest-listed source/assets/evidence files** and no node_modules/.next; the ZIP has 242 verified entries including the manifest. A separate verification copy installed **395 packages with npm ci --offline** and completed its own production build successfully. See [package evidence](../evidence/meta-release-check.json).
 
 ZIP SHA-256: `e513f9b0ad5412febb4efe2721cd307ccad978d85ce34e106f79b5d048f62894`. Old release folders were not replaced. No upload/publication was performed.
 

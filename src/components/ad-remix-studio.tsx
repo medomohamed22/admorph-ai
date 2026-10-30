@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
 import { metaFetch } from '@/lib/ai/meta-fetch';
@@ -65,11 +66,13 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const errorText = { errors: m.settings.errors, aiError: m.meta.aiError };
   const language = workspace.locale === 'ar' ? 'ar' : 'en';
 
+  // The gallery links here with ?ad=<id>; that ad starts selected.
+  const preselect = useSearchParams().get('ad');
   useEffect(() => {
     let alive = true;
-    loadSavedAds().then(items => { if (alive) setAds(items); }).catch(() => {});
+    loadSavedAds().then(items => { if (!alive) return; setAds(items); const match = preselect ? items.find(item => item.id === preselect) : undefined; if (match) setSelected(match); }).catch(() => {});
     return () => { alive = false; };
-  }, []);
+  }, [preselect]);
 
   async function refreshGallery() {
     try { setAds(await loadSavedAds()); } catch { /* gallery is best-effort */ }
