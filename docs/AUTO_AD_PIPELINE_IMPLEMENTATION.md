@@ -244,7 +244,7 @@ mocked tests alone can miss stale server modules.
   Meta/provider routes aborted and counted, reload, regenerate-only,
   caption TXT and ZIP contents, invalid-product retry, and an Arabic
   RTL run exporting 1080×1350.
-- Release report: `docs/RELEASE_AUTO_AD_REPORT.md`. Production smoke
+- Release report: `docs/archive/RELEASE_AUTO_AD_REPORT.md`. Production smoke
   (`scripts/production-smoke.mjs`) adds a no-key auto-ads run with a
   Verified label and a ZIP download.
 

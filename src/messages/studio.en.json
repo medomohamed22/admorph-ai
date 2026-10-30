@@ -1,6 +1,7 @@
 {
   "nav": {
-    "createAd": "Create"
+    "createAd": "Create",
+    "gallery": "My gallery"
   },
   "footer": {
     "notice": "Built for the Meta Global AI Developer Hackathon · Powered by Muse Spark, SAM 3.1 and Muse Image."
@@ -25,5 +26,25 @@
     "keyLead": "Stays in this tab's memory. Optional encrypted saving is below.",
     "language": "Language",
     "dataTitle": "Your data"
+  },
+  "gallery": {
+    "title": "My gallery",
+    "lead": "Every finished ad is saved here on this device. Make variants or a seasonal copy from any of them.",
+    "variants": "Variants",
+    "themes": "Themes",
+    "makeVariants": "Make variants",
+    "makeSeasonal": "Make it seasonal",
+    "download": "Download PNG",
+    "delete": "Delete",
+    "confirmDelete": "Confirm delete",
+    "deleted": "Saved ad deleted.",
+    "deleteFailed": "Could not delete the saved ad.",
+    "loadFailed": "Could not read the gallery from this browser.",
+    "emptyTitle": "No ads yet",
+    "emptyLead": "Your finished ads appear here automatically.",
+    "emptyCta": "Create your first ad",
+    "source_oneshot": "Created",
+    "source_variants": "Variant",
+    "source_themes": "Seasonal"
   }
 }

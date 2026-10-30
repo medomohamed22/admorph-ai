@@ -11,7 +11,7 @@ Time zone for calendar entries: **Africa/Cairo**. Exact automated verification r
 - Milestone 3: Dexie storage, complete current-screen Arabic/RTL, Brand Kit/logo/theme/export/import, optional encrypted credential storage and storage-failure handling.
 - Release preparation: source-only GitHub/Vercel folder, Node 24 configuration, manual deployment guide, bilingual `/hackathon` page and CI workflow.
 
-**Verification already recorded for the milestone-3 baseline:** lint/typecheck/build passed; 59 unit tests and 63 browser checks passed. See the dated milestone reports. Release preparation also passed 66 browser checks, fresh extracted-copy install/build, and a local production smoke at 2026-10-26T11:41:46.057Z. See `RELEASE_VERIFICATION.md` and `docs/evidence/production-smoke.json`. GitHub/Vercel remote publication remains owner-operated and has not occurred in this task.
+**Verification already recorded for the milestone-3 baseline:** lint/typecheck/build passed; 59 unit tests and 63 browser checks passed. See the dated milestone reports. Release preparation also passed 66 browser checks, fresh extracted-copy install/build, and a local production smoke at 2026-10-26T11:41:46.057Z. See `docs/archive/RELEASE_VERIFICATION.md` and `docs/evidence/production-smoke.json`. GitHub/Vercel remote publication remains owner-operated and has not occurred in this task.
 
 **Live-provider boundary:** public OpenRouter catalog listing was checked without a key. Authenticated Meta/Gemini/provider generation is not claimed. No paid generation was executed.
 
@@ -25,7 +25,7 @@ The “Day” milestone labels above all refer to work recorded on 26 October. T
 - Added local no-key templates, campaign restore/switching and an additive IndexedDB migration preserving existing data.
 - Prepared general feature-based commit/PR text and a manual update packet against the previously prepared source baseline. No remote upload or deployment is claimed.
 
-See `CAMPAIGN_UPDATE_VALIDATION.md` for the final checks. Gemini responses in automated checks are fixtures, not authenticated live-provider evidence. No paid AI request was executed during this update.
+See `docs/archive/CAMPAIGN_UPDATE_VALIDATION.md` for the final checks. Gemini responses in automated checks are fixtures, not authenticated live-provider evidence. No paid AI request was executed during this update.
 
 ## 2026-10-27 — Editable studio and image-generation adapter
 
@@ -33,7 +33,7 @@ See `CAMPAIGN_UPDATE_VALIDATION.md` for the final checks. Gemini responses in au
 - Added an explicit user-confirmed image model fallback for incomplete Gemini catalogs; known text-only/unavailable metadata cannot be overridden.
 - Added separate Konva background/product/logo/text/CTA layers, drag/resize, fonts/colors/positions/order/visibility, session undo/redo, mobile panels and full-resolution PNG export.
 - Added additive IndexedDB version 3 creative persistence with independent source image copies and honest storage-failure fallback.
-- Added local no-key backgrounds and automated fixture/browser checks, including actual PNG dimension/content checks and touch dragging. See `STUDIO_VALIDATION.md` for final results.
+- Added local no-key backgrounds and automated fixture/browser checks, including actual PNG dimension/content checks and touch dragging. See `docs/archive/STUDIO_VALIDATION.md` for final results.
 - No authenticated paid provider request was executed. No GitHub packet, commit, PR or deployment was prepared or published in this phase, as requested by the owner.
 
 ## 2026-10-27 — Design checks and optional Critic
@@ -42,21 +42,21 @@ See `CAMPAIGN_UPDATE_VALIDATION.md` for the final checks. Gemini responses in au
 - Findings explain their evidence and limitations, support manual layer inspection, and update after edits in English/Arabic.
 - Added an optional Gemini Critic using the saved Critic role, a separately consented reduced rendered preview and strict structured observations. No automatic paid requests/retries or fabricated performance scores.
 - Added review persistence via additive IndexedDB version 4. Previous opinions become stale on layout/language changes, and late responses are fenced after edits/cancellation. Successful designs and earlier reviews are preserved on failure.
-- See `CRITIC_VALIDATION.md` for final validation. No authenticated paid API request, automatic repair, Meta smoke request, GitHub packet/commit/PR or deployment was performed during this phase.
+- See `docs/archive/CRITIC_VALIDATION.md` for final validation. No authenticated paid API request, automatic repair, Meta smoke request, GitHub packet/commit/PR or deployment was performed during this phase.
 
 ## 2026-10-27 — Approved repairs, comparison and Meta smoke adapters
 
 - Added local measured repair proposals and an optional Gemini Edit-role proposal endpoint with separate preview-sharing consent. Strict actions, safe clamps and regression checks run before explicit application; no generated code or image replacement.
 - Added real full-resolution before/after renders, atomic IndexedDB version 5 repair history and undo/redo that survives reload and protects later manual edits. Storage failures retain session-only recovery. Existing review fingerprints remain usable after property-order normalization.
 - Added separate Meta chat/image smoke handlers with fixed synthetic prompts, model selection, explicit potentially billable consent, no automatic retries and secret-free evidence export. Automated tests use fixtures; no authenticated paid request ran.
-- Current source is 0.7.0. See `REPAIR_VALIDATION.md` for checks. The numbered milestone was implemented on this actual date; it is not a separate calendar-day activity claim. No upload packet, commit, PR or remote deployment was prepared.
+- Current source is 0.7.0. See `docs/archive/REPAIR_VALIDATION.md` for checks. The numbered milestone was implemented on this actual date; it is not a separate calendar-day activity claim. No upload packet, commit, PR or remote deployment was prepared.
 
 ## 2026-10-27 — Three-design workflow and public BYOK behavior
 
 - Added three independent offer/benefit/lifestyle composition templates, a saved campaign gallery, real previews and per-design PNG/caption downloads. Preparation reuses saved edits and owns image references; all-three writes are atomic, with an exportable session fallback on failure.
 - Added direct editor switching, cancellation/fencing of late generation responses and current-canvas image-readiness checks. Mobile/RTL layout, touch targets and reduced-motion handling were improved.
 - Added a global session key lock, stale-unlock protection, Settings privacy/status explanations and basic response headers. Projects, model roles and encrypted keys are preserved; no environment-owned key fallback or automatic paid request exists.
-- Source 0.8.0. `DAY8_VALIDATION.md` records actual checks. No GitHub package, commit/PR, remote upload or Vercel deployment was prepared. Stop before final publication/submission work.
+- Source 0.8.0. `docs/archive/DAY8_VALIDATION.md` records actual checks. No GitHub package, commit/PR, remote upload or Vercel deployment was prepared. Stop before final publication/submission work.
 - Verification: 111 unit tests and 153 browser checks passed; the 15 gallery checks passed again after final RTL presentation adjustments. Lint/typecheck/build and production/development smoke checks passed, with no paid requests or browser exceptions.
 
 ## 2026-10-27 — Release preparation and real demo recording
@@ -64,7 +64,7 @@ See `CAMPAIGN_UPDATE_VALIDATION.md` for the final checks. Gemini responses in au
 - Source 0.9.0 adds release/submission documentation, neutral commit/PR wording, real local app screenshots and a captioned 69-second browser recording. Footage uses isolated sample data and no paid requests.
 - Updated versioned source packaging, credential-pattern/path safeguards, per-file SHA-256 manifests and independently verified ZIP creation. Added source licensing and retained font notices.
 - Expanded CI configuration to run browser regressions on the production build. Added a post-publication HTTP checker; configuration/local checks do not prove remote execution.
-- `DAY9_VALIDATION.md` records final source/package checks. The owner's manual-upload choice remains in effect. GitHub/Vercel publication and organiser submission remain pending owner action; timestamps are actual preparation/check times, not nine separate development dates.
+- `docs/archive/DAY9_VALIDATION.md` records final source/package checks. The owner's manual-upload choice remains in effect. GitHub/Vercel publication and organiser submission remain pending owner action; timestamps are actual preparation/check times, not nine separate development dates.
 - Verification: 113 unit tests and 153 browser checks passed. A source ZIP was independently extracted, freshly installed and passed lint/types/113 unit tests/build plus production and three-design browser smokes on a separate local port. No paid API request or remote publication occurred.
 
 ## Remaining owner steps — not represented as completed
@@ -96,7 +96,7 @@ Do not pre-fill future completed entries. Keep meaningful commits and actual CI/
 
 ## 27 October 2026 — Meta-only expansion, source 1.0.0
 
-Integrated Meta-only runtime/settings, task-specific account receipts, smart logo placement, spatial presets, safe-zone/numbered review overlays, dialect copy, editable brand extraction, original-preserving product variants, image-edit gating, complete binary backups, KDF versioning, export preflight and recoverable versions. Existing project/provider data retained. Final local checks: 146 unit and 174 production browser tests passed, plus lint/types/build and local production smoke. Provider responses were fixtures; no paid Meta call, remote publication or backdated activity is claimed. See META_ONLY_VERIFICATION.md and its machine-readable evidence.
+Integrated Meta-only runtime/settings, task-specific account receipts, smart logo placement, spatial presets, safe-zone/numbered review overlays, dialect copy, editable brand extraction, original-preserving product variants, image-edit gating, complete binary backups, KDF versioning, export preflight and recoverable versions. Existing project/provider data retained. Final local checks: 146 unit and 174 production browser tests passed, plus lint/types/build and local production smoke. Provider responses were fixtures; no paid Meta call, remote publication or backdated activity is claimed. See docs/archive/META_ONLY_VERIFICATION.md and its machine-readable evidence.
 
 Development stability follow-up: scoped Tailwind discovery to application sources, stopping the release/build feedback loop. Dev-browser stability check passed with zero reloads, and the patched production build passed.
 

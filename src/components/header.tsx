@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useRef } from 'react';
 import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
-import { IconCalendar, IconLayers, IconLock, IconPalette, IconSettings, IconSparkles, LogoMark } from './ui/icons';
+import { IconLayers, IconLock, IconPalette, IconSettings, IconSparkles, LogoMark } from './ui/icons';
 import { useSlidingIndicator } from './ui';
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; active: (path: string) => boolean };
@@ -17,8 +17,7 @@ export function Header() {
   const topRef = useRef<HTMLElement>(null), bottomRef = useRef<HTMLElement>(null);
   const items: NavItem[] = [
     { href: '/oneshot', label: m.nav.createAd, icon: <IconSparkles size={16} />, active: p => p.startsWith('/oneshot') },
-    { href: '/variants', label: m.nav.variants, icon: <IconLayers size={16} />, active: p => p.startsWith('/variants') },
-    { href: '/themes', label: m.nav.themes, icon: <IconCalendar size={16} />, active: p => p.startsWith('/themes') },
+    { href: '/gallery', label: m.nav.gallery, icon: <IconLayers size={16} />, active: p => ['/gallery', '/variants', '/themes'].some(prefix => p.startsWith(prefix)) },
     { href: '/brands', label: m.nav.brands, icon: <IconPalette size={16} />, active: p => p.startsWith('/brands') },
     { href: '/settings', label: m.nav.settings, icon: <IconSettings size={16} />, active: p => p === '/settings' },
   ];

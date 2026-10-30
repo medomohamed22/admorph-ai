@@ -37,9 +37,9 @@ test('API key survives reload through the encrypted vault and survives in-site n
   await expect(page.locator('#api-key')).toHaveValue(TEST_KEY);
 
   // Client-side navigation inside the site must not wipe the session key.
-  await page.getByRole('link', { name: 'Campaigns', exact: true }).click();
-  await expect(page).toHaveURL(/\/campaigns/);
-  await page.getByRole('link', { name: '⚙ Settings', exact: true }).click();
+  await page.getByRole('link', { name: 'Brand kits', exact: true }).click();
+  await expect(page).toHaveURL(/\/brands/);
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
   await expect(page.locator('#api-key')).toHaveValue(TEST_KEY);
 
   // Locking clears the session key but keeps the vault record restorable.

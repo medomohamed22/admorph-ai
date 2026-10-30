@@ -14,7 +14,7 @@ The working local flow includes separate offer/benefit/lifestyle layouts, Englis
 - `docs/demo/repair-comparison.png`: actual full-resolution before/after canvas comparison.
 - `docs/demo/settings.png`: safe empty-key Settings state.
 - `docs/evidence/`: dated local production/development checks. Historical reports retain their original dates/versions.
-- `DAY9_VALIDATION.md`: release checks and package-verification limits.
+- `docs/archive/DAY9_VALIDATION.md`: release checks and package-verification limits.
 
 The recording deliberately uses local sample templates. Do not describe it as authenticated Meta/Gemini generation. Provider-facing automated tests use synthetic fixtures. Catalog availability does not establish model/account generation access. Confirm the accepted-applicant portal's actual requirements and obtain genuine, explicitly authorised provider evidence before making a live-usage claim.
 

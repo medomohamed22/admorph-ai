@@ -1,11 +1,12 @@
 import { getDatabase, type AdMorphDB } from './dexie';
+import { browserPrefersArabic } from '../i18n';
 import { brandSchema, savedSettingsSchema, cacheSchema, encryptedCredentialSchema, type Brand, type Asset, type SavedSettings, type CatalogCache, type SavedAd } from './schema';
 
 export async function loadWorkspace(db: AdMorphDB = getDatabase()) {
   const [settings, rawBrands, assets] = await Promise.all([db.settings.toArray(), db.brands.toArray(), db.assets.toArray()]);
   const values = Object.fromEntries(settings.map(item => [item.key, item.value]));
   const brands = rawBrands.map(item => brandSchema.parse(item));
-  return { locale: values.locale === 'ar' ? 'ar' as const : 'en' as const,
+  return { locale: values.locale === 'ar' || (values.locale === undefined && browserPrefersArabic()) ? 'ar' as const : 'en' as const,
     activeBrandId: typeof values.activeBrandId === 'string' ? values.activeBrandId : null,
     brands, assets };
 }
