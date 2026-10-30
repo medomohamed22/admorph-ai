@@ -289,6 +289,22 @@
   "remix": {
     "axis_setting": "مكان جديد",
     "axis_light": "إضاءة وزاوية جديدة",
-    "axis_palette": "ألوان ومزاج جديد"
+    "axis_palette": "ألوان ومزاج جديد",
+    "fallbackUsed": "رفض Meta جزءًا من هذا الطلب، فصنعنا نسخة أبسط بدلًا منه."
+  },
+  "meta": {
+    "extractLead": "صورة واحدة لشعارك أو عبوتك أو لافتة محلك. يقرأ Muse Spark الاسم والألوان والطابع والخط، وتعدّل كل شيء قبل الحفظ.",
+    "extractDrop": "اختر أو اسحب صورة شعارك أو عبوتك",
+    "extractDropHint": "PNG أو JPEG أو WebP · حتى 2 ميجابايت",
+    "extractChange": "غيّر الصورة",
+    "extractMeasured": "ألوان صورتك · مقيسة على جهازك",
+    "extractReading": "Muse Spark يقرأ علامتك",
+    "extractPartName": "الاسم",
+    "extractPartColors": "الألوان",
+    "extractPartTone": "الطابع",
+    "extractPartFont": "الخط",
+    "extractBusy": "جارٍ التحليل… {s} ث",
+    "extractTook": "اكتملت القراءة في {s} ث",
+    "extractTone": "الطابع"
   }
 }

@@ -146,7 +146,11 @@ export function isBackgroundMask(alpha: Uint8ClampedArray, width: number, height
   }
   let reachable = 0; for (let i = 0; i < open.length; i++) reachable += open[i];
   const enclosed = uncovered - reachable;
-  return enclosed >= 0.05 * boxWidth * boxHeight && enclosed >= reachable;
+  // A clear hole in the middle, or an outline almost fully covered while a
+  // real share of the box is left empty (the product's gap can open onto
+  // the outline between two parts, as under a pair of headphones).
+  return (enclosed >= 0.05 * boxWidth * boxHeight && enclosed >= reachable)
+    || (perimeterCoverage(alpha, width, height, box) > 0.75 && uncovered >= 0.15 * boxWidth * boxHeight);
 }
 
 /**
@@ -161,8 +165,10 @@ export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, heigh
   const product = ranked.find(item => !item.background);
   if (product) return product.alpha;
   const inverted = new Uint8ClampedArray(ranked[0].alpha.length);
-  for (let y = box.top; y < box.bottom; y++) for (let x = box.left; x < box.right; x++) { const i = y * width + x; inverted[i] = ranked[0].alpha[i] > 127 ? 0 : 255; }
-  return inverted;
+  let kept = 0;
+  for (let y = box.top; y < box.bottom; y++) for (let x = box.left; x < box.right; x++) { const i = y * width + x; if (ranked[0].alpha[i] <= 127) { inverted[i] = 255; kept++; } }
+  // Never trade a mask for a near-empty one.
+  return kept >= 0.03 * (box.right - box.left) * (box.bottom - box.top) ? inverted : ranked[0].alpha;
 }
 
 /**
