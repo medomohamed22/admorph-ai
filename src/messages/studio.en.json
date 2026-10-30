@@ -85,6 +85,18 @@
     "attemptFirst": "First try",
     "attemptRepaired": "After the fix",
     "attemptUse": "Use this version",
-    "attemptShown": "Shown"
+    "attemptShown": "Shown",
+    "needCanvas": "Wait a moment for the canvas to finish loading.",
+    "startOver": "Start over",
+    "draftRestored": "Your last ad was restored from this device.",
+    "stepProductLead": "Upload a phone photo of your product, then cut it out with SAM. If the cutout misses, tap the product.",
+    "stepBrandLead": "Pick a saved brand, or write a name and description. Muse Spark can read them from your product.",
+    "stepIdeaLead": "Get three ideas from Muse Spark, or write the scene yourself.",
+    "cutoutBefore": "Before",
+    "cutoutAfter": "Cut out",
+    "back": "Back",
+    "next": "Next",
+    "makeVariants": "Make variants",
+    "makeSeasonal": "Make it seasonal"
   }
 }

@@ -85,6 +85,18 @@
     "attemptFirst": "المحاولة الأولى",
     "attemptRepaired": "بعد الإصلاح",
     "attemptUse": "استخدم هذه النسخة",
-    "attemptShown": "معروضة"
+    "attemptShown": "معروضة",
+    "needCanvas": "انتظر لحظة حتى يكتمل تحميل الكانفس.",
+    "startOver": "ابدأ من جديد",
+    "draftRestored": "تمت استعادة آخر إعلان لك من هذا الجهاز.",
+    "stepProductLead": "ارفع صورة موبايل لمنتجك، ثم قصّه بـ SAM. لو أخطأ القص، المس المنتج.",
+    "stepBrandLead": "اختر براندًا محفوظًا، أو اكتب اسمًا ووصفًا. يمكن لـ Muse Spark قراءتهما من منتجك.",
+    "stepIdeaLead": "احصل على ثلاث أفكار من Muse Spark، أو اكتب المشهد بنفسك.",
+    "cutoutBefore": "قبل",
+    "cutoutAfter": "بعد القص",
+    "back": "السابق",
+    "next": "التالي",
+    "makeVariants": "اصنع نسخًا",
+    "makeSeasonal": "حوّله لموسم"
   }
 }

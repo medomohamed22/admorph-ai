@@ -1,3 +1,4 @@
+import { wizardStep } from './wizard';
 import { test, expect, type Page } from '@playwright/test';
 
 const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
@@ -12,7 +13,8 @@ async function prepare(page: Page) {
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
-  await expect(page.getByTestId('oneshot-canvas')).toBeVisible();
+  await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
+  await wizardStep(page, 'Brand');
   await page.getByText('Edit brand details', { exact: true }).click();
   await page.getByLabel('Brand name').fill('Sora');
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
@@ -22,6 +24,7 @@ test('the agent shows each step with its model, time and result', async ({ page 
   test.setTimeout(120_000);
   await prepare(page);
   const agent = page.getByTestId('agent-pipeline');
+  await wizardStep(page, 'Generate');
   await expect(agent.getByTestId('agent-step-locate')).toHaveAttribute('data-status', 'done');
   await expect(agent.getByTestId('agent-step-locate')).toContainText('Muse Spark 1.3');
   await expect(agent.getByTestId('agent-step-cutout')).toHaveAttribute('data-status', 'done');
@@ -31,6 +34,7 @@ test('the agent shows each step with its model, time and result', async ({ page 
 
   await page.route('**/api/ai/oneshot', async route => { await new Promise(resolve => setTimeout(resolve, 1200)); await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', route => route.fulfill({ json: { productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] } }));
+  await wizardStep(page, 'Generate');
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
   await expect(generate).toBeEnabled({ timeout: 30000 });
   await generate.click();
@@ -60,6 +64,7 @@ test('a low critic score sends its notes back to the painter once and shows both
       ? { productKept: false, productNote: 'bottle became a can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }
       : { productKept: true, productNote: 'same bottle', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] } });
   });
+  await wizardStep(page, 'Generate');
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
   await expect(generate).toBeEnabled({ timeout: 30000 });
   await generate.click();
@@ -70,6 +75,7 @@ test('a low critic score sends its notes back to the painter once and shows both
   expect(paints[0].fixNotes).toBeUndefined();
   expect(paints[1].fixNotes?.[0]).toContain('bottle became a can');
   // Both versions stay visible; the higher score is shown and the user can switch.
+  await wizardStep(page, 'Generate');
   await expect(page.getByTestId('oneshot-attempt')).toHaveCount(2);
   await expect(page.getByTestId('oneshot-certificate')).toContainText('Score: 100');
   await page.getByRole('button', { name: 'Use this version', exact: true }).click();
@@ -83,6 +89,7 @@ test('a failed painting step shows the error and a retry on its card', async ({ 
   let calls = 0;
   await page.route('**/api/ai/oneshot', route => { calls += 1; return calls === 1 ? route.fulfill({ status: 503, json: { error: { code: 'unavailable' } } }) : route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', route => route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] } }));
+  await wizardStep(page, 'Generate');
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
   await expect(generate).toBeEnabled({ timeout: 30000 });
   await generate.click();

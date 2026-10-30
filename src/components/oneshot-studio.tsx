@@ -20,6 +20,8 @@ import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { saveAd } from '@/lib/db/repository';
+import { loadDraft, saveDraft, clearDraft, draftHasWork } from '@/lib/oneshot/draft';
+import { IconArrow, IconCheck } from './ui/icons';
 import UploadCard from './upload-card';
 import { AgentPipeline, type RepairRecord } from './agent-pipeline';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
@@ -86,6 +88,11 @@ export default function OneshotStudio() {
   const [exporting, setExporting] = useState(false);
   // The visible agent: one record per pipeline step, plus the one repair loop.
   const [records, setRecords] = useState<AgentRecords>(emptyRecords);
+  // Wizard: one step on screen at a time; direction drives the slide.
+  const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+  const [restored, setRestored] = useState(false);
+  const [restoredNote, setRestoredNote] = useState(false);
   const [repair, setRepair] = useState<RepairRecord | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [past, setPast] = useState<OneshotCanvasElement[][]>([]);
@@ -261,7 +268,7 @@ export default function OneshotStudio() {
   const appliedReturnBrand = useRef(false);
   const returnBrandId = searchParams.get('brand');
   useEffect(() => {
-    if (appliedReturnBrand.current || workspace.phase === 'loading' || !returnBrandId) return;
+    if (appliedReturnBrand.current || workspace.phase === 'loading' || !restored || !returnBrandId) return;
     const found = workspace.brands.find(item => item.id === returnBrandId);
     if (!found) return;
     appliedReturnBrand.current = true;
@@ -271,7 +278,46 @@ export default function OneshotStudio() {
       applyBrandRef.current(found);
     });
     router.replace('/oneshot');
-  }, [returnBrandId, workspace.phase, workspace.brands, router]);
+  }, [returnBrandId, workspace.phase, workspace.brands, router, restored]);
+
+  // Restore the saved wizard progress once, before anything else applies.
+  useEffect(() => {
+    let alive = true;
+    loadDraft().then(draft => {
+      if (!alive) return;
+      if (draftHasWork(draft)) {
+        skipHistory.current = true;
+        setOriginalBlob(draft.originalBlob); setCurrentBlob(draft.currentBlob); setCutoutBlob(draft.cutoutBlob);
+        setCutoutMethod(draft.cutoutBlob ? 'meta-sam' : null); setLogoBlob(draft.logoBlob); setEnhance(draft.enhance);
+        setBrand(draft.brand); setSelectedBrandId(draft.selectedBrandId); setHeadlineFont(draft.headlineFont);
+        setBrief(draft.brief); setScene(draft.scene); setConcepts(draft.concepts); setSelectedConcept(draft.selectedConcept);
+        setSuggestedFonts(draft.suggestedFonts); setElements(draft.elements); setStep(Math.min(4, Math.max(0, draft.step)));
+        setRestoredNote(true);
+      }
+    }).catch(() => {}).finally(() => { if (alive) setRestored(true); });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (!restored || !originalBlob) return;
+    const timer = setTimeout(() => {
+      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, savedAt: new Date().toISOString() }).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements]);
+
+  /** Start over: drop the saved draft and every piece of this ad. */
+  function startOver() {
+    void clearDraft().catch(() => {});
+    skipHistory.current = true;
+    setOriginalBlob(null); setCurrentBlob(null); setCutoutBlob(null); setCutoutMethod(null); setLogoBlob(null); setLogoMissing(false);
+    setEnhance(false); setEnhanceNote(''); setTapCutout(false); setSelectedBrandId('');
+    setBrand({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] }); setHeadlineFont(null);
+    setBrief(''); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
+    setElements([]); setSelected(null); setPast([]); setFuture([]); setAppliedRepairs([]); setLoaded(new Set());
+    setResultBlob(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
+    setRecords(emptyRecords()); setRepair(null); setAttempts([]); setError(''); setRestoredNote(false);
+    setDirection('back'); setStep(0);
+  }
 
   async function extractBrand() {
     const model = visionModel ?? plannerModel;
@@ -559,33 +605,54 @@ export default function OneshotStudio() {
   }
   const generating = busy === 'generate' || busy === 'verify';
   const generateLabel = busy === 'generate' ? <WaitingText label={t.generating} /> : busy === 'verify' ? <WaitingText label={t.verifying} /> : resultBlob ? t.retry : t.generate;
-  // Stepper state: the current step is the first incomplete one; later steps
-  // read as locked until their prerequisites are done.
-  const readyToGenerate = !!cutoutBlob && !!imageModel && !!key && canvasReady && scene.trim().length > 0 && brandValid;
+  // Wizard steps: a step is reachable once every earlier step is complete;
+  // completed steps stay clickable for going back.
   const steps = [
-    { label: t.stepProduct, done: !!cutoutBlob },
-    { label: t.stepBrand, done: brandValid },
-    { label: t.stepIdea, done: concepts.length > 0 },
-    { label: t.stepArrange, done: readyToGenerate },
-    { label: t.stepGenerate, done: !!resultBlob },
+    { label: t.stepProduct, done: !!cutoutBlob, reason: t.needProduct },
+    { label: t.stepBrand, done: brandValid, reason: t.needBrand },
+    { label: t.stepIdea, done: scene.trim().length > 0, reason: t.needScene },
+    { label: t.stepArrange, done: !!cutoutBlob && canvasReady, reason: t.needCanvas },
+    { label: t.stepGenerate, done: !!resultBlob, reason: '' },
   ];
-  const currentStep = steps.findIndex(step => !step.done);
+  const reachable = (index: number) => steps.slice(0, index).every(item => item.done);
+  function goTo(index: number) {
+    if (index === step || index < 0 || index > 4 || !reachable(index)) return;
+    setDirection(index > step ? 'forward' : 'back'); setStep(index);
+    document.getElementById('main')?.scrollIntoView({ block: 'start' });
+  }
+  const current = steps[step];
+  const last = step === steps.length - 1;
+  const nextBlocked = !last && !current.done;
+  const panel = (index: number) => ({ hidden: step !== index, className: `wizard-panel enter-${direction}`, 'data-testid': `wizard-step-${index}` });
 
-  return <main className="oneshot-studio">
-    <h1>{t.title}</h1>
-    <p>{t.subtitle}</p>
-    <ol className="oneshot-stepper" aria-label={t.stepperLabel}>
-      {steps.map((step, index) => {
-        const state = step.done ? 'done' : index === currentStep ? 'current' : 'locked';
-        return <li key={step.label} className={state} aria-current={state === 'current' ? 'step' : undefined}>
-          <span className="step-mark">{step.done ? '✓' : index + 1}</span>
-          <span>{step.label}</span>
-        </li>;
-      })}
-    </ol>
+  return <main className="oneshot-studio wizard">
+    <div className="wizard-head">
+      <div><h1>{t.title}</h1><p>{t.subtitle}</p></div>
+      {originalBlob && <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={startOver}>{t.startOver}</button>}
+    </div>
+    {restoredNote && <p className="request-status" role="status">{t.draftRestored}</p>}
+    <div className="wizard-layout">
+    <nav className="wizard-rail" aria-label={t.stepperLabel}>
+      <ol className="oneshot-stepper wizard-steps">
+        {steps.map((item, index) => {
+          // A step reads as done only once everything before it is done too.
+          const finished = item.done && reachable(index);
+          const state = index === step ? 'current' : finished ? 'done' : reachable(index) ? 'open' : 'locked';
+          return <li key={item.label} className={state}>
+            <button type="button" aria-label={item.label} aria-current={index === step ? 'step' : undefined} disabled={!reachable(index)} onClick={() => goTo(index)}>
+              <span className="step-mark" aria-hidden="true">{finished && index !== step ? <IconCheck size={14} className="agent-check" /> : index + 1}</span>
+              <span aria-hidden="true">{item.label}</span>
+            </button>
+            {index < steps.length - 1 && <span className="wizard-link" aria-hidden="true"><i style={{ transform: `scaleX(${finished ? 1 : 0})` }} /></span>}
+          </li>;
+        })}
+      </ol>
+    </nav>
 
-    <section className="feature-card">
-      <h2>{t.uploadProduct}</h2>
+    <div className="wizard-body">
+    <section {...panel(0)}>
+      <h2 id="wizard-title-0">{t.uploadProduct}</h2>
+      <p className="wizard-lead">{t.stepProductLead}</p>
       <UploadCard testId="upload-card-product" title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
       <button type="button" className="button secondary" disabled={!originalBlob || cutting} onClick={() => void isolateBackground()}>{cutting ? <WaitingText label={t.isolateBackground} /> : t.isolateBackground}</button>
       {tapCutout && originalUrl && <div>
@@ -593,15 +660,30 @@ export default function OneshotStudio() {
         <img data-testid="cutout-tap-photo" src={originalUrl} alt="" onClick={event => void tapCutoutPhoto(event)} style={{ maxWidth: '100%', cursor: 'crosshair' }} />
         <button type="button" className="button secondary" onClick={() => setTapCutout(false)}>{t.cutoutTapClose}</button>
       </div>}
-      <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
+      {cutoutUrl && originalUrl && <div className="cutout-compare" data-testid="cutout-compare">
+        <figure><img src={currentUrl ?? originalUrl} alt={t.cutoutBefore} /><figcaption>{t.cutoutBefore}</figcaption></figure>
+        <figure className="cutout-after"><img src={cutoutUrl} alt={t.cutoutAfter} /><figcaption>{t.cutoutAfter}</figcaption></figure>
+      </div>}
+      <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? <WaitingText label={t.enhanceBusy} /> : t.enhance}</label>
+      {enhanceNote && <p role="status">{enhanceNote}</p>}
+      {enhance && originalUrl && currentUrl && <div data-testid="oneshot-enhance-compare" style={{ display: 'flex', gap: 12 }}>
+        <figure style={{ margin: 0 }}><img src={originalUrl} alt={t.enhanceOriginal} width={120} /><figcaption>{t.enhanceOriginal}</figcaption></figure>
+        <figure style={{ margin: 0 }}><img src={currentUrl} alt={t.enhanceImproved} width={120} /><figcaption>{t.enhanceImproved}</figcaption></figure>
+      </div>}
+    </section>
+
+    <section {...panel(1)}>
+      <h2 id="wizard-title-1">{t.stepBrand}</h2>
+      <p className="wizard-lead">{t.stepBrandLead}</p>
       <fieldset className="brand-pick-fieldset"><legend>{t.brandPick}</legend><div className="brand-pick-grid">
         <button type="button" className={selectedBrandId === '' ? 'brand-pick selected' : 'brand-pick'} aria-pressed={selectedBrandId === ''} onClick={() => { setSelectedBrandId(''); setLogoMissing(false); }}>{t.brandCustom}</button>
         {workspace.brands.map(item => <button type="button" key={item.id} className={selectedBrandId === item.id ? 'brand-pick selected' : 'brand-pick'} aria-pressed={selectedBrandId === item.id} onClick={() => { setSelectedBrandId(item.id); applyBrand(item); }}><span className="brand-pick-name">{item.name}</span><span className="brand-pick-swatches">{item.colors.map(color => <i key={color} style={{ background: color }} />)}</span></button>)}
       </div></fieldset>
       {logoMissing && <p role="alert">{t.brandLogoMissing}</p>}
+      <UploadCard testId="upload-card-logo" title={t.uploadLogo} hint={t.uploadHintLogo} preview={logoUrl} state={logoBlob ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadLogo} onFile={file => void uploadLogo(file)} />
       <Link className="button secondary" href="/brands/new?returnTo=/oneshot">{t.brandNew} ↗</Link>
-      {headlineFont && <p>{t.brandFont}: {headlineFont}</p>}
+      {headlineFont && suggestedFonts.length === 0 && <p>{t.brandFont}: {headlineFont}</p>}
       <details>
         <summary>{t.editBrand}</summary>
         <label>{t.brandName}<input value={brand.name} maxLength={80} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, name: event.target.value })); }} /></label>
@@ -609,26 +691,35 @@ export default function OneshotStudio() {
         <div>{brand.colors.map((color, index) => <input key={index} dir="ltr" value={color} maxLength={7} aria-label={`color-${index + 1}`} onChange={event => { setSelectedBrandId(''); setBrand(previous => ({ ...previous, colors: previous.colors.map((item, i) => i === index ? event.target.value : item) as [string, string, string] })); }} />)}</div>
         <button type="button" className="button secondary" disabled={!currentBlob || !(visionModel ?? plannerModel) || !key || busy !== ''} onClick={() => void extractBrand()}>{busy === 'extract' ? <WaitingText label={t.extractBrand} /> : t.extractBrand}</button>
       </details>
+    </section>
+
+    <section {...panel(2)}>
+      <h2 id="wizard-title-2">{t.stepIdea}</h2>
+      <p className="wizard-lead">{t.stepIdeaLead}</p>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
       <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
+      {busy === 'ideas' && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
-        {concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary" aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}
+        <div className="idea-grid">{concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary idea-card" style={{ animationDelay: `${index * 60}ms` }} aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>{concept.title} — {concept.headline}</button>)}</div>
       </div>}
       {suggestedFonts.length > 0 && <div>
         <p>{t.suggestedFonts}</p>
         {suggestedFonts.map(family => <button key={family} type="button" className="button secondary" aria-pressed={headlineFont === family} onClick={() => setHeadlineFont(family)}>{family}</button>)}
+        {headlineFont && <p>{t.brandFont}: {headlineFont}</p>}
       </div>}
       <label>{t.scene}<textarea value={scene} maxLength={1000} onChange={event => setScene(event.target.value)} /></label>
     </section>
 
-    <section className="feature-card">
-      <h2>{t.canvasTitle}</h2>
-      <p>{t.canvasHelp}</p>
+    <section {...panel(3)}>
+      <h2 id="wizard-title-3">{t.canvasTitle}</h2>
+      <p className="wizard-lead">{t.canvasHelp}</p>
       {!cutoutBlob && <p>{t.needProduct}</p>}
+      <div className="arrange-layout">
       {cutoutBlob && <div className="oneshot-canvas-wrap">
         <OneshotCanvas elements={canvasElements} selected={selected} select={setSelected} change={(id, values) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item))} handle={canvasHandle} onReady={onReady} label={t.canvasTitle} disabled={busy !== ''} />
       </div>}
+      <div className="arrange-tools">
       <div>
         <input aria-label={t.textPlaceholder} value={newText} maxLength={200} placeholder={t.textPlaceholder} onChange={event => setNewText(event.target.value)} />
         <button type="button" className="button secondary" disabled={!newText.trim() || !cutoutBlob} onClick={() => { addElement('text', undefined, newText.trim()); setNewText(''); }}>{t.addText}</button>
@@ -648,12 +739,6 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" aria-label={t.nudgeLeft} disabled={busy !== ''} onClick={() => nudgeSelected(-10, 0)}>←</button>
         <button type="button" className="button secondary" aria-label={t.nudgeRight} disabled={busy !== ''} onClick={() => nudgeSelected(10, 0)}>→</button>
       </div>}
-      <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? <WaitingText label={t.enhanceBusy} /> : t.enhance}</label>
-      {enhanceNote && <p role="status">{enhanceNote}</p>}
-      {enhance && originalUrl && currentUrl && <div data-testid="oneshot-enhance-compare" style={{ display: 'flex', gap: 12 }}>
-        <figure style={{ margin: 0 }}><img src={originalUrl} alt={t.enhanceOriginal} width={120} /><figcaption>{t.enhanceOriginal}</figcaption></figure>
-        <figure style={{ margin: 0 }}><img src={currentUrl} alt={t.enhanceImproved} width={120} /><figcaption>{t.enhanceImproved}</figcaption></figure>
-      </div>}
       {cutoutBlob && <div>
         <h3>{t.inspectTitle}</h3>
         {findings.length === 0 ? <p>{t.inspectOk}</p> : <ul>
@@ -672,12 +757,16 @@ export default function OneshotStudio() {
           <p>{t.fixUndoNote}</p>
         </div>}
       </div>}
+      </div>
+      </div>
     </section>
 
-    <AgentPipeline records={records} repair={repair} onRetry={{ locate: () => void isolateBackground(), cutout: () => void isolateBackground(), brand: () => void extractBrand(), ideas: () => void suggestIdeas(), paint: () => void generate(), critic: () => void generate(), repair: () => void generate() }} />
-
-    <section className="feature-card">
-      <h2>{t.result}</h2>
+    <section {...panel(4)}>
+      <h2 id="wizard-title-4">{t.result}</h2>
+      {!imageModel || !key ? <p>{t.missingKey}</p> : null}
+      <div className="generate-layout">
+      <AgentPipeline records={records} repair={repair} onRetry={{ locate: () => void isolateBackground(), cutout: () => void isolateBackground(), brand: () => void extractBrand(), ideas: () => void suggestIdeas(), paint: () => void generate(), critic: () => void generate(), repair: () => void generate() }} />
+      <div className="generate-result">
       <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame">
         {generating
           ? <div className="generating-overlay" data-testid="oneshot-generating" role="status"><WaitingText label={busy === 'verify' ? t.verifying : t.generatingNote} /></div>
@@ -692,6 +781,10 @@ export default function OneshotStudio() {
       </div>}
       {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
       <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
+      {resultBlob && !generating && <div className="result-next">
+        <Link className="button secondary" href="/variants">{t.makeVariants}</Link>
+        <Link className="button secondary" href="/themes">{t.makeSeasonal}</Link>
+      </div>}
       {certificate && score !== null && <div data-testid="oneshot-certificate">
         <h2>{t.certificate}</h2>
         <p>{t.score}: {score}</p>
@@ -702,18 +795,22 @@ export default function OneshotStudio() {
           {certificate.texts.map(item => <li key={item.id}>{item.expected}: {item.match ? '✓' : `✗ (${item.found})`}</li>)}
         </ul>
       </div>}
+      </div>
+      </div>
     </section>
 
-    <section className="feature-card">
-      {!imageModel || !key ? <p>{t.missingKey}</p> : null}
-      {!scene.trim() && <p>{t.needScene}</p>}
-      {!brandValid && <p>{t.needBrand}</p>}
-      <button type="button" className="button primary generate-main" disabled={!canGenerate} onClick={() => void generate()}>{generateLabel}</button>
-      {error && <p role="alert">{error}</p>}
-    </section>
+    {error && <p className="wizard-error" role="alert">{error}</p>}
+    </div>
+    </div>
 
-    <div className="sticky-generate">
-      <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{generateLabel}</button>
+    <div className="sticky-generate wizard-bar">
+      {nextBlocked && <p className="wizard-reason" data-testid="wizard-reason">{current.reason}</p>}
+      <div className="wizard-bar-actions">
+        <button type="button" className="button secondary wizard-back" disabled={step === 0 || generating} onClick={() => goTo(step - 1)}><IconArrow size={16} className="flip-back" />{t.back}</button>
+        {last
+          ? <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{generateLabel}</button>
+          : <button type="button" className="button primary wizard-next" disabled={nextBlocked} onClick={() => goTo(step + 1)}>{t.next}<IconArrow size={16} /></button>}
+      </div>
     </div>
   </main>;
 }
