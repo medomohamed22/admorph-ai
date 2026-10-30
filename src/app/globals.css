@@ -134,3 +134,16 @@ header nav .language{min-height:44px;min-width:44px;background:transparent;curso
 .segmented button[aria-pressed=true]{background:var(--ink);color:#fff}
 .button.danger{background:#fff;border-color:#c9a09a;color:#a13026}
 .brand-library-card.active{border:2px solid #52633c;box-shadow:0 0 0 1px #52633c55}
+
+/* Phase 5 motion: one shared language. Opacity-only page fade (never a
+ * transform, so fixed bars keep viewport positioning); press feedback on
+ * buttons and picker cards; animated stepper state; the one-shot blur
+ * reveal reused for remix results. The global reduced-motion rule
+ * already flattens all of these. */
+main{animation:pageFade .25s ease}
+@keyframes pageFade{from{opacity:0}}
+.button:active{transform:translateY(0)}
+.brand-pick:active,.theme-pick:active{transform:scale(.98)}
+.segmented button:active{transform:scale(.96)}
+.oneshot-stepper li{transition:background-color .25s,border-color .25s}
+.media-reveal{animation:oneshotReveal .75s ease-out}
