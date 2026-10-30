@@ -1,0 +1,49 @@
+/* ---------------- Agent pipeline ---------------- */
+[data-model=local] { --model-color: var(--muted); }
+.agent-pipeline { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: var(--space-5); margin: var(--space-4) 0; min-width: 0; }
+.agent-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.agent-head h2 { margin: 0; font-size: var(--text-lg); }
+.agent-progress { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+.agent-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.agent-step { position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface-2); transition: border-color var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out); }
+.agent-step.is-waiting { opacity: .62; }
+.agent-step.is-skipped { opacity: .8; }
+.agent-step.is-failed { border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+.agent-step.is-done { border-color: color-mix(in srgb, var(--ok) 35%, var(--line)); }
+/* The active card gets a rotating gradient edge. */
+.agent-step.is-running { border-color: transparent; background: linear-gradient(var(--surface-2), var(--surface-2)) padding-box, conic-gradient(from var(--agent-angle, 0deg), var(--accent-1), var(--accent-2), var(--accent-1)) border-box; animation: agent-spin 2.4s linear infinite; }
+@property --agent-angle { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+@keyframes agent-spin { to { --agent-angle: 360deg; } }
+.agent-step-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); font-weight: 700; font-size: 13px; color: var(--muted); background: var(--surface); }
+.agent-step.is-running .agent-step-mark { color: var(--text); border-color: var(--accent-1); }
+.agent-step.is-done .agent-step-mark { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.agent-step.is-failed .agent-step-mark { color: var(--bad); border-color: var(--bad); background: var(--bad-soft); }
+.agent-check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: agent-draw var(--dur-slow) var(--ease-out) forwards; }
+@keyframes agent-draw { to { stroke-dashoffset: 0; } }
+.agent-step-body { min-width: 0; overflow-wrap: anywhere; }
+.agent-step-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.agent-step-state { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.agent-step-result { margin: 4px 0 0; font-size: 13px; color: var(--text); }
+.agent-step-error { margin: 4px 0; font-size: 13px; color: var(--bad); }
+.agent-details-toggle { margin-top: 4px; min-height: 32px; padding: 0; background: none; border: 0; color: var(--accent-text); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.agent-details-toggle:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; border-radius: 4px; }
+.agent-details { margin-top: var(--space-2); }
+.agent-details h4 { margin: var(--space-2) 0 4px; font-size: 12px; color: var(--muted); }
+.agent-details pre { margin: 0; max-height: 220px; overflow: auto; padding: var(--space-3); border-radius: var(--radius-sm); background: var(--bg); border: 1px solid var(--line); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+/* Phones: a compact horizontal strip above the result. */
+@media (max-width: 640px) {
+  .agent-pipeline { padding: var(--space-4); }
+  .agent-steps { grid-auto-flow: column; grid-auto-columns: minmax(200px, 72%); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: var(--space-2); overscroll-behavior-x: contain; }
+  .agent-step { scroll-snap-align: start; }
+}
+
+/* ---------------- Repair attempts ---------------- */
+.attempt-compare { margin: var(--space-4) 0; }
+.attempt-compare h3 { margin: 0 0 4px; }
+.attempt-compare > p { margin: 0 0 var(--space-3); color: var(--muted); }
+.attempt-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.attempt-card { margin: 0; display: grid; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); min-width: 0; }
+.attempt-card.active { border-color: var(--accent-1); box-shadow: 0 0 0 3px var(--accent-soft); }
+.attempt-card img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-sm); display: block; }
+.attempt-card figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .agent-step.is-running { animation: none; } .agent-check path { animation: none; stroke-dashoffset: 0; } }
