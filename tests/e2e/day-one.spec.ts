@@ -1,17 +1,17 @@
 import { expect, test } from '@playwright/test';
 import en from '../../src/messages/en.json';
 
-test('landing points to one-shot and brands', async ({ page }) => {
+test('landing points to the wizard and the gallery', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('One product.');
-  await page.locator('.hero-actions a[href="/oneshot"]').click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('From a phone photo to an Instagram ad');
+  await page.locator('.home-actions a[href="/oneshot"]').click();
   await expect(page).toHaveURL(/\/oneshot$/);
   await page.goto('/');
-  await page.locator('.hero-actions a[href="/brands"]').click();
-  await expect(page).toHaveURL(/\/brands$/);
+  await page.locator('.home-actions a[href="/gallery"]').click();
+  await expect(page).toHaveURL(/\/gallery$/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
