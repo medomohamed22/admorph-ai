@@ -2,7 +2,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { useMessages } from './workspace';
 import { clampOneshotElement, type OneshotCanvasElement } from '@/lib/ai/oneshot';
-import { ICONS, iconSvg, iconPng, textOn, type IconId } from '@/lib/oneshot/icons';
+import { textOn } from '@/lib/oneshot/badge-color';
 import { alignToFrame, moveLayer, type Alignment } from '@/lib/oneshot/snap';
 import { BRAND_FONTS } from '@/lib/brand/fonts';
 
@@ -18,7 +18,7 @@ const BADGE_BOX: Record<Badge, { width: number; height: number; fontSize: number
 };
 
 /**
- * The arrange step's extra tools: layers, the icon library, price/discount/
+ * The arrange step's extra tools: layers, price/discount/
  * button badges, text styling and alignment. Everything here changes only
  * the local mockup; no tool makes a request.
  */
@@ -28,20 +28,13 @@ export function CanvasTools({ frameHeight = 1350, elements, setElements, selecte
   headlineFont: string | null; setHeadlineFont: (family: string | null) => void; loadFont: (family: string) => void;
 }) {
   const t = useMessages().oneshot;
-  const [iconColor, setIconColor] = useState(colors[0] ?? '#16100C');
   const [badgeText, setBadgeText] = useState('');
   const full = elements.length >= MAX_ELEMENTS;
   const current = elements.find(item => item.id === selected) ?? null;
   const isText = !!current && (current.kind === 'text' || current.kind === 'phone');
-  const swatches = [...new Set([...colors, '#16100C', '#FFFFFF'].map(color => color.toUpperCase()))];
   const update = (id: string, values: Partial<OneshotCanvasElement>) => setElements(previous => previous.map(item => item.id === id ? { ...item, ...values } : item));
   const add = (element: OneshotCanvasElement) => { if (full) return; setElements(previous => previous.length >= MAX_ELEMENTS ? previous : [...previous, element]); setSelected(element.id); };
 
-  async function addIcon(id: IconId) {
-    if (full || disabled) return;
-    const blob = await iconPng(id, iconColor);
-    add({ id: crypto.randomUUID(), kind: 'icon', x: 60, y: 1140, width: 150, height: 150, blob });
-  }
   function addBadge(badge: Badge) {
     const text = badgeText.trim(); if (!text || full) return;
     const fill = colors[0] ?? '#16100C', box = BADGE_BOX[badge];
@@ -105,18 +98,6 @@ export function CanvasTools({ frameHeight = 1350, elements, setElements, selecte
       <input className="tool-input" aria-label={t.badgeText} value={badgeText} maxLength={40} dir="auto" placeholder={t.badgePlaceholder} onChange={event => setBadgeText(event.target.value)} />
       <div className="tool-row">
         {(['price', 'discount', 'cta'] as Badge[]).map(badge => <button key={badge} type="button" className={`tool-chip badge-chip badge-${badge}`} disabled={disabled || full || !badgeText.trim()} onClick={() => addBadge(badge)}>{t[`badgeAdd_${badge}`]}</button>)}
-      </div>
-    </section>
-
-    <section className="tool-block" aria-labelledby="tool-icons">
-      <h3 id="tool-icons">{t.iconsTitle}</h3>
-      <div className="tool-row" role="radiogroup" aria-label={t.iconColor}>
-        {swatches.map(color => <button key={color} type="button" role="radio" aria-checked={iconColor.toUpperCase() === color} aria-label={color} className="icon-swatch" style={{ background: color }} onClick={() => setIconColor(color)} />)}
-      </div>
-      <div className="icon-grid">
-        {ICONS.map(icon => <button key={icon.id} type="button" className="icon-pick" aria-label={`${t.iconAdd}: ${t[`icon_${icon.id}`]}`} title={t[`icon_${icon.id}`]} disabled={disabled || full} onClick={() => void addIcon(icon.id)}>
-          <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconSvg(icon.id, iconColor))}`} alt="" />
-        </button>)}
       </div>
     </section>
   </div>;

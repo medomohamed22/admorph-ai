@@ -44,7 +44,7 @@ test('a white logo background is cleared on the device, with no request', async 
   expect(requests).toHaveLength(0);
 });
 
-test('layers, badges, icons, text style and alignment shape the mockup the painter receives', async ({ page }) => {
+test('layers, badges, text style and alignment shape the mockup the painter receives', async ({ page }) => {
   test.setTimeout(120_000);
   await prepare(page);
   let painted: { layout: Record<string, unknown>[]; mockup: unknown } | null = null;
@@ -64,16 +64,19 @@ test('layers, badges, icons, text style and alignment shape the mockup the paint
   await expect(style.locator('output')).toHaveText('80');
   await tools.getByRole('button', { name: 'Center', exact: true }).first().click();
 
-  await tools.getByRole('button', { name: 'Add icon: Delivery', exact: true }).click();
+  await tools.getByLabel('Badge text').fill('Order now');
+  await tools.getByRole('button', { name: 'Add button', exact: true }).click();
   await expect(tools.getByTestId('layer-count')).toHaveText('4/20');
-  // Top of the list is the top of the stack: the icon, then the badge.
+  // Top of the list is the top of the stack: the button, then the price tag.
   const layers = tools.getByTestId('layer-list').locator('li');
-  await expect(layers.first()).toContainText('Icon');
+  await expect(layers.first()).toContainText('Button: Order now');
   await expect(layers.nth(1)).toContainText('Price tag: 45 EGP');
-  await tools.getByRole('button', { name: 'Send backward: Icon', exact: true }).click();
+  await tools.getByRole('button', { name: 'Send backward: Button: Order now', exact: true }).click();
   await expect(layers.first()).toContainText('Price tag: 45 EGP');
-  await tools.getByRole('button', { name: 'Delete: Icon', exact: true }).click();
+  await tools.getByRole('button', { name: 'Delete: Button: Order now', exact: true }).click();
   await expect(tools.getByTestId('layer-count')).toHaveText('3/20');
+  // The built-in icon library is gone; only the user's own icon upload remains.
+  await expect(tools.getByRole('button', { name: /^Add icon:/ })).toHaveCount(0);
 
   await wizardStep(page, 'Generate');
   const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });

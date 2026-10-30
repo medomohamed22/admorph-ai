@@ -378,7 +378,7 @@ export default function ShelfStudio() {
       <div ref={stageRef} className={`shelf-stage is-${stage}${activeCut ? ' is-cutting-one' : ''}`} data-testid="shelf-stage">
         <img src={photoUrl} alt={t.photoAlt} />
         {stage === 'detecting' && <><span className="shelf-beam" aria-hidden="true" /><span className="shelf-grid" aria-hidden="true" /><p className="shelf-stage-status" role="status"><WaitingText label={t.detecting} /></p></>}
-        {items.map((item, index) => <div key={item.id} className={`shelf-box is-${item.cut}`} data-testid="shelf-box" style={{ left: `${item.box.left * 100}%`, top: `${item.box.top * 100}%`, width: `${(item.box.right - item.box.left) * 100}%`, height: `${(item.box.bottom - item.box.top) * 100}%`, '--i': index } as CSSProperties}>
+        {items.map((item, index) => <div key={item.id} className={`shelf-box is-${item.cut}${item.box.right > 0.75 ? ' is-end' : ''}`} data-testid="shelf-box" style={{ left: `${item.box.left * 100}%`, top: `${item.box.top * 100}%`, width: `${(item.box.right - item.box.left) * 100}%`, height: `${(item.box.bottom - item.box.top) * 100}%`, '--i': index } as CSSProperties}>
           <span className="shelf-box-label"><b>{index + 1}</b><span className="shelf-box-text">{item.name}{item.priceText && <em>{item.priceText}</em>}</span></span>
           {item.cut === 'cut' && item.cutout && <CutGlow blob={item.cutout} />}
         </div>)}

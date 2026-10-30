@@ -218,3 +218,33 @@ test('a rate limit on the variants page pauses, says so, and carries on', async 
   expect(plans).toBe(2);
   await expect(page.getByTestId('remix-rate-wait')).toHaveCount(0);
 });
+
+// Live finding (30 Oct): an Arabic ad got English variants because the copy
+// followed the interface language. It now follows the ad.
+test('variants of an Arabic ad are written in Arabic, even in the English interface', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.evaluate(async () => {
+    const blob = await (await fetch('/demo/sora-product.png')).blob();
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open('admorph-local-v1');
+      open.onsuccess = () => { const db = open.result, tx = db.transaction(['savedAds'], 'readwrite');
+        tx.objectStore('savedAds').put({ id: crypto.randomUUID(), blob, source: 'oneshot', brand: { name: 'Seed Brand', description: 'Seeded.', colors: ['#111111', '#eeeeee', '#336699'] }, headline: 'خفيف زي الهوا', hasLogo: false, createdAt: '2099-01-01T00:00:00.000Z' });
+        tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(new Error('seed failed')); };
+      open.onerror = () => reject(new Error('open failed'));
+    });
+  });
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByRole('link', { name: 'Variants', exact: true }).click();
+  await interceptRemix(page);
+  const plans: Record<string, unknown>[] = [], remixes: Record<string, unknown>[] = [];
+  await page.route('**/api/ai/plan', route => { plans.push(route.request().postDataJSON()); return route.fulfill({ json: { concepts } }); });
+  await page.route('**/api/ai/ad-remix', route => { remixes.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
+  await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+  expect(plans[0]).toMatchObject({ creativeLanguage: 'ar' });
+  expect(remixes[0]).toMatchObject({ language: 'ar' });
+});
