@@ -9,6 +9,7 @@ import { useWorkspace } from './workspace';
 import {supportEventSchema} from '@/lib/ai/meta-fetch';
 import {accountContext,supportStatus,supportSchema,type MetaTask,type TaskSupport} from '@/lib/ai/task-support';
 import type {ModelSelection} from '@/lib/ai/schemas';
+import {selectionForTask} from '@/lib/ai/models';
 
 export type ProviderConfig = { apiKey: string; baseUrl: string; consent: boolean };
 type Configs = Record<ProviderId, ProviderConfig>;
@@ -32,7 +33,8 @@ function useSessionState() {
   const activeAccount=binding.key===configs.meta.apiKey?binding.account:'';
   useEffect(()=>{let alive=true;const key=configs.meta.apiKey;accountContext(key).then(account=>{if(alive)setBinding({key,account:key?account:''});});return()=>{alive=false;};},[configs.meta.apiKey,keyEpoch]);
   useEffect(()=>{let alive=true;Promise.resolve().then(()=>Promise.all([getDatabase().taskSupport.toArray(),getDatabase().settings.get('metaExtraRoles')])).then(([records,extra])=>{if(alive){setSupport(records.map(row=>supportSchema.parse(row)));if(extra)setExtraRoles(extra.value as Partial<Record<MetaTask,ModelSelection>>);}}).catch(()=>{});return()=>{alive=false;};},[]);
-  function taskModel(task:MetaTask){const value=['planner','image','critic','edit'].includes(task)?savedRoles?.[task as keyof RoleSelection]:extraRoles[task];return value?.provider==='meta'?value:null;}
+  // The three Meta models are fixed per task (see lib/ai/models.ts); saved role records stay readable but no longer choose models.
+  function taskModel(task:MetaTask):ModelSelection{return selectionForTask(task);}
   function taskState(task:MetaTask,modelId:string){return supportStatus(support,activeAccount,modelId,task);}
   function taskProof(task:MetaTask,modelId:string){return support.find(row=>row.account===activeAccount&&row.modelId===modelId&&row.task===task&&row.status==='verified_supported'&&Date.parse(row.expiresAt)>Date.now())?.proof??'';}
   async function recordSupport(task:MetaTask,modelId:string,status:TaskSupport['status'],reason:string,proof?:string){if(!activeAccount)return;const row=supportSchema.parse({id:`${activeAccount}:${modelId}:${task}`,account:activeAccount,task,modelId,status,reason,proof,checkedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+86400000).toISOString()});setSupport(previous=>[row,...previous.filter(item=>item.id!==row.id)]);try{await getDatabase().taskSupport.put(row);}catch{setStorageError(true);}}

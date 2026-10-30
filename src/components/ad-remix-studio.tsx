@@ -147,9 +147,10 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const busyLabel = busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
   const expected = mode === 'variants' ? count : themes.length;
 
-  return <section className="feature-card">
-    <h1>{mode === 'variants' ? t.titleVariants : t.titleThemes}</h1>
-    <p>{mode === 'variants' ? t.descriptionVariants : t.descriptionThemes}</p>
+  return <>
+    <div className="page-head reveal-up"><div><h1>{mode === 'variants' ? t.titleVariants : t.titleThemes}</h1>
+    <p>{mode === 'variants' ? t.descriptionVariants : t.descriptionThemes}</p></div></div>
+    <section className="feature-card">
     {!key && <p><Link href="/settings">{t.needKey}</Link></p>}
     {error && <p className="request-error" role="alert">{error}</p>}
     {notice && <p className="request-status" role="status">{notice}</p>}
@@ -173,7 +174,8 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       <h2>{mode === 'variants' ? t.resultsVariants : t.resultsThemes}</h2>
       {Array.from({ length: expected }).map((_, index) => index < results.length
         ? <ResultCard key={results[index].id} result={results[index]} downloadLabel={t.download} scoreLabel={t.score} />
-        : <div key={`slot-${index}`} data-testid="remix-slot" style={{ border: '2px dashed #999', padding: 16 }}><p>{t.emptySlot}</p></div>)}
+        : <div key={`slot-${index}`} data-testid="remix-slot" className="remix-slot"><p>{t.emptySlot}</p></div>)}
     </div>}
-  </section>;
+  </section>
+  </>;
 }

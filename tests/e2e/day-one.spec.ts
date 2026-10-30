@@ -16,11 +16,16 @@ test('landing points to one-shot and brands', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Meta-only settings handles no-key requests', async ({ page }) => {
+test('settings shows the three fixed Meta models and needs a key before testing', async ({ page }) => {
   await page.goto('/settings');
-  await expect(page.getByRole('heading', { name: 'Meta', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Fetch models', exact: true }).click();
-  await expect(page.locator('.request-error[role=alert]')).toContainText('Enter a key');
+  await expect(page.getByRole('heading', { name: 'The three models', exact: true })).toBeVisible();
+  for (const model of ['spark', 'sam', 'image']) {
+    const card = page.getByTestId(`model-${model}`);
+    await expect(card).toContainText('Needs your key');
+    await expect(card.getByRole('button', { name: /^Test/ })).toBeDisabled();
+  }
+  await page.getByLabel('API key', { exact: true }).fill('fixture-key-never-real');
+  await expect(page.getByTestId('model-spark').getByRole('button', { name: /^Test/ })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

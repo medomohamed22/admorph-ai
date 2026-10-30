@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import ar from '../../src/messages/ar.json';
+import arStudio from '../../src/messages/studio.ar.json';
 
 const fixtureKey = 'fixture-key-never-real';
 const fixturePassphrase = 'fixture passphrase with enough length';
@@ -35,28 +36,17 @@ test('English remains the fresh-browser default even with an Arabic device local
   await context.close();
 });
 
-test('provider roles and catalogs persist, keys and request consent do not', async ({ page }) => {
-  await page.route('**/api/providers/*', route => route.fulfill({ json: catalog }));
+test('the key never persists in plaintext and the three models are fixed', async ({ page }) => {
   await page.goto('/settings');
   await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
-  await page.getByLabel("I authorise one request for the chosen task. Tests may generate an image and incur charges. No automatic paid retries.", { exact: false }).check();
-  await page.getByRole('button', { name: 'Fetch models', exact: true }).click();
-  for(const role of ['planner','critic','edit'])await page.locator(`#meta-${role}`).fill('fixture-text');
-  await page.getByRole('button', { name: 'Save Settings', exact: true }).click();
-  await expect(page.locator('.request-status')).toContainText('Settings saved locally');
+  await expect(page.getByTestId('model-spark')).toContainText('muse-spark-1.3-contributor');
+  await expect(page.getByTestId('model-sam')).toContainText('sam-3.1');
+  await expect(page.getByTestId('model-image')).toContainText('muse-image-1.0');
   await page.reload();
-  await expect(page.locator('#meta-planner')).toHaveValue('fixture-text');
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel("I authorise one request for the chosen task. Tests may generate an image and incur charges. No automatic paid retries.", { exact: false })).not.toBeChecked();
-  await expect(page.getByTestId('model-card')).toContainText('Unverified');
-  await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
-  await expect(page.locator('#meta-planner')).toHaveValue('fixture-text');
   for (const name of ['settings', 'modelCatalogCache', 'encryptedCredentials']) {
     expect(JSON.stringify(await persistedStore(page, name))).not.toContain(fixtureKey);
   }
-  await page.getByRole('button', { name: 'Clear cached catalogs', exact: true }).click();
-  await expect(page.getByTestId('model-card')).toHaveCount(0);
-  await expect(page.locator('#meta-planner')).toHaveValue('fixture-text');
 });
 
 test('optional encrypted credentials need a passphrase after reload and clear removes ciphertext', async ({ page }) => {
@@ -78,7 +68,6 @@ test('optional encrypted credentials need a passphrase after reload and clear re
   await page.getByLabel('Encryption passphrase', { exact: true }).fill(fixturePassphrase);
   await page.getByRole('button', { name: 'Unlock saved key', exact: true }).click();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue(fixtureKey);
-  await expect(page.getByLabel("I authorise one request for the chosen task. Tests may generate an image and incur charges. No automatic paid retries.", { exact: false })).not.toBeChecked();
   await page.getByRole('button', { name: 'Clear key', exact: true }).click();
   await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
   expect(await persistedStore(page, 'encryptedCredentials')).toEqual([]);
@@ -136,7 +125,7 @@ test('Arabic switching translates all screens, persists and preserves edits', as
   await expect(page.getByRole('button', { name: ar.brands.chooseLogo, exact: true })).toBeVisible();
   await page.screenshot({ path: `test-results/${info.project.name}-day3-ar-brand.png`, fullPage: true });
   await page.getByRole('link', { name: ar.nav.settings, exact: false }).click();
-  await page.getByLabel(ar.settings.language, { exact: true }).selectOption('en');
+  await page.getByRole('radiogroup', { name: ar.settings.language, exact: true }).getByRole('radio', { name: ar.settings.english, exact: true }).click();
   await page.getByRole('link', { name: 'Brand kits', exact: true }).click();
   await page.getByRole('link', { name: 'Create a Brand Kit', exact: false }).click();
   await expect(page.getByLabel('Brand name', { exact: true })).toHaveValue('Sora Test Brand');
@@ -147,9 +136,8 @@ test('Arabic switching translates all screens, persists and preserves edits', as
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
   await page.goto('/settings');
-  await expect(page.getByLabel(ar.settings.language, { exact: true })).toHaveValue('ar');
-  await page.getByRole('button', { name: ar.settings.fetch, exact: true }).click();
-  await expect(page.locator('.request-error[role=alert]')).toContainText(ar.settings.errors.missing_key);
+  await expect(page.getByRole('radio', { name: ar.settings.arabic, exact: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByTestId('model-spark')).toContainText(arStudio.models.needsKey);
   await page.screenshot({ path: `test-results/${info.project.name}-day3-ar-settings.png`, fullPage: true });
   await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toContainText(ar.hero.title);
   await page.getByRole('button', { name: ar.nav.switchLanguage, exact: true }).click();
