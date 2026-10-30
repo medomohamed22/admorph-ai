@@ -9,7 +9,8 @@ import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
 import { encodeProduct, fitProductImage, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
 import { oneshotScore, verifyResultSchema, type OneshotElement, type VerifyResult } from '@/lib/ai/oneshot';
-import { REMIX_THEMES, MIN_SEASON_CUES, type RemixThemeId } from '@/lib/ai/remix';
+import { REMIX_THEMES, MIN_SEASON_CUES, SEASON_FALLBACK_HEADLINE, seasonFallbackScene, NEUTRAL_VARIANT_SCENES, FALLBACK_CODES, type RemixThemeId } from '@/lib/ai/remix';
+import { ProviderError } from '@/lib/ai/errors';
 import { VARIANT_AXES, artBriefToScene, settingOf, type VariantAxis } from '@/lib/ai/art-brief';
 import { loadSavedAds, saveAd, deleteSavedAd, loadRecentScenes } from '@/lib/db/repository';
 import type { SavedAd, BrandInput } from '@/lib/db/schema';
@@ -100,7 +101,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
    *  cues is painted once more and the better of the two is kept. */
   async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
-    const paint = async () => {
+    const paint = async (headline: string, scene: string) => {
       const remixResponse = await withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
       const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
       let score: number | null = null, certificate: VerifyResult | null = null;
@@ -113,15 +114,26 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       }
       return { blob, score, certificate };
     };
-    let best = await paint();
+    let best: Awaited<ReturnType<typeof paint>>;
+    try { best = await paint(headline, scene); }
+    catch (cause) {
+      // Meta refused this picture: paint once more from a plain scene and headline.
+      if (!(cause instanceof ProviderError && cause.code === 'plan_blocked')) throw cause;
+      headline = theme ? SEASON_FALLBACK_HEADLINE[theme][language] : headline;
+      scene = theme ? seasonFallbackScene(theme) : NEUTRAL_VARIANT_SCENES[0];
+      best = await paint(headline, scene);
+      setNotice(t.fallbackUsed);
+    }
     if (theme && best.certificate && (best.certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES) {
-      const again = await paint();
+      const again = await paint(headline, scene);
       if ((again.score ?? -1) > (best.score ?? -1)) best = again;
     }
     const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}) };
     setResults(previous => [...previous, result]);
     try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
+
+  const isFallbackable = (cause: unknown) => cause instanceof ProviderError && (FALLBACK_CODES as readonly string[]).includes(cause.code);
 
   async function generate() {
     if (!selected || !plannerModel || !imageModel || !key || busy) return;
@@ -144,14 +156,28 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
         const recent = await loadRecentScenes().catch(() => [] as string[]);
         const avoidScenes = [...(selected.scene ? [settingOf(selected.scene)] : []), ...recent].filter(Boolean).slice(0, 5);
         const axisBrief = `Variants of an existing ad${selected.headline ? ` whose headline was ${JSON.stringify(selected.headline)}` : ''}${selected.scene ? ` and whose scene was ${JSON.stringify(selected.scene.slice(0, 300))}` : ''}. ${VARIANT_AXES.map((axis, index) => `Concept ${index + 1}: ${axis.instruction}.`).join(' ')} Every headline must differ from the original.`;
-        const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
-        jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id }));
+        try {
+          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
+          jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id }));
+        } catch (cause) {
+          if (!isFallbackable(cause)) throw cause;
+          // The planner refused: keep the ad's own headline and give each variant a plain scene of its own.
+          jobs = NEUTRAL_VARIANT_SCENES.slice(0, count).map((scene, index) => ({ headline: selected.headline || brand.name, scene, axis: VARIANT_AXES[index]?.id }));
+          setNotice(t.fallbackUsed);
+        }
       } else {
         for (const themeId of themes) {
           const theme = REMIX_THEMES.find(item => item.id === themeId)!;
-          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
-          const first = plan.concepts[0];
-          if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId });
+          try {
+            const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
+            const first = plan.concepts[0];
+            if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId });
+          } catch (cause) {
+            if (!isFallbackable(cause)) throw cause;
+            // The planner refused this season for this ad: use the plain seasonal greeting and props.
+            jobs.push({ headline: SEASON_FALLBACK_HEADLINE[themeId][language], scene: seasonFallbackScene(themeId), theme: themeId });
+            setNotice(t.fallbackUsed);
+          }
         }
       }
       setBusy('generate');

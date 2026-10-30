@@ -248,3 +248,27 @@ test('variants of an Arabic ad are written in Arabic, even in the English interf
   expect(plans[0]).toMatchObject({ creativeLanguage: 'ar' });
   expect(remixes[0]).toMatchObject({ language: 'ar' });
 });
+
+// Live finding (30 Oct): Meta refused a Ramadan copy of a music ad
+// (plan_blocked) and nothing was made. A plain seasonal copy is made instead.
+test('when Meta refuses a seasonal copy, a plain one is made and the user is told', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByRole('link', { name: 'Themes', exact: true }).click();
+  await interceptRemix(page);
+  const remixes: Record<string, string>[] = [];
+  await page.route('**/api/ai/plan', route => route.fulfill({ status: 422, json: { error: { code: 'plan_blocked' } } }));
+  await page.route('**/api/ai/ad-remix', route => {
+    remixes.push(route.request().postDataJSON());
+    if (remixes.length === 1) return route.fulfill({ status: 422, json: { error: { code: 'plan_blocked' } } });
+    return route.fulfill({ body: pixel, contentType: 'image/png' });
+  });
+  await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
+  await page.getByRole('button', { name: 'Generate themed copies', exact: true }).click();
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(1, { timeout: 60000 });
+  await expect(page.getByText('Meta declined part of this request, so a plain version was made instead.')).toBeVisible();
+  expect(remixes).toHaveLength(2);
+  expect(remixes[1]).toMatchObject({ headline: 'Ramadan Kareem', theme: 'ramadan' });
+  expect(remixes[1].scene).toContain('Ramadan lanterns');
+});

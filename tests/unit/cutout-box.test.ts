@@ -128,3 +128,22 @@ describe('cutout edge', () => {
     expect(edgeRadius([mask(4000, 256)])).toBe(4);
   });
 });
+
+describe('headphones: the gap between the cups opens onto the box edge', () => {
+  it('still recognises SAM returning the background and recovers the product', () => {
+    const width = 40, height = 40, box = { left: 2, top: 2, right: 38, bottom: 38 };
+    const product = new Uint8ClampedArray(width * height);
+    const paint = (x0: number, y0: number, x1: number, y1: number) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) product[y * width + x] = 255; };
+    paint(8, 6, 32, 10);   // headband
+    paint(8, 10, 12, 34);  // left cup and arm
+    paint(28, 10, 32, 34); // right cup and arm
+    // SAM's background answer: everything in the box except the product.
+    const background = new Uint8ClampedArray(width * height);
+    for (let y = box.top; y < box.bottom; y++) for (let x = box.left; x < box.right; x++) background[y * width + x] = product[y * width + x] ? 0 : 255;
+    expect(isBackgroundMask(background, width, height, box)).toBe(true);
+    const chosen = chooseBoxAlpha([background], width, height, box)!;
+    expect(chosen[8 * width + 20]).toBe(255);  // headband
+    expect(chosen[20 * width + 20]).toBe(0);   // the gap between the cups
+    expect(isBackgroundMask(product, width, height, box)).toBe(false);
+  });
+});

@@ -289,6 +289,22 @@
   "remix": {
     "axis_setting": "New place",
     "axis_light": "New light and angle",
-    "axis_palette": "New palette and mood"
+    "axis_palette": "New palette and mood",
+    "fallbackUsed": "Meta declined part of this request, so a plain version was made instead."
+  },
+  "meta": {
+    "extractLead": "One photo of your logo, package or shop sign. Muse Spark reads the name, colors, tone and lettering, and you edit everything before saving.",
+    "extractDrop": "Choose or drop a photo of your logo or package",
+    "extractDropHint": "PNG, JPEG or WebP · up to 2 MB",
+    "extractChange": "Change photo",
+    "extractMeasured": "Colors on your photo · measured on this device",
+    "extractReading": "Muse Spark is reading your brand",
+    "extractPartName": "Name",
+    "extractPartColors": "Colors",
+    "extractPartTone": "Tone",
+    "extractPartFont": "Lettering",
+    "extractBusy": "Analyzing… {s} s",
+    "extractTook": "Read in {s} s",
+    "extractTone": "Tone"
   }
 }

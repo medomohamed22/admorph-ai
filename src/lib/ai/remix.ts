@@ -51,3 +51,28 @@ export function buildRemixPrompt(brand: { name: string; colors: [string, string,
 
 /** A seasonal copy must show at least two of its cues to pass review. */
 export const MIN_SEASON_CUES = 2;
+
+/**
+ * When Meta refuses a planner or painter request for a seasonal copy (it
+ * happens for some ad and season pairs, e.g. a music ad for Ramadan), the
+ * copy is still made from these: a plain seasonal greeting and a scene built
+ * only from the season's own palette and props.
+ */
+export const SEASON_FALLBACK_HEADLINE: Record<RemixThemeId, { en: string; ar: string }> = {
+  ramadan: { en: 'Ramadan Kareem', ar: 'رمضان كريم' },
+  eid: { en: 'Happy Eid', ar: 'عيد سعيد' },
+  'black-friday': { en: 'Black Friday deals', ar: 'عروض الجمعة البيضاء' },
+  summer: { en: 'Fresh this summer', ar: 'انتعش هذا الصيف' },
+};
+export function seasonFallbackScene(themeId: RemixThemeId): string {
+  const theme = REMIX_THEMES.find(item => item.id === themeId)!;
+  return `The product on a simple table, surrounded by ${theme.cues.slice(0, 3).join(', ')}. ${theme.light}. Palette: ${theme.palette}.`;
+}
+/** Plain scenes for variants when the planner refuses; one per variant axis. */
+export const NEUTRAL_VARIANT_SCENES = [
+  'A bright minimal studio set with a pale stone surface and soft daylight from the left',
+  'A warm wooden table by a window at golden hour, with a linen cloth and long soft shadows',
+  'A cool modern countertop in soft blue evening light with a few glass and metal accents',
+] as const;
+/** Refusals and malformed answers that a plain fallback request can get past. */
+export const FALLBACK_CODES = ['plan_blocked', 'plan_invalid', 'plan_truncated', 'invalid_response'] as const;
