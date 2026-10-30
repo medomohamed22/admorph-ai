@@ -40,7 +40,7 @@ async function seedGallery(page: import('@playwright/test').Page) {
 async function interceptRemix(page: import('@playwright/test').Page) {
   await page.route('**/api/ai/plan', async (route) => { await route.fulfill({ body: JSON.stringify({ concepts }), contentType: 'application/json' }); });
   await page.route('**/api/ai/ad-remix', async (route) => { await route.fulfill({ body: pixel, contentType: 'image/png' }); });
-  await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [{ id: 'headline', expected: 'x', found: 'x', match: true }] }), contentType: 'application/json' }); });
+  await page.route('**/api/ai/verify-oneshot', async (route) => { await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [{ id: 'headline', expected: 'x', found: 'x', match: true }], extraText: [], seasonCues: ['lanterns', 'crescent', 'dates'] }), contentType: 'application/json' }); });
 }
 
 test('variants page makes 2 new versions of a saved ad', async ({ page }) => {
@@ -159,4 +159,40 @@ test('empty gallery shows one clear call to action', async ({ page }) => {
   await page.goto('/gallery');
   await expect(page.getByTestId('gallery-empty')).toBeVisible();
   await expect(page.getByTestId('gallery-empty').getByRole('link', { name: 'Create your first ad', exact: true })).toHaveAttribute('href', '/oneshot');
+});
+
+test('seasonal copies redesign from the saved cutout, name the season, and repaint once when the cues are missing', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.locator('#api-key')).toBeEnabled();
+  await page.evaluate(async () => {
+    const canvas = document.createElement('canvas'); canvas.width = 40; canvas.height = 50;
+    const blob = await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value!), 'image/png'));
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open('admorph-local-v1');
+      open.onsuccess = () => { const db = open.result, tx = db.transaction(['savedAds'], 'readwrite');
+        tx.objectStore('savedAds').put({ id: crypto.randomUUID(), blob, cutout: blob, source: 'oneshot', brand: { name: 'Cut Brand', description: 'x', colors: ['#111111', '#222222', '#333333'] }, headline: 'Hi', hasLogo: false, createdAt: new Date().toISOString() });
+        tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(new Error('seed failed')); };
+      open.onerror = () => reject(new Error('open failed'));
+    });
+  });
+  await page.reload();
+  await page.locator('#api-key').fill('fixture-image-key');
+  const remixes: { source?: string; theme?: string }[] = [];
+  let verifies = 0;
+  await page.route('**/api/ai/plan', route => route.fulfill({ json: { concepts } }));
+  await page.route('**/api/ai/ad-remix', route => { remixes.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', route => {
+    verifies += 1;
+    expect(route.request().postDataJSON().season).toBe('ramadan');
+    return route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [], extraText: [], seasonCues: verifies === 1 ? [] : ['lanterns', 'crescent', 'dates'] } });
+  });
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByTestId('gallery-card').first().getByRole('link', { name: 'Make it seasonal', exact: true }).click();
+  await page.getByRole('button', { name: 'Generate themed copies', exact: true }).click();
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(1, { timeout: 60000 });
+  // The first copy showed no Ramadan cues, so it was painted once more.
+  expect(remixes).toHaveLength(2);
+  expect(remixes[0]).toMatchObject({ source: 'product', theme: 'ramadan' });
+  await expect(page.getByText('Certificate score: 100')).toBeVisible();
 });

@@ -57,6 +57,7 @@ export function repairNotes(certificate: VerifyResult, logoExpected: boolean): s
   for (const text of certificate.texts) {
     if (!text.match) notes.push(`Write "${clip(text.expected)}" exactly as given${text.found ? `; the last attempt read "${clip(text.found)}"` : ''}.`);
   }
+  for (const extra of certificate.extraText ?? []) notes.push(`Remove the text "${clip(extra)}"; only the mockup's own words may appear.`);
   return notes.slice(0, 8);
 }
 

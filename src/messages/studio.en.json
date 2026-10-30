@@ -45,7 +45,8 @@
     "emptyCta": "Create your first ad",
     "source_oneshot": "Created",
     "source_variants": "Variant",
-    "source_themes": "Seasonal"
+    "source_themes": "Seasonal",
+    "source_shelf": "Shelf campaign"
   },
   "agent": {
     "title": "The agent at work",
@@ -121,7 +122,10 @@
     "dialect_ar_lev": "Levantine",
     "dialect_ar_sd": "Sudanese",
     "dialect_ar_msa": "Standard Arabic",
-    "dialect_en": "English"
+    "dialect_en": "English",
+    "certExtra": "No extra text",
+    "certExtraFound": "Painted but not in your mockup: {list}",
+    "certExtraNone": "Only your words appear"
   },
   "home": {
     "eyebrow": "Built on three Meta models",

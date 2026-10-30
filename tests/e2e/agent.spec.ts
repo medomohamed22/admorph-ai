@@ -128,3 +128,27 @@ test('certificate card shows the score ring and four checks; the trust panel sho
   await expect(panel.getByTestId('trust-final-hash')).toHaveText(createHash('sha256').update(pixel).digest('hex'));
   await expect(panel).toContainText('Certificate: valid for this exact mockup.');
 });
+
+test('an invented brand name is caught: the certificate lists it and the painter is told to remove it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await prepare(page);
+  const paints: { fixNotes?: string[] }[] = [];
+  let verifies = 0;
+  await page.route('**/api/ai/oneshot', route => { paints.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', route => {
+    verifies += 1;
+    return route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [], extraText: verifies === 1 ? ['Aero Stride', 'NEW', 'SALE'] : [] } });
+  });
+  await wizardStep(page, 'Generate');
+  const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
+  await expect(generate).toBeEnabled({ timeout: 30000 });
+  await generate.click();
+  await expect(page.getByTestId('agent-step-repair')).toHaveAttribute('data-status', 'done', { timeout: 30000 });
+  expect(paints[1].fixNotes?.[0]).toContain('Remove the text "Aero Stride"');
+  const card = page.getByTestId('oneshot-certificate');
+  await expect(card.getByTestId('cert-extra')).toHaveClass(/is-ok/);
+  await page.getByRole('button', { name: 'Use this version', exact: true }).click();
+  await expect(card.getByTestId('cert-extra')).toHaveClass(/is-bad/);
+  await expect(card.getByTestId('cert-extra')).toContainText('Aero Stride');
+  await expect(card).toContainText('Score: 70');
+});

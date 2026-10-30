@@ -59,3 +59,9 @@ describe('one-shot repair retry', () => {
     expect(oneshotRequestSchema.safeParse({ ...base, fixNotes: Array(9).fill('note') }).success).toBe(false);
   });
 });
+
+describe('repair notes for extra text', () => {
+  it('asks the painter to remove each invented word', () => {
+    expect(repairNotes({ ...passing, extraText: ['Aero Stride'] }, false)).toEqual(['Remove the text "Aero Stride"; only the mockup\'s own words may appear.']);
+  });
+});

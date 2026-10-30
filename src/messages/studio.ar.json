@@ -45,7 +45,8 @@
     "emptyCta": "اصنع أول إعلان",
     "source_oneshot": "إنشاء",
     "source_variants": "نسخة",
-    "source_themes": "موسم"
+    "source_themes": "موسم",
+    "source_shelf": "حملة الرف"
   },
   "agent": {
     "title": "الوكيل أثناء العمل",
@@ -121,7 +122,10 @@
     "dialect_ar_lev": "شامي",
     "dialect_ar_sd": "سوداني",
     "dialect_ar_msa": "فصحى",
-    "dialect_en": "English"
+    "dialect_en": "English",
+    "certExtra": "لا نص زائد",
+    "certExtraFound": "مرسوم وليس في مسودتك: {list}",
+    "certExtraNone": "لا تظهر إلا كلماتك"
   },
   "home": {
     "eyebrow": "مبني على ثلاثة نماذج من Meta",

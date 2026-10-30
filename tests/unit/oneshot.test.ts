@@ -43,8 +43,10 @@ describe('buildOneshotPrompt', () => {
     expect(prompt).toContain('The phone number "01012345678" stays bottom');
     expect(prompt).toContain('every digit must be exactly as written');
     expect(prompt).toContain('Background: sunset beach.');
-    expect(prompt).toContain('Brand: NOUR. Brand colors: #16100C, #F5EEDF, #7ED3E0.');
-    expect(prompt).toContain('No extra text, no extra logos');
+    expect(prompt).toContain('Brand colors: #16100C, #F5EEDF, #7ED3E0.');
+    expect(prompt).not.toContain('NOUR');
+    expect(prompt).toContain('The only words allowed anywhere in the image are');
+    expect(prompt).toContain('No extra logos, no watermark');
   });
   it('never invents text for image elements', () => {
     const prompt = buildOneshotPrompt(BRAND, 'cafe', [element({ id: 'p', kind: 'product' })], 'en');
@@ -57,9 +59,9 @@ describe('oneshot request schema', () => {
     expect(oneshotRequestSchema.safeParse({ ...BASE, mockup: IMAGE, brand: BRAND, scene: 'beach', language: 'ar', layout: [element({})] }).success).toBe(true);
     expect(oneshotRequestSchema.safeParse({ ...BASE, brand: BRAND, scene: 'beach', language: 'ar', layout: [element({})] }).success).toBe(false);
   });
-  it('rejects an empty layout, a 13th element, and an out-of-frame box', () => {
+  it('rejects an empty layout, a 21st element, and an out-of-frame box', () => {
     expect(oneshotRequestSchema.safeParse({ ...BASE, mockup: IMAGE, brand: BRAND, scene: 's', language: 'en', layout: [] }).success).toBe(false);
-    expect(oneshotRequestSchema.safeParse({ ...BASE, mockup: IMAGE, brand: BRAND, scene: 's', language: 'en', layout: Array.from({ length: 13 }, (_, i) => element({ id: `e${i}` })) }).success).toBe(false);
+    expect(oneshotRequestSchema.safeParse({ ...BASE, mockup: IMAGE, brand: BRAND, scene: 's', language: 'en', layout: Array.from({ length: 21 }, (_, i) => element({ id: `e${i}` })) }).success).toBe(false);
     expect(oneshotRequestSchema.safeParse({ ...BASE, mockup: IMAGE, brand: BRAND, scene: 's', language: 'en', layout: [element({ x: 2000 })] }).success).toBe(false);
   });
 });
@@ -85,5 +87,15 @@ describe('oneshotScore', () => {
 describe('verifyResultSchema', () => {
   it('parses a certificate payload', () => {
     expect(verifyResultSchema.safeParse({ productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: false, layoutNote: 'logo moved', texts: [] }).success).toBe(true);
+  });
+});
+
+describe('extra text in the certificate', () => {
+  const full = { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] };
+  it('costs 10 points per painted word the mockup never had, at most 30', () => {
+    expect(oneshotScore({ ...full, extraText: [] }, true)).toBe(100);
+    expect(oneshotScore({ ...full, extraText: ['Aero Stride'] }, true)).toBe(90);
+    expect(oneshotScore({ ...full, extraText: ['a', 'b', 'c', 'd'] }, true)).toBe(70);
+    expect(verifyResultSchema.safeParse({ ...full, extraText: ['SOUNDCORE STUDIO'], seasonCues: ['lantern'] }).success).toBe(true);
   });
 });
