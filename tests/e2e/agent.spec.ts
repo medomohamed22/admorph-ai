@@ -99,3 +99,32 @@ test('a failed painting step shows the error and a retry on its card', async ({ 
   await expect(paint).toHaveAttribute('data-status', 'done', { timeout: 30000 });
   await expect(page.getByTestId('oneshot-result')).toBeVisible();
 });
+
+test('certificate card shows the score ring and four checks; the trust panel shows models, hashes and checks', async ({ page }) => {
+  test.setTimeout(120_000);
+  await prepare(page);
+  await page.route('**/api/ai/oneshot', route => route.fulfill({ body: pixel, contentType: 'image/png' }));
+  await page.route('**/api/ai/verify-oneshot', route => route.fulfill({ json: { productKept: true, productNote: 'same bottle', logoKept: false, logoNote: '', layoutKept: true, layoutNote: '', texts: [] } }));
+  await wizardStep(page, 'Generate');
+  const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
+  await expect(generate).toBeEnabled({ timeout: 30000 });
+  await generate.click();
+  const card = page.getByTestId('oneshot-certificate');
+  await expect(card).toBeVisible({ timeout: 30000 });
+  await expect(card.getByRole('img', { name: 'Fidelity certificate: 100/100' })).toBeVisible();
+  await expect(card.getByTestId('cert-product')).toHaveClass(/is-ok/);
+  await expect(card.getByTestId('cert-product')).toContainText('same bottle');
+  // No logo was placed and no text was written: those checks read "not applicable", not failed.
+  await expect(card.getByTestId('cert-logo')).toHaveClass(/is-na/);
+  await expect(card.getByTestId('cert-text')).toHaveClass(/is-na/);
+  await expect(card.getByTestId('cert-layout')).toHaveClass(/is-ok/);
+
+  await page.getByRole('button', { name: 'Why trust this ad?', exact: true }).click();
+  const panel = page.getByTestId('trust-panel');
+  await expect(panel).toContainText('muse-spark-1.3-contributor');
+  await expect(panel).toContainText('muse-image-1.0');
+  await expect(panel).toContainText('sam-3.1');
+  const { createHash } = await import('node:crypto');
+  await expect(panel.getByTestId('trust-final-hash')).toHaveText(createHash('sha256').update(pixel).digest('hex'));
+  await expect(panel).toContainText('Certificate: valid for this exact mockup.');
+});

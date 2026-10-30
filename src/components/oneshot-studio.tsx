@@ -24,6 +24,7 @@ import { loadDraft, saveDraft, clearDraft, draftHasWork } from '@/lib/oneshot/dr
 import { IconArrow, IconCheck } from './ui/icons';
 import UploadCard from './upload-card';
 import { AgentPipeline, type RepairRecord } from './agent-pipeline';
+import { CertificateCard, TrustPanel } from './certificate-card';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import type { BrandInput } from '@/lib/db/schema';
@@ -663,7 +664,7 @@ export default function OneshotStudio() {
       {cutoutMethod === 'meta-sam' && <p>{t.cutoutMethod}: {t.samCutout}</p>}
       {cutoutUrl && originalUrl && <div className="cutout-compare" data-testid="cutout-compare">
         <figure><img src={currentUrl ?? originalUrl} alt={t.cutoutBefore} /><figcaption>{t.cutoutBefore}</figcaption></figure>
-        <figure className="cutout-after"><img src={cutoutUrl} alt={t.cutoutAfter} /><figcaption>{t.cutoutAfter}</figcaption></figure>
+        <figure className="cutout-after sam-reveal" key={cutoutUrl} data-testid="sam-reveal"><img src={cutoutUrl} alt={t.cutoutAfter} /><span className="sam-scan" aria-hidden="true" /><figcaption>{t.cutoutAfter}</figcaption></figure>
       </div>}
       <label className="check-label"><input type="checkbox" checked={enhance} disabled={!originalBlob || enhanceBusy || busy !== ''} onChange={event => void toggleEnhance(event.target.checked)} />{enhanceBusy ? <WaitingText label={t.enhanceBusy} /> : t.enhance}</label>
       {enhanceNote && <p role="status">{enhanceNote}</p>}
@@ -781,20 +782,12 @@ export default function OneshotStudio() {
       </div>}
       {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download="admorph-oneshot.png">{t.download}</a>}
       <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
+      {resultBlob && originalBlob && !generating && <TrustPanel key={resultUrl ?? ''} original={originalBlob} productSource={currentBlob ?? originalBlob} result={resultBlob} layout={generatedLayout ?? elements} certificateValid={!!certificate} />}
       {resultBlob && !generating && <div className="result-next">
         <Link className="button secondary" href="/variants">{t.makeVariants}</Link>
         <Link className="button secondary" href="/themes">{t.makeSeasonal}</Link>
       </div>}
-      {certificate && score !== null && <div data-testid="oneshot-certificate">
-        <h2>{t.certificate}</h2>
-        <p>{t.score}: {score}</p>
-        <ul>
-          <li>{t.productKept}: {certificate.productKept ? '✓' : '✗'} {certificate.productNote}</li>
-          {hasLogo && <li>{t.logoKept}: {certificate.logoKept ? '✓' : '✗'} {certificate.logoNote}</li>}
-          <li>{t.layoutKept}: {certificate.layoutKept ? '✓' : '✗'} {certificate.layoutNote}</li>
-          {certificate.texts.map(item => <li key={item.id}>{item.expected}: {item.match ? '✓' : `✗ (${item.found})`}</li>)}
-        </ul>
-      </div>}
+      {certificate && score !== null && <CertificateCard certificate={certificate} score={score} hasLogo={hasLogo} />}
       </div>
       </div>
     </section>
