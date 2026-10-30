@@ -115,8 +115,35 @@ Owner-requested direct Meta use: removed mandatory test/receipt gates in client 
 - PR #79 — new home page (before/after hero, models strip, showcase driven by `public/showcase/showcase.json`).
 - PR #80 — certificate card with score ring, **Why trust this ad?** panel, SAM cutout reveal.
 - PR #81 — dialect picker for the copy (`dialect` on the plan request), colourful season cards, toasts.
-- This entry's PR — new README with the model table and pipeline diagram, a screen-matrix E2E spec (360–1440px, English and Arabic).
+- PR #82 — new README with the model table and pipeline diagram, a screen-matrix E2E spec (360–1440px, English and Arabic).
 
 **Verification:** each PR ran lint (0 errors), `tsc`, unit tests, `next build` and the full Playwright suite against `next start` on desktop, 375px touch and 320px; every Meta route was intercepted. Schema changes (`fixNotes`, `dialect`) were also checked with direct HTTP requests to a freshly started local server, using deliberately invalid images so no request could reach Meta.
 
 **Not done:** no paid or live Meta calls were made; real showcase ads, the demo video, demo mode with a server key and the per-platform canvas sizes (Status/Reels) remain open.
+
+## 2026-10-30 — Live test, phase-2 plan and its batches
+
+**Live test on the production site (owner's own Meta key, explicit consent for this run only).** Three ads were made from three owner photos (a sneaker, the TALJ can, headphones) through the wizard, followed by variants and an Eid seasonal copy. The key was used only at run time and was never written to a file or commit. Findings:
+
+- The planner route timed out at 45 s → PR #83 raises the plan route to `maxDuration` 60 / 55 s server timeout / 65 s client timeout.
+- The ads were good enough for the home showcase → PR #84 replaces the sample showcase with them and fixes the certificate ring overflow and the very tall remix pages.
+- The painter sometimes wrote an invented brand name, and seasonal copies came back almost identical to the original → fixed in PR #85.
+
+**Phase-2 plan, then one PR per batch (each merged into `main` after its Vercel preview passed):**
+
+- PR #85 (batch A) — the prompt never asks for the brand name as text and lists the only words allowed. The critic reports `extraText` (each word costs 10 points and becomes a repair note) and, for seasonal copies, `seasonCues`. Seasons carry their own palette, props and light; a copy showing fewer than two cues is painted again. Seasonal copies start from the product cutout.
+- PR #86 (batch D) — **Shoot the shelf, get a campaign** at `/shelf`. New routes: `shelf-detect` (vision) and `shelf-plan` (planner). Photo or video capture with a local sharpest-frame pick, live SAM cuts with a FLIP animation, review cards, one ad per product with critic review and one repair, ZIP and share, and rate-limit waits shown to the user.
+- PR #87 (batch B):
+  - The planner writes an art-direction brief per idea; the last five settings are kept and sent as `avoidScenes`.
+  - 23 curated headline fonts with the weights they really ship (fixes single-weight families such as Bebas Neue failing to load).
+  - Variants change one axis each.
+  - It also added after-the-fact 1:1 and 9:16 frames, which were later replaced in PR #90.
+- PR #88 (batch C) — canvas tools: layers panel, price, discount and button badges (`badge` on the layout element, told to the painter and checked by the critic), 12 icons, per-text style, snapping with guide lines, alignment, and a local flat-background remover for logos.
+- PR #89 — the owner reported cutouts losing part of the product. The SAM code had not changed; Muse Spark's tight boxes were the cause. Boxes are now grown by 5%, with one 20% retry when the mask still runs into a box edge.
+- PR #90 — on the owner's request the **ad size is picked before painting** (4:5, 1:1, 9:16): `format` on the one-shot request, a frame-aware canvas, checks and prompt; the after-the-fact frames and `/api/ai/oneshot-resize` were removed. A "Why trust this ad?" button repeated on the owner's phone during painting; the result actions now stay mounted while painting and the overlay drops its backdrop blur. This could not be reproduced in headless Chromium, so the fix is not yet confirmed on the phone.
+- PR #91 — the intermittent Arabic E2E failures came from a real race: a language picked before the stored workspace finished loading was neither saved nor kept. Fixed in the workspace provider; a new E2E forces the race, failing before the fix and passing after.
+
+**Verification:** every PR ran lint (0 errors), `tsc`, Vitest, `next build` and the full Playwright suite against `next start` (desktop, 375px touch, 320px) with every Meta route intercepted. Each schema change (`extraText`/`season`, `shelf-detect`/`shelf-plan`, `avoidScenes`, `badge`, `format`) was also sent as direct HTTP requests to a freshly started local production server: invalid bodies were rejected before any Meta call, and valid bodies with a fake key reached Meta and returned 401, so nothing billable ran. Final state after PR #91: 376 unit tests and 203 browser tests passed, 4 skipped, 0 failed.
+
+**Not verified live:** everything merged after PR #84 (batches A–D, the SAM box padding, the size picker, the phone repaint fix) has only been tested with intercepted Meta routes. A new live run needs the owner's key and consent. The demo video is still open.
+
