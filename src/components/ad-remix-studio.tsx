@@ -18,8 +18,8 @@ type RemixResult = { id: string; blob: Blob; headline: string; score: number | n
 
 function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, confirmLabel, selectedLabel, disabled }: { ad: SavedAd; selected: boolean; onSelect: () => void; onDelete: () => void; armed: boolean; deleteLabel: string; confirmLabel: string; selectedLabel: string; disabled: boolean }) {
   const url = useObjectUrl(ad.blob);
-  return <article data-testid="remix-source-card">
-    <button type="button" aria-pressed={selected} disabled={disabled} onClick={onSelect} style={selected ? { outline: '3px solid #16100C', outlineOffset: '3px' } : undefined}>
+  return <article className="remix-source-card" data-testid="remix-source-card">
+    <button type="button" aria-pressed={selected} disabled={disabled} onClick={onSelect}>
       {url && <img src={url} alt="" style={{ maxWidth: '100%' }} />}
       <span>{ad.brand.name} — {ad.headline || ad.source} — {ad.createdAt.slice(0, 10)}</span>
       {selected && <strong>{selectedLabel}</strong>}
@@ -159,7 +159,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     {notice && <p className="request-status" role="status">{notice}</p>}
     <h2>{t.pickSource}</h2>
     {ads.length === 0 && <p>{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>}
-    <div>{ads.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => setSelected(ad)} onDelete={() => void removeAd(ad)} armed={armingDelete === ad.id} deleteLabel={t.delete} confirmLabel={t.confirmDelete} selectedLabel={t.selected} disabled={busy !== ''} />)}</div>
+    <div className="remix-source-grid">{ads.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => setSelected(ad)} onDelete={() => void removeAd(ad)} armed={armingDelete === ad.id} deleteLabel={t.delete} confirmLabel={t.confirmDelete} selectedLabel={t.selected} disabled={busy !== ''} />)}</div>
     {mode === 'variants' && <fieldset className="segmented-fieldset"><legend>{t.countLabel}</legend><div className="segmented" role="group" aria-label={t.countLabel}>{[2, 3].map(value => <button key={value} type="button" aria-pressed={count === value} disabled={busy !== ''} onClick={() => setCount(value)}>{value}</button>)}</div></fieldset>}
     {mode === 'themes' && <fieldset className="theme-pick-fieldset">
       <legend>{t.themesLabel}</legend>

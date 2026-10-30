@@ -590,3 +590,11 @@ details > summary { color: var(--text); }
 .ui-toast--bad { border-color: color-mix(in srgb, var(--bad) 60%, transparent); color: var(--bad); }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { .ui-toast { animation: none; } }
+
+/* Remix pages: saved ads as a thumbnail grid, not full-width images. */
+.remix-source-grid { display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); margin: var(--space-3) 0; }
+.remix-source-card { display: grid; gap: var(--space-2); min-width: 0; }
+.remix-source-card > button:first-child { display: grid; gap: 6px; padding: 6px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px; text-align: start; cursor: pointer; overflow-wrap: anywhere; }
+.remix-source-card > button:first-child img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius-sm); }
+.remix-source-card > button[aria-pressed=true] { border-color: var(--accent-1); box-shadow: 0 0 0 3px var(--accent-soft); }
+[data-testid=remix-result] img { max-width: 420px !important; width: 100%; border-radius: var(--radius); }

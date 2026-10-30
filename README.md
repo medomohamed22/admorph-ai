@@ -91,6 +91,6 @@ The E2E suite intercepts every Meta route, so it never makes a paid call. A scre
 
 - A first baseline was uploaded on the afternoon of 26 October, before the evening kickoff; everything after it was built during the hackathon. See [HACKATHON.md](HACKATHON.md) and [BUILD_LOG.md](BUILD_LOG.md).
 - Earlier milestone and release reports, and the previous README, are in [docs/archive](docs/archive/).
-- The home page's "after" image is a layout from the local editor and is labelled as a sample until real Muse Image outputs are added to [`public/showcase/showcase.json`](public/showcase/showcase.json).
+- The home page showcase holds real ads made on the live site with Muse Image from single product photos (listed in [`public/showcase/showcase.json`](public/showcase/showcase.json)), each with its certificate score.
 
 The source uses the [MIT license](LICENSE); fonts and packages keep their [third-party notices](THIRD_PARTY_NOTICES.md).

@@ -68,3 +68,6 @@
 @media (prefers-reduced-motion: reduce) {
   .home-word, .home-ad { animation: none; opacity: 1; transform: none; filter: none; }
 }
+.home-gallery-note { margin: 0 0 var(--space-4); color: var(--muted); }
+.home-yours { margin-top: var(--space-10); }
+.home-ad-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }

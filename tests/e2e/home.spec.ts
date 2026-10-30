@@ -12,12 +12,15 @@ test('home shows the value line, a working before/after and the three models', a
   await page.waitForTimeout(3500); // let the one-time intro sweep finish
   await slider.fill('20');
   await expect(page.locator('.ba-after')).toHaveAttribute('style', /inset\(0px 80% 0px 0px\)/);
-  // Bundled artwork is honestly labelled as a sample.
-  await expect(page.getByTestId('home-sample-note')).toContainText('not a Muse Image output');
+  // The hero is a real before/after (the phone photo and the ad made from it), so no sample label.
+  await expect(page.getByTestId('home-sample-note')).toHaveCount(0);
   const powered = page.locator('.home-powered li');
   await expect(powered).toHaveCount(3);
   await expect(powered).toContainText(['Muse Spark 1.3', 'SAM 3.1', 'Muse Image 1.0']);
-  await expect(page.getByTestId('home-gallery-empty')).toBeVisible();
+  // Real showcase ads, each with its certificate score.
+  const showcase = page.getByTestId('home-showcase-ad');
+  await expect(showcase).toHaveCount(3);
+  await expect(showcase.first()).toContainText('Certificate 100/100');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
