@@ -38,7 +38,7 @@ export function Header() {
         </nav>
       <div className="header-actions">
         <button type="button" className="chip-button" aria-label={m.nav.switchLanguage} onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}>
-          {locale === 'ar' ? 'EN' : 'ع'}
+          {locale === 'ar' ? 'EN' : 'AR'}
         </button>
       </div>
     </header>
