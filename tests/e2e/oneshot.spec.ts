@@ -1,5 +1,17 @@
 import { wizardStep, fillBrand } from './wizard';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+/** The product box as the studio laid it out (from the saved draft), so tests follow the product-shaped box. */
+async function productBox(page: Page): Promise<{ x: number; y: number; width: number; height: number }> {
+  await page.waitForTimeout(700);
+  return await page.evaluate(() => new Promise((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onsuccess = () => { const db = open.result, read = db.transaction(['settings'], 'readonly').objectStore('settings').get('oneshotDraft');
+      read.onsuccess = () => { db.close(); const product = (read.result?.value?.elements ?? []).find((item: { kind: string }) => item.kind === 'product'); product ? resolve({ x: product.x, y: product.y, width: product.width, height: product.height }) : reject(new Error('no product in draft')); };
+      read.onerror = () => { db.close(); reject(new Error('draft read failed')); }; };
+  }));
+}
 
 // Geometric cutout: isolate first asks vision for a product box. Tests
 // that do not override this get a full-frame box, so their segment
@@ -55,7 +67,7 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   await expect(generate).toBeEnabled({ timeout: 30000 });
 
   const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-  type CapturedBody = { layout?: { kind: string }[]; mockup?: unknown };
+  type CapturedBody = { layout?: { kind: string }[]; mockup?: unknown; product?: { mimeType: string; data: string } };
   const captured: { oneshot?: CapturedBody; verify?: CapturedBody } = {};
   await page.route('**/api/ai/oneshot', async (route) => { captured.oneshot = route.request().postDataJSON() as CapturedBody; await route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', async (route) => { captured.verify = route.request().postDataJSON() as CapturedBody; await route.fulfill({ body: JSON.stringify({ productKept: true, productNote: 'same can', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] }), contentType: 'application/json' }); });
@@ -69,6 +81,9 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   // The arranged mockup (not a hardcoded prompt) reached both Meta calls.
   expect(captured.oneshot?.mockup).toBeTruthy();
   expect(captured.oneshot?.layout?.some(item => item.kind === 'product')).toBe(true);
+  // A sharp product close-up goes beside the mockup, so the label is copied rather than guessed.
+  expect(captured.oneshot?.product?.mimeType).toBe('image/jpeg');
+  expect((captured.oneshot?.product?.data.length ?? 0) * 0.75).toBeLessThan(800 * 1024);
   expect(captured.verify?.layout?.some(item => item.kind === 'product')).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -465,8 +480,7 @@ test('mockup check flags text overlapping the product', async ({ page }) => {
   await fillBrand(page);
   await wizardStep(page, 'Arrange');
   await expect(page.getByText('No issues found.')).toBeVisible();
-  // The added line starts at (140, 500) 800x120, squarely over the product
-  // box (340, 380) 400x600.
+  // The added line starts at (140, 500) 800x120, squarely over the product box.
   await page.getByLabel('Your headline').fill('Hello');
   await page.getByRole('button', { name: 'Add text', exact: true }).click();
   await expect(page.getByText('Element overlaps the product')).toBeVisible();
@@ -601,8 +615,10 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   // so a fixed 2-unit tolerance sits below screen resolution and flakes
   // with pointer rounding. Allow the original 2 units plus one pixel.
   const dragTolerance = 2 + 1 / scale;
-  const startX = stageBox!.x + 540 * scale;
-  const startY = stageBox!.y + 680 * scale;
+  // The product box now takes the cropped product's shape; drag from its center.
+  const start = await productBox(page);
+  const startX = stageBox!.x + (start.x + start.width / 2) * scale;
+  const startY = stageBox!.y + (start.y + start.height / 2) * scale;
   await page.mouse.move(startX, startY);
   await page.mouse.down();
   await page.mouse.move(startX + 80 * scale, startY + 60 * scale, { steps: 5 });
@@ -615,11 +631,10 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   await wizardStep(page, 'Generate');
   await page.getByRole('button', { name: 'Generate finished ad', exact: true }).click();
   await expect(page.getByTestId('oneshot-result')).toBeVisible({ timeout: 30000 });
-  // The product started at (340, 380); the drag adds (80, 60), within a
-  // couple of units of pointer rounding.
+  // The drag adds (80, 60) to where the product started, within a couple of units of pointer rounding.
   const product = captured.layout?.find(item => item.kind === 'product');
-  expect(Math.abs((product?.x ?? 0) - 420)).toBeLessThan(dragTolerance);
-  expect(Math.abs((product?.y ?? 0) - 440)).toBeLessThan(dragTolerance);
+  expect(Math.abs((product?.x ?? 0) - (start.x + 80))).toBeLessThan(dragTolerance);
+  expect(Math.abs((product?.y ?? 0) - (start.y + 60))).toBeLessThan(dragTolerance);
   expect(errors).toEqual([]);
 });
 
@@ -719,19 +734,18 @@ test('repair loop proposes a fix, applies it, and undo reverses it', async ({ pa
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
   await expect(page.getByTestId('upload-card-product')).toHaveClass(/done/);
-  // The added line starts at (140, 500) 800x120, squarely over the product
-  // box (340, 380) 400x600.
+  // The added line starts at (140, 500) 800x120, squarely over the product box.
   await fillBrand(page);
   await wizardStep(page, 'Arrange');
   await page.getByLabel('Your headline').fill('Hello');
   await page.getByRole('button', { name: 'Add text', exact: true }).click();
   await expect(page.getByText('Element overlaps the product')).toBeVisible();
-  // Inspect -> propose -> apply: the fix moves the line below the product
-  // (y = 380 + 600 + 16 = 996), and the re-run inspect must come back clean.
+  // Inspect -> propose -> apply: the fix moves the line clear of the
+  // (product-shaped) box, and the re-run inspect must come back clean.
   await page.getByRole('button', { name: 'Apply fix', exact: true }).click();
   await expect(page.getByText('No issues found.')).toBeVisible();
   await expect(page.getByText('Applied fixes')).toBeVisible();
-  await expect(page.getByText(/moved to \(140, 996\)/)).toBeVisible();
+  await expect(page.getByText(/moved to \(140, \d+\)/)).toBeVisible();
   // The fix is an ordinary canvas edit, so Undo reverses it and the
   // finding comes back — the loop is reversible, not destructive.
   await page.getByRole('button', { name: 'Undo', exact: true }).click();

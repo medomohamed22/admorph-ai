@@ -44,6 +44,8 @@ export const oneshotRequestSchema = metaBase.extend({
   fixNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(8).optional(),
   /** The size picked before generating; absent means 4:5. */
   format: z.enum(ONESHOT_FORMATS).optional(),
+  /** A sharp close-up of the product, so its label text survives the small size it has on the mockup. */
+  product: inputImage.optional(),
 }).strict().superRefine((value, ctx) => {
   const height = frameHeightOf(value.format);
   if (value.layout.some(element => element.y + element.height > height + 0.5)) ctx.addIssue({ code: 'custom', path: ['layout'], message: 'element outside the frame' });
@@ -100,7 +102,14 @@ const BADGE_SHAPE = { price: 'rounded price tag', discount: 'round discount stic
  * ad while keeping every element where the user put it. The mockup image is
  * the layout authority; the words below only name what is already drawn.
  */
-export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: OneshotElement[], language: 'en' | 'ar', fixNotes: string[] = [], format: OneshotFormat = '1080x1350'): string {
+/**
+ * Sent with the second image: a sharp close-up of the product cut from the
+ * full-resolution photo. The mockup shows the product small, so its label is
+ * only legible here; the painter copies the product's details from it.
+ */
+export const PRODUCT_REFERENCE_RULE = 'The second image is a sharp close-up of the exact same product. Use it as the only source for the product\'s details: copy its shape, proportions, colors, materials, logo and every printed word, letter and number on its label exactly as they appear there, sharp and legible, never guessed, blurred, respelled or invented. Place the product where the mockup shows it, at the mockup size.';
+
+export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: OneshotElement[], language: 'en' | 'ar', fixNotes: string[] = [], format: OneshotFormat = '1080x1350', withProductReference = false): string {
   const frameHeight = frameHeightOf(format);
   const lines = [
     `Turn this rough mockup into a finished photorealistic advertising image at 1080x${frameHeight}, a ${FORMAT_WORDS[format]}. Keep exactly this shape and fill the whole frame edge to edge; no borders or empty bands.`,
@@ -115,6 +124,7 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     else if (element.badge) lines.push(`The text "${element.text ?? ''}" sits on a solid ${BADGE_SHAPE[element.badge]} ${zone}, in the badge colors of the mockup, rendered exactly as written.`);
     else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled.`);
   }
+  if (withProductReference) lines.push(PRODUCT_REFERENCE_RULE);
   lines.push(`Scene: ${scene}.`);
   lines.push('Paint a real, specific place with depth and props, never a plain studio backdrop or empty void. Light the product to match the scene, with natural contact shadows and reflections, so it sits in the scene rather than floating on it.');
   lines.push(`Brand colors: ${brand.colors.join(', ')}. Echo them in the scene. The brand's name is context only: never write it as text.`);
@@ -201,9 +211,23 @@ export function scaleOneshotElement<T extends OneshotElement>(element: T, factor
 }
 
 /** Starter arrangement: product centered, logo top-right, headline top-center. */
-export function initialOneshotLayout(hasLogo: boolean): OneshotElement[] {
+/**
+ * The product's box on a fresh mockup, shaped like the cropped product and as
+ * large as the space under the headline allows, so the product keeps as many
+ * of its own pixels as possible on the mockup.
+ */
+export function productBoxFor(aspect: number, frameHeight = ONESHOT_HEIGHT): { x: number; y: number; width: number; height: number } {
+  const top = 300, bottomMargin = 110;
+  const maxWidth = 760, maxHeight = Math.max(300, Math.min(860, frameHeight - top - bottomMargin));
+  const ratio = Number.isFinite(aspect) && aspect > 0 ? Math.min(5, Math.max(0.2, aspect)) : 2 / 3;
+  let width = maxWidth, height = Math.round(maxWidth / ratio);
+  if (height > maxHeight) { height = maxHeight; width = Math.round(maxHeight * ratio); }
+  return { x: Math.round((ONESHOT_WIDTH - width) / 2), y: top + Math.round((maxHeight - height) / 2), width, height };
+}
+
+export function initialOneshotLayout(hasLogo: boolean, productAspect?: number, frameHeight = ONESHOT_HEIGHT): OneshotElement[] {
   const layout: OneshotElement[] = [
-    { id: 'product', kind: 'product', x: 340, y: 380, width: 400, height: 600 },
+    { id: 'product', kind: 'product', ...(productAspect ? productBoxFor(productAspect, frameHeight) : { x: 340, y: 380, width: 400, height: 600 }) },
     { id: 'headline', kind: 'text', x: 140, y: 120, width: 800, height: 120, text: '' },
   ];
   if (hasLogo) layout.push({ id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 });

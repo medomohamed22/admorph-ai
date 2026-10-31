@@ -79,6 +79,9 @@ Finished ads land in **My gallery** on the device. Any saved ad can become **var
 
 ## Cutout quality
 
+**Product text stays sharp.** SAM returns the whole photo frame with the background cleared. One-shot now crops that cut to the product at full photo resolution (as the shelf already did), and the product's box on the mockup takes the product's own shape at up to 760 × 860, so the product keeps far more of its pixels on the mockup. The painter also receives a second image: a sharp close-up of the product (up to 1600 px, under 800 KB), with the rule that its shape, colors, logo and every printed word are copied from it exactly. If Meta ever refuses a second image, that one request is painted once more from the mockup alone. Shelf ads send the same close-up.
+
+
 A Muse Spark box is often drawn tight, and SAM never cuts past the box it is given. Every box is therefore grown by 5% of its size first; if the cut still runs into a box edge, it is retried once with a 20% margin, and the first cut is kept if the retry fails.
 
 ## Run it

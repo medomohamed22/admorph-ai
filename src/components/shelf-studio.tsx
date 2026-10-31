@@ -23,6 +23,7 @@ import { PLAN_DIALECTS, dialectLanguage, type PlanDialect } from '@/lib/campaign
 import { cleanDetections, shelfDetectionSchema, shelfPlanSchema, type ShelfBox } from '@/lib/shelf/schema';
 import { scanVideo, sharpestFrame, type ScannedFrame } from '@/lib/shelf/frames';
 import { cropToProduct } from '@/lib/shelf/crop';
+import { productReference } from '@/lib/oneshot/product-reference';
 import { shelfLayout, drawShelfMockup } from '@/lib/shelf/mockup';
 import { withRateLimit } from '@/lib/shelf/queue';
 import { saveAd } from '@/lib/db/repository';
@@ -236,11 +237,14 @@ export default function ShelfStudio() {
     await document.fonts.load('800 72px Cairo').catch(() => {}); await document.fonts.load('800 72px Inter').catch(() => {});
     const accent = isHex(brand.colors[0]) ? brand.colors[0] : '#7C5CFF';
     const mockup = await encodeProduct(await fitProductImage(await drawShelfMockup(item.cutout, layout, accent)));
+    // The sharp product close-up rides along so the label is copied, not guessed from the mockup.
+    const reference = await productReference(item.cutout).catch(() => null);
+    const product = reference ? await encodeProduct(reference) : undefined;
     const sanitized: BrandInput = { ...brand, colors: brand.colors.map(color => isHex(color) ? color : '#16100C') as [string, string, string] };
     const attempt = async (fixNotes?: string[]) => {
       setAds(previous => ({ ...previous, [item.id]: { ...previous[item.id], state: fixNotes ? 'repairing' : 'painting' } }));
       const blob = await withRateLimit(async () => {
-        const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: painter.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitized, scene: ad.scene, language, layout, ...(fixNotes ? { fixNotes } : {}) }), signal: AbortSignal.timeout(65000) });
+        const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: painter.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitized, scene: ad.scene, language, layout, ...(fixNotes ? { fixNotes } : {}), ...(product ? { product } : {}) }), signal: AbortSignal.timeout(65000) });
         await requireMetaSuccess(response);
         const image = await response.blob(); await validateGeneratedImage(image); return image;
       }, onWait);
