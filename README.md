@@ -62,6 +62,10 @@ Finished ads land in **My gallery** on the device. Any saved ad can become **var
 4. **Check** — edit names and prices, switch products off, pick a brand and dialect; the screen shows how many requests the campaign will make.
 5. **Campaign** — one planner call names the campaign and writes a headline, button text, scene and caption per product; Muse Image paints one ad per product, the critic reviews each one, and a weak ad gets one repair. Download each ad, share it, or take the whole campaign as a ZIP.
 
+## Places that fit the product
+
+The planner first recognizes the product in the photo, then sets each of the three ideas in a different real place where that product is naturally used, kept or enjoyed (a home fragrance in a living room, a bedroom or a bathroom; sunscreen at a beach or a pool; coffee on a kitchen counter or in a café), never somewhere unrelated. A place typed in "Where should the ad take place?" overrides this for all three ideas. Three light-and-mood looks, picked at random on the device from a library of 30, give each idea its own light, so runs and users rarely get the same picture, with no extra request or wait. Copies move to another natural place; seasons are set where the product is used, dressed for the season. (Web research was tried and removed: about 50 s per round was too slow.)
+
 ## Guided demo
 
 "Watch the full demo" on the home page walks the whole site with live Meta requests: a bundled phone photo of headphones becomes a finished ad (SAM 3.1 cut, Mono Audio brand, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its first two products.

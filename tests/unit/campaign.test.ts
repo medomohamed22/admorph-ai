@@ -44,6 +44,22 @@ describe('campaign planner', () => {
     expect(payload.response_format.json_schema.schema.properties.concepts.minItems).toBe(3); expect(init.redirect).toBe('error');
     expect(JSON.stringify(buildPlanningPayload(input()))).not.toContain(input().apiKey);
   });
+  it('sends a typed place and the looks to the planner, and natural places when no place is typed', async () => {
+    const promptOf = async (extra: Record<string, unknown>) => {
+      const fetcher = vi.fn(async () => Response.json(response()));
+      const result = await handlePlanRequest(request({ ...input(), ...extra }), { fetcher });
+      expect(result.status).toBe(200);
+      return String(JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).messages[1].content[0].text);
+    };
+    const natural = await promptOf({ looks: ['soft morning window light', 'golden-hour side light', 'moody low-key light'] });
+    expect(natural).toContain('naturally used');
+    expect(natural).toContain('(2) golden-hour side light');
+    const typed = await promptOf({ place: 'a beach at sunset' });
+    expect(typed).toContain('The user chose where the ad takes place: "a beach at sunset"');
+    expect(typed).not.toContain('Never put the product in a place');
+    expect(planRequestSchema.safeParse({ ...input(), place: 'x'.repeat(121) }).success).toBe(false);
+    expect(planRequestSchema.safeParse({ ...input(), looks: ['a', 'b', 'c', 'd'] }).success).toBe(false);
+  });
   it('accepts an empty brief and tells the model to derive ideas from the photo and brand', async () => {
     const body = input(); body.brief = '';
     expect(planRequestSchema.safeParse(body).success).toBe(true);

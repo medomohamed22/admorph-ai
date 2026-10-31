@@ -61,19 +61,31 @@ export function settingOf(scene: string): string {
  * same picture with a new headline. The axis is named on the result card.
  */
 export const VARIANT_AXES = [
-  { id: 'setting', instruction: 'a completely different real setting and props; keep a similar light' },
+  { id: 'setting', instruction: 'another real place where this product is naturally used, different from the original, with props that belong there; keep a similar light' },
   { id: 'light', instruction: 'a different time of day, light quality and camera angle in a related setting' },
   { id: 'palette', instruction: 'a different color palette and mood, with a bolder composition' },
 ] as const;
 export type VariantAxis = (typeof VARIANT_AXES)[number]['id'];
 
+/**
+ * Where the product lives: the planner first recognizes the product, then sets
+ * each idea in a real place where people naturally use, keep or enjoy it, so
+ * the scene tells the product's story at a glance. A place the user typed
+ * overrides this for all three ideas.
+ */
+export const NATURAL_PLACE_RULE = 'First recognize the product in the photo: what it is, who uses it, and where and how it is used. Every setting must be a real place where this product is naturally used, kept, gifted or enjoyed, so the scene tells its story at a glance (for example a home fragrance in a living room, a bedroom or a bathroom; sunscreen at a beach or a pool; coffee on a kitchen counter or in a cafe; running shoes on a track or a city street; a skincare cream on a bathroom shelf or a vanity table). Never put the product in a place that has nothing to do with it.';
+
 /** The planner's instructions for the art brief, shared by the wizard and the variants. */
-export function artBriefInstruction(avoid: readonly string[]): string {
+export function artBriefInstruction(avoid: readonly string[], options: { place?: string; looks?: readonly string[] } = {}): string {
+  const place = options.place?.trim();
   const lines = [
     'For every concept also write artBrief: setting (one specific real place, never a plain studio backdrop, empty void or seamless paper), two to four props that belong there and suit the product, lighting, camera (angle and lens), composition (where the product sits and which calm, object-free part of the scene holds the headline), a palette of two to four colors echoing the brand colors, typeStyle (how the headline should look, e.g. bold condensed white sans) and avoid (things that would clash).',
-    'The three concepts must use three clearly different settings, lights and camera angles.',
+    place
+      ? `The user chose where the ad takes place: ${JSON.stringify(place)}. Set all three concepts there, and vary the exact spot, props, light and camera angle so they still differ. This choice overrides any other place.`
+      : `${NATURAL_PLACE_RULE} The three concepts use three different such places, with clearly different lights and camera angles. If the written brief names a place, use that place for all three concepts instead.`,
     'Set visualDirection to the same scene in one sentence.',
   ];
-  if (avoid.length) lines.push(`Recent ads already used these settings; do not reuse them or anything close: ${avoid.map(item => JSON.stringify(item)).join('; ')}.`);
+  if (options.looks?.length) lines.push(`Light and mood for each concept, in order (adapt them to the place): ${options.looks.map((look, index) => `(${index + 1}) ${look}`).join(' ')}.`);
+  if (avoid.length && !place) lines.push(`Recent ads already used these settings; do not reuse them or anything close: ${avoid.map(item => JSON.stringify(item)).join('; ')}.`);
   return lines.join(' ');
 }

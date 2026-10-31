@@ -51,6 +51,10 @@ export const planRequestSchema = z.object({
   dialect: planDialectSchema.optional(),
   /** Settings of the last few ads, so the planner picks a new place each time. */
   avoidScenes: avoidScenesSchema.optional(),
+  /** A place the user typed; when present every idea is set there. */
+  place: z.string().trim().min(1).max(120).optional(),
+  /** Light and mood looks picked at random on the device, one per idea, so ideas vary between runs and users. */
+  looks: z.array(z.string().trim().min(1).max(120)).max(3).optional(),
   product: z.object({ mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
     data: z.string().min(4).max(4 * Math.ceil(MAX_PRODUCT_BYTES / 3)).regex(/^[A-Za-z0-9+/]+={0,2}$/) }).strict(),
 }).strict();

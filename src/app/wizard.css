@@ -179,3 +179,5 @@ html:has(.wizard-bar) { scroll-padding-top: 88px; scroll-padding-bottom: 150px; 
 .format-1080x1080 { height: 14px; }
 .format-1080x1920 { width: 11px; height: 20px; }
 .result-next[aria-disabled=true] { opacity: .5; pointer-events: none; }
+/* The optional place for the ad, above the free-text direction. */
+.place-field small { display: block; margin-top: 6px; font-weight: 400; font-size: 12.5px; color: var(--muted); line-height: 1.5; }

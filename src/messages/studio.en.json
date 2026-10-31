@@ -189,7 +189,10 @@
     "certQuality": "Ready to post",
     "certQualityOk": "One full scene; every word readable and clear of the product",
     "missingKey": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
-    "enhanceNeedsSetup": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel."
+    "enhanceNeedsSetup": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
+    "placeLabel": "Where should the ad take place? (optional)",
+    "placePlaceholder": "e.g. a beach at sunset, a café terrace, a cozy bedroom",
+    "placeNote": "Leave it empty and Muse Spark recognizes the product and picks places where it is naturally used, a different one for each idea."
   },
   "home": {
     "eyebrow": "Built on three Meta models",

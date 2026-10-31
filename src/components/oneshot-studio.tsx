@@ -36,6 +36,7 @@ import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type Age
 import type { Brand } from '@/lib/db/schema';
 import { useDemoDriver } from './demo-tour';
 import { cropToProduct } from '@/lib/shelf/crop';
+import { pickLooks } from '@/lib/ai/looks';
 import { productReference } from '@/lib/oneshot/product-reference';
 import { DEMO_PRODUCT_URL, demoBrand } from '@/lib/demo/tour';
 import type { BrandInput } from '@/lib/db/schema';
@@ -87,6 +88,8 @@ export default function OneshotStudio() {
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [headlineFont, setHeadlineFont] = useState<string | null>(null);
   const [brief, setBrief] = useState('');
+  // Where the ad takes place; empty lets Muse Spark pick places where this product is naturally used.
+  const [place, setPlace] = useState('');
   // The copy dialect; starts from the interface language until the user picks one.
   const [pickedDialect, setDialect] = useState<PlanDialect | null>(null);
   const dialect: PlanDialect = pickedDialect ?? (workspace.locale === 'ar' ? 'ar_eg' : 'en');
@@ -342,7 +345,7 @@ export default function OneshotStudio() {
         setOriginalBlob(draft.originalBlob); setCurrentBlob(draft.currentBlob); setCutoutBlob(draft.cutoutBlob);
         setCutoutMethod(draft.cutoutBlob ? 'meta-sam' : null); setLogoBlob(draft.logoBlob); setEnhance(draft.enhance);
         setBrand(draft.brand); setSelectedBrandId(draft.selectedBrandId); setHeadlineFont(draft.headlineFont);
-        setBrief(draft.brief); setScene(draft.scene); setConcepts(draft.concepts); setSelectedConcept(draft.selectedConcept);
+        setBrief(draft.brief); setPlace(draft.place ?? ''); setScene(draft.scene); setConcepts(draft.concepts); setSelectedConcept(draft.selectedConcept);
         setSuggestedFonts(draft.suggestedFonts); setElements(draft.elements); if (draft.format) setFormat(draft.format); if (draft.dialect) setDialect(draft.dialect); setStep(Math.min(4, Math.max(0, draft.step)));
         setRestoredNote(true);
       }
@@ -352,10 +355,10 @@ export default function OneshotStudio() {
   useEffect(() => {
     if (!restored || !originalBlob) return;
     const timer = setTimeout(() => {
-      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, format, dialect: pickedDialect ?? undefined, savedAt: new Date().toISOString() }).catch(() => {});
+      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, place, scene, concepts, selectedConcept, suggestedFonts, elements, format, dialect: pickedDialect ?? undefined, savedAt: new Date().toISOString() }).catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
-  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, scene, concepts, selectedConcept, suggestedFonts, elements, format, pickedDialect]);
+  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, place, scene, concepts, selectedConcept, suggestedFonts, elements, format, pickedDialect]);
 
   /** Start over: drop the saved draft and every piece of this ad. */
   function startOver() {
@@ -364,7 +367,7 @@ export default function OneshotStudio() {
     setOriginalBlob(null); setCurrentBlob(null); setCutoutBlob(null); setCutoutMethod(null); setLogoBlob(null); setLogoMissing(false);
     setEnhance(false); setEnhanceNote(''); setTapCutout(false); setSelectedBrandId('');
     setBrand({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] }); setHeadlineFont(null);
-    setBrief(''); setDialect(null); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
+    setBrief(''); setPlace(''); setDialect(null); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
     setElements([]); setSelected(null); setPast([]); setFuture([]); setAppliedRepairs([]); setLoaded(new Set());
     setResultBlob(null); setResultAdId(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
     setRecords(emptyRecords()); setRepair(null); setAttempts([]); setError(''); setRestoredNote(false);
@@ -396,7 +399,7 @@ export default function OneshotStudio() {
     try {
       // The last few settings go along so every round of ideas lands somewhere new.
       const recent = await loadRecentScenes().catch(() => [] as string[]);
-      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, ...(recent.length ? { avoidScenes: recent } : {}), product: await encodeProduct(currentBlob) };
+      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), ...(place.trim() ? { place: place.trim().slice(0, 120) } : {}), looks: pickLooks(3), goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, ...(recent.length ? { avoidScenes: recent } : {}), product: await encodeProduct(currentBlob) };
       startStep('ideas', planBody);
       const plan = await requestPlan(planBody, AbortSignal.timeout(65000));
       finishStep('ideas', plan.concepts.map(item => item.headline).join(' · '), plan);
@@ -821,6 +824,7 @@ export default function OneshotStudio() {
         </div>
         <p className="dialect-preview"><small>{t.dialectPreview}</small><span key={dialect} data-testid="dialect-preview" dir={dialectLanguage(dialect) === 'ar' ? 'rtl' : 'ltr'}>{DIALECT_EXAMPLE[dialect]}</span></p>
       </fieldset>
+      <label className="place-field">{t.placeLabel}<input value={place} maxLength={120} placeholder={t.placePlaceholder} onChange={event => setPlace(event.target.value)} /><small>{t.placeNote}</small></label>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
       <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
       {busy === 'ideas' && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}

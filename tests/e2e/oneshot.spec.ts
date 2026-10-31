@@ -250,6 +250,13 @@ test('ideas generate from the product photo and brand with no written brief', as
   await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cold Offer — Ice Cold One', exact: true })).toBeVisible();
   await expect(planBody).toMatchObject({ brief: '' });
+  // No place typed: the planner picks natural places; three random looks give each idea its own light.
+  expect(planBody).not.toHaveProperty('place');
+  expect((planBody as unknown as { looks: string[] }).looks).toHaveLength(3);
+  // A typed place goes to the planner for all three ideas.
+  await page.getByLabel('Where should the ad take place? (optional)').fill('a beach at sunset');
+  await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
+  await expect.poll(() => (planBody as unknown as { place?: string } | null)?.place).toBe('a beach at sunset');
   expect(planBody).toHaveProperty('product');
   await expect(page.getByLabel('Background scene')).toHaveValue('Icy scene one');
 });
