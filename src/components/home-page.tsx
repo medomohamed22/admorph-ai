@@ -25,7 +25,7 @@ function StaggerTitle({ text }: { text: string }) {
  * keyboard and screen-reader control; pointer drags anywhere on the frame
  * move it too. It sweeps once on first view to show it can be dragged.
  */
-export function BeforeAfter({ before, after, beforeLabel, afterLabel, handleLabel }: { before: string; after: string; beforeLabel: string; afterLabel: string; handleLabel: string }) {
+export function BeforeAfter({ before, after, beforeLabel, afterLabel, handleLabel, ratio = '4:5' }: { before: string; after: string; beforeLabel: string; afterLabel: string; handleLabel: string; ratio?: '1:1' | '4:5' }) {
   const [position, setPosition] = useState(50);
   const frame = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -53,7 +53,7 @@ export function BeforeAfter({ before, after, beforeLabel, afterLabel, handleLabe
   }
   // In RTL the "after" side grows from the right, matching reading order.
   const clip = rtl ? `inset(0 0 0 ${100 - position}%)` : `inset(0 ${100 - position}% 0 0)`;
-  return <div className="before-after" ref={frame} data-testid="before-after"
+  return <div className="before-after" ref={frame} data-testid="before-after" style={{ aspectRatio: ratio === "1:1" ? "1 / 1" : "4 / 5" }}
     onPointerDown={event => { dragging.current = true; event.currentTarget.setPointerCapture(event.pointerId); fromPointer(event.clientX); }}
     onPointerMove={event => { if (dragging.current) fromPointer(event.clientX); }}
     onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}>
@@ -95,7 +95,7 @@ export default function HomePage() {
         </div>
       </div>
       <div className="home-hero-visual">
-        <BeforeAfter before={showcase.hero.before} after={showcase.hero.after} beforeLabel={t.before} afterLabel={t.after} handleLabel={t.compare} />
+        <BeforeAfter before={showcase.hero.before} after={showcase.hero.after} beforeLabel={t.before} afterLabel={t.after} handleLabel={t.compare} ratio={showcase.hero.ratio} />
         {showcase.hero.sample && <p className="home-sample-note" data-testid="home-sample-note">{t.sampleNote}</p>}
       </div>
     </section>

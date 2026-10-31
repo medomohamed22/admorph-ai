@@ -1,8 +1,9 @@
 {
   "hero": {
-    "before": "/showcase/talj-photo.webp",
-    "after": "/showcase/ad-talj.webp",
-    "sample": false
+    "before": "/showcase/headphones-photo.webp",
+    "after": "/showcase/headphones-ad.webp",
+    "sample": false,
+    "ratio": "1:1"
   },
   "ads": [
     { "src": "/showcase/ad-talj.webp", "category": "food", "ratio": "4:5", "headline": "نعومة الغيم في علبة وحدة", "score": 100 },
