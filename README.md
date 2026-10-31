@@ -62,6 +62,15 @@ Finished ads land in **My gallery** on the device. Any saved ad can become **var
 4. **Check** — edit names and prices, switch products off, pick a brand and dialect; the screen shows how many requests the campaign will make.
 5. **Campaign** — one planner call names the campaign and writes a headline, button text, scene and caption per product; Muse Image paints one ad per product, the critic reviews each one, and a weak ad gets one repair. Download each ad, share it, or take the whole campaign as a ZIP.
 
+## Guided demo
+
+"Watch the full demo" on the home page walks the whole site with live Meta requests: a bundled phone photo of headphones becomes a finished ad (SAM 3.1 cut, Mono Audio brand, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its first two products.
+
+- **Auto** plays every step by itself, each kept on screen long enough to read (good for recording). **Step** waits for Next before each step (good for judges). The mode can be switched mid-run, Auto can be paused, and Exit stops it.
+- A sticky bar under the header names the step, the Meta models it uses and the seconds it is taking. A failed step stops with Retry and Skip; nothing is faked or replayed.
+- The run lives in `sessionStorage` (step, timings and the new ad's id, no images), so it survives a page change or reload. Steps are defined in `src/lib/demo/tour.ts`; each page drives its own steps through `useDemoDriver`.
+- One run makes about 20–30 Meta requests and takes 4–7 minutes. Replace `public/demo/demo-product.webp` or `public/demo/shelf-sample.jpg` to demo other products.
+
 ## Trust and evidence
 
 - **Fidelity certificate** — Muse Spark compares the finished ad with the mockup (product, logo, layout, each text) and lists any **extra words** the painter invented, such as a made-up brand name or slogan; each one costs points and goes back to the painter as a fix. Seasonal copies must show at least two of their season's props or they are painted again. The score is labelled as a model judgment.

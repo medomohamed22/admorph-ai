@@ -34,11 +34,13 @@ import { CanvasTools, MAX_ELEMENTS } from './canvas-tools';
 import { removeLogoBackground } from '@/lib/oneshot/logo-background';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
+import { useDemoDriver } from './demo-tour';
+import { DEMO_PRODUCT_URL, demoBrand } from '@/lib/demo/tour';
 import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
 
-type Attempt = { blob: Blob; certificate: VerifyResult | null; score: number | null };
+type Attempt = { blob: Blob; certificate: VerifyResult | null; score: number | null; /** The gallery record this attempt was saved as. */ adId?: string };
 
 type Concept = { angle: string; title: string; headline: string; caption: string; visualDirection: string; artBrief?: ArtBrief };
 
@@ -102,6 +104,7 @@ export default function OneshotStudio() {
   const [tapCutout, setTapCutout] = useState(false);
   const [error, setError] = useState('');
   const [resultBlob, setResultBlob] = useState<Blob | null>(null);
+  const [resultAdId, setResultAdId] = useState<string | null>(null);
   const [certificate, setCertificate] = useState<VerifyResult | null>(null);
   const [score, setScore] = useState<number | null>(null);
   const [generatedLayout, setGeneratedLayout] = useState<OneshotCanvasElement[] | null>(null);
@@ -183,7 +186,7 @@ export default function OneshotStudio() {
     return result.cutoutBlob;
   }
 
-  async function uploadProduct(file: File) {
+  async function uploadProduct(file: File): Promise<Blob | null> {
     setError('');
     try {
       // Large phone photos are compressed on the device instead of refused.
@@ -195,14 +198,15 @@ export default function OneshotStudio() {
       skipHistory.current = true;
       setCutoutBlob(null); setCutoutMethod(null); setElements([]); setSelected(null);
       setTapCutout(false);
-      setResultBlob(null); setCertificate(null); setScore(null);
+      setResultBlob(null); setResultAdId(null); setCertificate(null); setScore(null);
       setGeneratedLayout(null); setCertSignature(null);
       setPast([]); setFuture([]);
       setSuggestedFonts([]);
       setAppliedRepairs([]);
       setRecords(emptyRecords()); setRepair(null); setAttempts([]);
       setLoaded(new Set());
-    } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
+      return blob;
+    } catch (cause) { setError(metaErrorMessage(cause, errorText)); return null; }
   }
 
   /** Ask vision where the main product is. Any failure returns null: the text cutout is the fallback, never a blocker. */
@@ -355,7 +359,7 @@ export default function OneshotStudio() {
     setBrand({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] }); setHeadlineFont(null);
     setBrief(''); setDialect(null); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
     setElements([]); setSelected(null); setPast([]); setFuture([]); setAppliedRepairs([]); setLoaded(new Set());
-    setResultBlob(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
+    setResultBlob(null); setResultAdId(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
     setRecords(emptyRecords()); setRepair(null); setAttempts([]); setError(''); setRestoredNote(false);
     setDirection('back'); setStep(0);
   }
@@ -463,10 +467,11 @@ export default function OneshotStudio() {
     // Finished ads save to the gallery automatically, so the variants
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
-    void saveAd({ id: crypto.randomUUID(), blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
+    const adId = crypto.randomUUID();
+    void saveAd({ id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
     if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
-    if (!verifyModel) return { blob: result, certificate: null, score: null };
+    if (!verifyModel) return { blob: result, certificate: null, score: null, adId };
     setBusy('verify');
     const fitted = await fitProductImage(result);
     const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language };
@@ -476,11 +481,11 @@ export default function OneshotStudio() {
     const verified = verifyResultSchema.parse(await verifyResponse.json());
     const attemptScore = oneshotScore(verified, hasLogo);
     if (!fixNotes) finishStep('critic', t.agentScore.replace('{score}', String(attemptScore)), verified);
-    return { blob: result, certificate: verified, score: attemptScore };
+    return { blob: result, certificate: verified, score: attemptScore, adId };
   }
 
   function showAttempt(attempt: Attempt) {
-    setResultBlob(attempt.blob);
+    setResultBlob(attempt.blob); setResultAdId(attempt.adId ?? null);
     setCertificate(attempt.certificate); setScore(attempt.score);
     setCertSignature(attempt.certificate ? mockupSignature(elements, brand) : null);
   }
@@ -674,6 +679,52 @@ export default function OneshotStudio() {
   const last = step === steps.length - 1;
   const nextBlocked = !last && !current.done;
   const panel = (index: number) => ({ hidden: step !== index, className: `wizard-panel enter-${direction}`, 'data-testid': `wizard-step-${index}` });
+
+
+  // The guided demo drives this page phase by phase; every phase reads this render's state.
+  useDemoDriver('oneshot', async (id, phase, memory) => {
+    const fail = (fallback: string): never => { throw new Error(error || fallback); };
+    if (id === 'product') {
+      if (phase === 0) { if (!restored) return 'wait'; startOver(); return 'next'; }
+      if (phase === 1) {
+        const photo = await (await fetch(DEMO_PRODUCT_URL)).blob();
+        const blob = await uploadProduct(new File([photo], 'phone-photo.webp', { type: photo.type || 'image/webp' }));
+        if (!blob) fail('upload');
+        await isolateBackground(blob!);
+        return 'next';
+      }
+      if (cutting) return 'wait';
+      if (cutoutBlob) return 'done';
+      fail('cutout');
+    }
+    if (id === 'brand') {
+      if (phase === 0) { goTo(1); setSelectedBrandId(''); setBrand(demoBrand(workspace.locale)); changeFormat('1080x1350'); return 'next'; }
+      return brandValid ? 'done' : 'wait';
+    }
+    if (id === 'ideas') {
+      if (phase === 0) { goTo(2); await suggestIdeas(); return 'next'; }
+      if (busy === 'ideas') return 'wait';
+      if (concepts.length === 0) fail('ideas');
+      if (suggestedFonts[0]) setHeadlineFont(suggestedFonts[0]);
+      return 'done';
+    }
+    if (id === 'arrange') {
+      if (phase === 0) { goTo(3); return 'next'; }
+      return elements.length > 0 && canvasReady && !!canvasHandle.current ? 'done' : 'wait';
+    }
+    if (id === 'paint') {
+      if (phase === 0) { if (!canGenerate) return 'wait'; goTo(4); return 'next'; }
+      if (phase === 1) {
+        setTimeout(() => document.querySelector('[data-testid="oneshot-result-frame"]')?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 500);
+        await generate(); return 'next';
+      }
+      if (busy) return 'wait';
+      if (!resultBlob) fail('paint');
+      if (resultAdId) memory.adId = resultAdId;
+      return 'done';
+    }
+    return 'done';
+  });
 
   return <main className="oneshot-studio wizard">
     <div className="wizard-head">

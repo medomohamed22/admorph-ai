@@ -8,6 +8,8 @@ import { useProviderSession } from './provider-session';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { GeneratingCanvas } from './generating-canvas';
+import { useDemoDriver } from './demo-tour';
+import { DEMO_SHELF_URL, DEMO_SHELF_PRODUCTS, demoShelfBrand } from '@/lib/demo/tour';
 import { Button, ButtonLink, ModelBadge, ScoreRing } from './ui';
 import { IconCheck, IconSparkles } from './ui/icons';
 import { metaFetch } from '@/lib/ai/meta-fetch';
@@ -291,6 +293,40 @@ export default function ShelfStudio() {
     try { const done = await paintOne(item, ad); setAds(previous => ({ ...previous, [item.id]: done })); }
     catch (cause) { setAds(previous => ({ ...previous, [item.id]: { ...previous[item.id], state: 'failed', error: metaErrorMessage(cause, errorText) } })); }
   }
+
+  // The guided demo: the bundled shelf photo, the first products only, then a campaign for a sample store.
+  useDemoDriver('shelf', async (id, phase) => {
+    const fail = (fallback: string): never => { throw new Error(error || fallback); };
+    if (id === 'shelf-detect') {
+      if (phase === 0) { reset(); return 'next'; }
+      if (phase === 1) {
+        const blob = await (await fetch(DEMO_SHELF_URL)).blob();
+        setFrames([]); setBestFrame(null); setPhoto(blob);
+        // Keep the shelf photo in view while the boxes and cutouts appear.
+        setTimeout(() => stageRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 400);
+        await detect(blob);
+        return 'next';
+      }
+      if (stage === 'detecting' || stage === 'cutting') return 'wait';
+      const cut = items.filter(item => item.cut === 'cut');
+      if (cut.length === 0) fail('shelf');
+      const keep = new Set(cut.slice(0, DEMO_SHELF_PRODUCTS).map(item => item.id));
+      setItems(previous => previous.map(item => ({ ...item, include: keep.has(item.id) })));
+      return 'done';
+    }
+    if (id === 'shelf-campaign') {
+      if (phase === 0) { setSelectedBrandId(''); setBrand(demoShelfBrand(workspace.locale)); return 'next'; }
+      if (phase === 1) {
+        if (!brandValid || chosen.length === 0) return 'wait';
+        // Bring the ad cards into view as soon as they appear.
+        setTimeout(() => document.querySelector('.shelf-campaign')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 600);
+        await makeCampaign(); return 'next';
+      }
+      if (stage === 'generating') return 'wait';
+      return readyAds > 0 ? 'done' : fail('campaign');
+    }
+    return 'wait';
+  });
 
   async function downloadCampaign() {
     setZipping(true);
