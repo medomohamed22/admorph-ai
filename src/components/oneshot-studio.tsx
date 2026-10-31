@@ -37,6 +37,7 @@ import type { Brand } from '@/lib/db/schema';
 import { useDemoDriver } from './demo-tour';
 import { cropToProduct } from '@/lib/shelf/crop';
 import { productReference } from '@/lib/oneshot/product-reference';
+import { requestResearch, pickTrends, pickStyles, researchBrief, sourceHost, type SavedResearch } from '@/lib/ai/research-client';
 import { DEMO_PRODUCT_URL, demoBrand } from '@/lib/demo/tour';
 import type { BrandInput } from '@/lib/db/schema';
 
@@ -65,6 +66,17 @@ function AttemptCard({ attempt, label, scoreLabel, active, useLabel, activeLabel
  * the vision read-back only — no digits are drawn over the result, because
  * a drawn copy on top of the model's own digits ghosts and ruins the ad.
  */
+/** Where the ideas came from: the directions used and the pages Muse Spark read (real citations only). */
+function ResearchBox({ research, labels }: { research: SavedResearch; labels: { title: string; sources: string; used: string; noWeb: string } }) {
+  return <aside className="research-box" data-testid="research-box" data-searched={research.searched}>
+    <strong>{labels.title}</strong>
+    {research.used.length > 0 && <p className="research-used"><small>{labels.used}</small>{research.used.slice(-3).map(name => <span key={name} className="research-chip">{name}</span>)}</p>}
+    {research.searched && research.sources.length > 0
+      ? <p className="research-sources"><small>{labels.sources}</small>{research.sources.map(source => <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer nofollow" title={source.title ?? source.url}>{sourceHost(source.url)}</a>)}</p>
+      : <p className="research-sources"><small>{labels.noWeb.replace('{n}', String(research.trends.length))}</small></p>}
+  </aside>;
+}
+
 export default function OneshotStudio() {
   const m = useMessages(), t = m.oneshot, workspace = useWorkspace(), provider = useProviderSession();
   const [originalBlob, setOriginalBlob] = useState<Blob | null>(null);
@@ -87,6 +99,9 @@ export default function OneshotStudio() {
   const [brand, setBrand] = useState<BrandInput>({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] });
   const [headlineFont, setHeadlineFont] = useState<string | null>(null);
   const [brief, setBrief] = useState('');
+  // Web research before ideas: on by default, kept for this product so new ideas and later copies reuse it.
+  const [researchOn, setResearchOn] = useState(true);
+  const [research, setResearch] = useState<SavedResearch | null>(null);
   // The copy dialect; starts from the interface language until the user picks one.
   const [pickedDialect, setDialect] = useState<PlanDialect | null>(null);
   const dialect: PlanDialect = pickedDialect ?? (workspace.locale === 'ar' ? 'ar_eg' : 'en');
@@ -203,7 +218,7 @@ export default function OneshotStudio() {
       // and certificate belong to the previous product, so none of it is
       // kept or recorded in history.
       skipHistory.current = true;
-      setCutoutBlob(null); setCutoutMethod(null); setElements([]); setSelected(null);
+      setCutoutBlob(null); setCutoutMethod(null); setElements([]); setSelected(null); setResearch(null);
       setTapCutout(false);
       setResultBlob(null); setResultAdId(null); setCertificate(null); setScore(null);
       setGeneratedLayout(null); setCertSignature(null);
@@ -364,7 +379,7 @@ export default function OneshotStudio() {
     setOriginalBlob(null); setCurrentBlob(null); setCutoutBlob(null); setCutoutMethod(null); setLogoBlob(null); setLogoMissing(false);
     setEnhance(false); setEnhanceNote(''); setTapCutout(false); setSelectedBrandId('');
     setBrand({ name: '', description: '', colors: ['#16100C', '#F5EEDF', '#7ED3E0'] }); setHeadlineFont(null);
-    setBrief(''); setDialect(null); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
+    setBrief(''); setResearch(null); setDialect(null); setConcepts([]); setSelectedConcept(null); setSuggestedFonts([]); setScene(t.defaultScene);
     setElements([]); setSelected(null); setPast([]); setFuture([]); setAppliedRepairs([]); setLoaded(new Set());
     setResultBlob(null); setResultAdId(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
     setRecords(emptyRecords()); setRepair(null); setAttempts([]); setError(''); setRestoredNote(false);
@@ -390,18 +405,42 @@ export default function OneshotStudio() {
     finally { setBusy(''); }
   }
 
+  /** Muse Spark + web search on the product: current ad styles for this kind of product. Never blocks the ideas. */
+  async function runResearch(): Promise<SavedResearch | null> {
+    const model = visionModel ?? plannerModel;
+    const image = cutoutBlob ?? currentBlob;
+    if (!researchOn) { record('research', { status: 'skipped', result: undefined }); return null; }
+    if (research) { record('research', { status: 'done', result: (research.searched ? t.researchResult : t.researchNoWeb).replace('{n}', String(research.trends.length)).replace('{m}', String(research.sources.length)) }); return research; }
+    if (!model || !key || !image) return null;
+    setBusy('research');
+    startStep('research', { modelId: model.modelId, tools: [{ type: 'web_search' }], language: dialectLanguage(dialect), image: imageNote(image) });
+    try {
+      const found = await requestResearch({ apiKey: key, modelId: model.modelId, image, language: dialectLanguage(dialect) });
+      finishStep('research', (found.searched ? t.researchResult : t.researchNoWeb).replace('{n}', String(found.trends.length)).replace('{m}', String(found.sources.length)), found);
+      const saved = { ...found, used: [] };
+      setResearch(saved);
+      return saved;
+    } catch (cause) { failStep('research', cause); return null; }
+  }
+
   async function suggestIdeas() {
     if (!plannerModel || !key || !currentBlob || !brandValid) return;
-    setBusy('ideas'); setError('');
+    setError('');
+    const found = await runResearch();
+    setBusy('ideas');
     try {
+      // Three directions this product has not used yet (random order), or fresh library looks when there is no research.
+      const chosen = found ? pickTrends(found.trends, 3, found.used) : [];
+      const planBrief = researchBrief(brief, chosen, pickStyles(chosen.length ? 1 : 3));
       // The last few settings go along so every round of ideas lands somewhere new.
       const recent = await loadRecentScenes().catch(() => [] as string[]);
-      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: brief.trim(), goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, ...(recent.length ? { avoidScenes: recent } : {}), product: await encodeProduct(currentBlob) };
+      const planBody = { providerId: 'meta' as const, apiKey: key, modelId: plannerModel.modelId, consent: true as const, imageConsent: true as const, brand, brief: planBrief, goal: 'awareness' as const, creativeLanguage: dialectLanguage(dialect), dialect, format: '1080x1350' as const, ...(recent.length ? { avoidScenes: recent } : {}), product: await encodeProduct(currentBlob) };
       startStep('ideas', planBody);
       const plan = await requestPlan(planBody, AbortSignal.timeout(65000));
       finishStep('ideas', plan.concepts.map(item => item.headline).join(' · '), plan);
       const next = plan.concepts.map(item => ({ angle: item.angle, title: item.title, headline: item.headline, caption: item.caption, visualDirection: item.visualDirection, ...(item.artBrief ? { artBrief: item.artBrief } : {}) }));
       setConcepts(next); pickConcept(next, 0);
+      if (found && chosen.length) setResearch({ ...found, used: [...new Set([...found.used, ...chosen.map(trend => trend.name)])].slice(-12) });
       // The planner suggests up to three headline fonts with the ideas;
       // only allowlist families survive, in the planner's order.
       const fonts: string[] = [];
@@ -475,7 +514,7 @@ export default function OneshotStudio() {
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
     const adId = crypto.randomUUID();
-    void saveAd({ id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
+    void saveAd({ id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}), ...(research ? { research } : {}) }).catch(() => {});
     if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
     if (!verifyModel) return { blob: result, certificate: null, score: null, adId };
@@ -822,8 +861,10 @@ export default function OneshotStudio() {
         <p className="dialect-preview"><small>{t.dialectPreview}</small><span key={dialect} data-testid="dialect-preview" dir={dialectLanguage(dialect) === 'ar' ? 'rtl' : 'ltr'}>{DIALECT_EXAMPLE[dialect]}</span></p>
       </fieldset>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
-      <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
-      {busy === 'ideas' && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}
+      <label className="check-label research-toggle"><input type="checkbox" data-testid="research-toggle" checked={researchOn} disabled={busy !== ''} onChange={event => setResearchOn(event.target.checked)} /><span>{t.researchToggle}<small>{t.researchToggleNote}</small></span></label>
+      <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'research' ? <WaitingText label={t.researchBusy} /> : busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
+      {(busy === 'ideas' || busy === 'research') && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}
+      {concepts.length > 0 && research && <ResearchBox research={research} labels={{ title: t.researchTitle, sources: t.researchSources, used: t.researchUsed, noWeb: t.researchNoWeb }} />}
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
         <div className="idea-grid">{concepts.map((concept, index) => <button key={concept.angle} type="button" className="button secondary idea-card" style={{ animationDelay: `${index * 60}ms` }} aria-pressed={selectedConcept === index} onClick={() => pickConcept(concepts, index)}>

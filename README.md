@@ -62,6 +62,15 @@ Finished ads land in **My gallery** on the device. Any saved ad can become **var
 4. **Check** — edit names and prices, switch products off, pick a brand and dialect; the screen shows how many requests the campaign will make.
 5. **Campaign** — one planner call names the campaign and writes a headline, button text, scene and caption per product; Muse Image paints one ad per product, the critic reviews each one, and a weak ad gets one repair. Download each ad, share it, or take the whole campaign as a ZIP.
 
+## Web research before ideas
+
+Before writing ideas, Muse Spark looks at the product photo and uses Meta's built-in `web_search` tool (Responses API) to read what current ads, social posts and product photography for this kind of product look like. It returns five distinct style directions (visual + copy tone) and the pages it read. Verified live on 31 Oct 2026: two requests (headphones; a coffee pouch for Ramadan in Arabic) returned five fitting directions and real sources in 47–52 s.
+
+- **One-shot:** a visible "Market research" step before "Ideas", on by default with a switch (it adds about 45 s). The three ideas each follow a different direction; an "Inspired by current ads" box names the directions and links the pages. New ideas reuse the research and move on to directions not used yet.
+- **Copies:** reuse the research saved with the ad (no new search), one unused direction per copy. **Seasons:** one seasonal search per season, run side by side. Each result says which direction it followed.
+- **Variety across runs and users:** directions are picked at random among unused ones; without research, three of 30 library looks are added at random.
+- **Honesty:** styles are learned, never copied from a brand. Only citations Meta attaches (or, if none, URLs typed while a search ran) are shown; if Meta refuses the tool the answer says no search ran and shows no sources. A failed search never blocks ideas.
+
 ## Guided demo
 
 "Watch the full demo" on the home page walks the whole site with live Meta requests: a bundled phone photo of headphones becomes a finished ad (SAM 3.1 cut, Mono Audio brand, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its first two products.
