@@ -52,6 +52,7 @@ test('home reads right to left in Arabic with the story mirrored', async ({ brow
   const context = await browser.newContext({ locale: 'ar-EG', baseURL: 'http://localhost:3000' });
   const page = await context.newPage();
   await page.goto('/');
+  await page.getByRole('button', { name: 'Switch to Arabic' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('من صورة موبايل إلى إعلان Instagram في دقيقة، بلهجتك.');
   const hero = page.getByTestId('hero-flow');
