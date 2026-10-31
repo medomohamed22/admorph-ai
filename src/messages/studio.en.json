@@ -75,8 +75,7 @@
     "showDetails": "Show details",
     "hideDetails": "Hide details",
     "request": "Request",
-    "response": "Structured response",
-    "step_research": "Market research"
+    "response": "Structured response"
   },
   "oneshot": {
     "agentBox": "Product found at {box}",
@@ -190,15 +189,7 @@
     "certQuality": "Ready to post",
     "certQualityOk": "One full scene; every word readable and clear of the product",
     "missingKey": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
-    "enhanceNeedsSetup": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
-    "researchToggle": "Research current ad trends on the web first",
-    "researchToggleNote": "Muse Spark searches the web for how ads for this kind of product look right now, then writes ideas in those styles. Adds about 45 seconds.",
-    "researchBusy": "Researching current ad trends",
-    "researchResult": "{n} directions · {m} sources",
-    "researchNoWeb": "{n} directions · no web search ran this time",
-    "researchTitle": "Inspired by current ads",
-    "researchSources": "Pages Muse Spark read",
-    "researchUsed": "Directions used"
+    "enhanceNeedsSetup": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel."
   },
   "home": {
     "eyebrow": "Built on three Meta models",
@@ -326,11 +317,7 @@
     "slotQueued": "Waiting its turn",
     "reviewNotes": "Review notes",
     "prev": "Previous ad",
-    "next": "Next ad",
-    "researching": "Researching current ad trends…",
-    "researchToggle": "Use web research for fresher looks",
-    "researchToggleNote": "Reuses the research saved with this ad, or searches once (about 45 seconds).",
-    "researchSources": "Inspired by"
+    "next": "Next ad"
   },
   "meta": {
     "extractLead": "One photo of your logo, package or shop sign. Muse Spark reads the name, colors, tone and lettering, and you edit everything before saving.",
@@ -394,8 +381,8 @@
         "body": "The Mono Audio brand is applied: name, description and colors. The ad size is set to 4:5 before anything is painted."
       },
       "ideas": {
-        "title": "Web research → three ideas",
-        "body": "Muse Spark first searches the web for how ads for this kind of product look right now, then writes three ideas in those styles: headline, scene and caption. The first one is used."
+        "title": "Three ad ideas",
+        "body": "Muse Spark looks at the product and the brand and writes three ideas: headline, scene and caption. The first one is used."
       },
       "arrange": {
         "title": "Arranged on the canvas",

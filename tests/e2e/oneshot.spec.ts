@@ -247,25 +247,9 @@ test('ideas generate from the product photo and brand with no written brief', as
   await page.getByLabel('Brand description').fill('A sample ceremonial matcha brand.');
   await wizardStep(page, 'Idea');
   await expect(page.getByLabel('Extra direction (optional)')).toHaveValue('');
-  // Web research runs first (on by default): its directions reach the planner, its real sources are shown.
-  let researchBody: Record<string, unknown> | null = null;
-  await page.route('**/api/ai/market-research', async (route) => {
-    researchBody = route.request().postDataJSON() as Record<string, unknown>;
-    await route.fulfill({ json: { productType: 'matcha tin', audience: 'tea lovers', searched: true, sources: [{ url: 'https://www.behance.net/gallery/1/tea', title: 'Tea ads' }], trends: [
-      { name: 'Quiet desk editorial', visual: 'warm wood desk, window light', copy: 'calm short promise' },
-      { name: 'Bold color block', visual: 'flat saturated backdrop, hard shadow', copy: 'punchy two words' },
-      { name: 'Morning ritual', visual: 'linen, steam, soft haze', copy: 'gentle invitation' },
-    ] } });
-  });
-  await expect(page.getByTestId('research-toggle')).toBeChecked();
   await page.getByRole('button', { name: 'Suggest 3 ad ideas', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Cold Offer — Ice Cold One', exact: true })).toBeVisible();
-  expect(researchBody).toMatchObject({ imageConsent: true, language: 'en' });
-  const sentBrief = String((planBody as unknown as { brief: string }).brief);
-  for (const name of ['Quiet desk editorial', 'Bold color block', 'Morning ritual']) expect(sentBrief).toContain(name);
-  expect(sentBrief.length).toBeLessThanOrEqual(2000);
-  await expect(page.getByTestId('agent-step-research')).toHaveAttribute('data-status', 'done');
-  await expect(page.getByTestId('research-box').getByRole('link', { name: 'behance.net', exact: true })).toHaveAttribute('href', 'https://www.behance.net/gallery/1/tea');
+  await expect(planBody).toMatchObject({ brief: '' });
   expect(planBody).toHaveProperty('product');
   await expect(page.getByLabel('Background scene')).toHaveValue('Icy scene one');
 });

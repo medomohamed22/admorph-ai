@@ -18,12 +18,9 @@ import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { GeneratingCanvas } from './generating-canvas';
 import { useDemoDriver } from './demo-tour';
-import { requestResearch, pickTrends, researchBrief, sourceHost, type SavedResearch } from '@/lib/ai/research-client';
-import type { ResearchTrend } from '@/lib/ai/research';
 import { withRateLimit } from '@/lib/shelf/queue';
 
-type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis; /** The researched direction this copy followed, and the pages behind it. */ trend?: string; sources?: { url: string; title?: string }[] };
-type Job = { headline: string; scene: string; theme?: RemixThemeId; axis?: VariantAxis; trend?: ResearchTrend; research?: SavedResearch };
+type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis };
 
 /** One thumbnail in the picker strip. The first button selects it (tests and keyboard users rely on that). */
 function SavedAdCard({ ad, selected, onSelect, disabled }: { ad: SavedAd; selected: boolean; onSelect: () => void; disabled: boolean }) {
@@ -55,7 +52,7 @@ function SelectedPreview({ ad, labels, onDelete, armed, disabled, onStep, canSte
   </div>;
 }
 
-function ResultCard({ result, downloadLabel, scoreLabel, notesLabel, axisLabel, index, inspiredLabel }: { result: RemixResult; downloadLabel: string; scoreLabel: string; notesLabel: string; axisLabel?: string; index: number; inspiredLabel: string }) {
+function ResultCard({ result, downloadLabel, scoreLabel, notesLabel, axisLabel, index }: { result: RemixResult; downloadLabel: string; scoreLabel: string; notesLabel: string; axisLabel?: string; index: number }) {
   const url = useObjectUrl(result.blob);
   const notes = result.certificate ? [result.certificate.productNote, result.certificate.logoNote, result.certificate.layoutNote].filter(Boolean) : [];
   return <article className="remix-box is-done" data-testid="remix-result" style={{ '--i': index } as CSSProperties}>
@@ -66,7 +63,6 @@ function ResultCard({ result, downloadLabel, scoreLabel, notesLabel, axisLabel, 
     <div className="remix-box-body">
       <p className="remix-box-headline" dir="auto">{result.headline}</p>
       {result.score !== null && <p className="remix-box-score">{scoreLabel}: {result.score}</p>}
-      {(result.trend || result.sources?.length) && <p className="remix-box-inspired" data-testid="remix-inspired"><small>{inspiredLabel}</small>{result.trend && <span className="research-chip">{result.trend}</span>}{result.sources?.slice(0, 3).map(source => <a key={source.url} href={source.url} target="_blank" rel="noopener noreferrer nofollow">{sourceHost(source.url)}</a>)}</p>}
       {notes.length > 0 && <details className="remix-box-notes"><summary>{notesLabel}</summary><ul>{notes.map((note, i) => <li key={i}>{note}</li>)}</ul></details>}
       {url && <a className="button secondary" href={url} download={imageFileName('admorph-remix', result.blob)}>{downloadLabel}</a>}
     </div>
@@ -95,7 +91,6 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const [notice, setNotice] = useState('');
   const [armingDelete, setArmingDelete] = useState<string | null>(null);
   const [filter, setFilter] = useState<SourceFilter>('all');
-  const [researchOn, setResearchOn] = useState(true);
   const strip = useRef<HTMLDivElement | null>(null);
   // Variants make several requests in a row; a per-minute limit pauses and retries instead of failing.
   const [waitSeconds, setWaitSeconds] = useState(0);
@@ -132,7 +127,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
 
   /** One remix and its review. A seasonal copy that shows too few season
    *  cues is painted once more and the better of the two is kept. */
-  async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis, job?: Pick<Job, 'trend' | 'research'>) {
+  async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
     const paint = async (headline: string, scene: string) => {
       const remixResponse = await withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
@@ -161,25 +156,12 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       const again = await paint(headline, scene);
       if ((again.score ?? -1) > (best.score ?? -1)) best = again;
     }
-    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}), ...(job?.trend ? { trend: job.trend.name } : {}), ...(job?.research?.searched && job.research.sources.length ? { sources: job.research.sources } : {}) };
-    // The new ad keeps the research, with this direction marked as used, so its own copies move on to other looks.
-    const research = job?.research ? { ...job.research, used: [...new Set([...job.research.used, ...(job.trend ? [job.trend.name] : [])])].slice(-12) } : source.research;
+    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}) };
     setResults(previous => [...previous, result]);
-    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}), ...(research ? { research } : {}) }); } catch { /* gallery is best-effort */ }
+    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
 
   const isFallbackable = (cause: unknown) => cause instanceof ProviderError && (FALLBACK_CODES as readonly string[]).includes(cause.code);
-
-  /** Research for this ad: the saved one when it exists (no new search), else one web search on the product. Never blocks. */
-  async function researchFor(image: Blob, season?: RemixThemeId): Promise<SavedResearch | null> {
-    const model = provider.taskModel('vision') ?? plannerModel;
-    if (!researchOn || !model || !key) return null;
-    if (!season && selected?.research) return { ...selected.research, used: selected.research.used ?? [] };
-    try {
-      const found = await withRateLimit(() => requestResearch({ apiKey: key, modelId: model.modelId, image, language, ...(season ? { season } : {}), avoid: season ? undefined : selected?.research?.used }), onWait);
-      return { ...found, used: [] };
-    } catch { return null; }
-  }
 
   async function generate() {
     if (!selected || !plannerModel || !imageModel || !key || busy) return;
@@ -198,21 +180,15 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       const fromProduct = !!selected.cutout;
       const remixImage = selected.cutout ? await fitProductImage(selected.cutout) : fittedSource;
       const encodedSource = await encodeProduct(fittedSource);
-      let jobs: Job[] = [];
+      let jobs: { headline: string; scene: string; theme?: RemixThemeId; axis?: VariantAxis }[] = [];
       if (mode === 'variants') {
         // Each variant moves along its own axis, away from the source ad's scene and the latest ones.
         const recent = await loadRecentScenes().catch(() => [] as string[]);
         const avoidScenes = [...(selected.scene ? [settingOf(selected.scene)] : []), ...recent].filter(Boolean).slice(0, 5);
         const axisBrief = `Variants of an existing ad${selected.headline ? ` whose headline was ${JSON.stringify(selected.headline)}` : ''}${selected.scene ? ` and whose scene was ${JSON.stringify(selected.scene.slice(0, 300))}` : ''}. ${VARIANT_AXES.map((axis, index) => `Concept ${index + 1}: ${axis.instruction}.`).join(' ')} Every headline must differ from the original.`;
-        // One researched direction per variant, ones this product has not used yet first.
-        if (researchOn) setBusy('research');
-        const research = await researchFor(remixImage);
-        setBusy('plan');
-        const trends = research ? pickTrends(research.trends, count, research.used) : [];
-        const brief = trends.length ? `${axisBrief}\n${researchBrief('', trends, [], 2000 - axisBrief.length - 1)}` : axisBrief;
         try {
-          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
-          jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id, ...(trends[index] ? { trend: trends[index] } : {}), ...(research ? { research } : {}) }));
+          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
+          jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id }));
         } catch (cause) {
           if (!isFallbackable(cause)) throw cause;
           // The planner refused: keep the ad's own headline and give each variant a plain scene of its own.
@@ -220,19 +196,12 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
           setNotice(t.fallbackUsed);
         }
       } else {
-        // One seasonal search per season, side by side, so three seasons take about as long as one.
-        if (researchOn) setBusy('research');
-        const seasonal = await Promise.all(themes.map(themeId => researchFor(remixImage, themeId)));
-        setBusy('plan');
-        for (const [themeIndex, themeId] of themes.entries()) {
+        for (const themeId of themes) {
           const theme = REMIX_THEMES.find(item => item.id === themeId)!;
-          const research = seasonal[themeIndex];
-          const trend = research ? pickTrends(research.trends, 1)[0] : undefined;
-          const seasonBrief = `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`;
           try {
-            const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: trend ? `${seasonBrief}\n${researchBrief('', [trend], [], 2000 - seasonBrief.length - 1)}` : seasonBrief, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
+            const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction that places the product among these cues.`, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
             const first = plan.concepts[0];
-            if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId, ...(trend ? { trend } : {}), ...(research ? { research } : {}) });
+            if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId });
           } catch (cause) {
             if (!isFallbackable(cause)) throw cause;
             // The planner refused this season for this ad: use the plain seasonal greeting and props.
@@ -244,7 +213,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       setBusy('generate');
       let failures = 0;
       for (const job of jobs) {
-        try { await runJob(selected, remixImage, fromProduct, job.headline, job.scene, job.theme, job.axis, job); }
+        try { await runJob(selected, remixImage, fromProduct, job.headline, job.scene, job.theme, job.axis); }
         catch (cause) { failures += 1; setError(metaErrorMessage(cause, errorText)); }
       }
       setFailed(failures);
@@ -261,7 +230,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   }
 
   const canGenerate = !!selected && !!plannerModel && !!imageModel && !!key && !busy && (mode === 'variants' || themes.length > 0);
-  const busyLabel = busy === 'research' ? t.researching : busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
+  const busyLabel = busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
   const expected = mode === 'variants' ? count : themes.length;
 
   // The guided demo makes the Ramadan version of the ad it just painted.
@@ -329,7 +298,6 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
               return <button key={theme.id} type="button" className={checked ? 'theme-pick selected' : 'theme-pick'} aria-pressed={checked} disabled={busy !== '' || (!checked && themes.length >= 3)} onClick={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])}><span className="theme-pick-strip" style={{ background: THEME_GRADIENT[theme.id] }} /><strong>{label}</strong></button>;
             })}
           </div>}
-          <label className="check-label research-toggle"><input type="checkbox" data-testid="remix-research-toggle" checked={researchOn} disabled={busy !== ''} onChange={event => setResearchOn(event.target.checked)} /><span>{t.researchToggle}<small>{t.researchToggleNote}</small></span></label>
           <button type="button" className="button primary remix-go" disabled={!canGenerate} onClick={() => void generate()}>{busy ? <WaitingText label={busyLabel} /> : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
           {waitSeconds > 0 && <p className="request-status" role="status" data-testid="remix-rate-wait">{m.shelf.rateWait.replace('{s}', String(waitSeconds))}</p>}
         </section>
@@ -344,15 +312,15 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
           {Array.from({ length: Math.max(expected, results.length) }).map((_, index) => {
             if (index < results.length) {
               const result = results[index];
-              return <ResultCard key={result.id} index={index} result={result} downloadLabel={t.download} scoreLabel={t.score} notesLabel={t.reviewNotes} inspiredLabel={t.researchSources} axisLabel={result.axis ? t[`axis_${result.axis}`] : undefined} />;
+              return <ResultCard key={result.id} index={index} result={result} downloadLabel={t.download} scoreLabel={t.score} notesLabel={t.reviewNotes} axisLabel={result.axis ? t[`axis_${result.axis}`] : undefined} />;
             }
-            const active = busy === 'research' || busy === 'plan' || (busy === 'generate' && index === results.length);
+            const active = busy === 'plan' || (busy === 'generate' && index === results.length);
             const queued = busy === 'generate' && index > results.length;
             const label = mode === 'themes' ? themeLabel(themes[index]) : undefined;
             return <div key={`slot-${index}`} data-testid="remix-slot" className={`remix-box remix-slot${active ? ' is-busy' : ''}`}>
               <div className="remix-box-media">
                 {active
-                  ? <GeneratingCanvas colors={selected?.brand.colors} hint={sourceHint}><WaitingText label={busy === 'research' ? t.researching : busy === 'plan' ? t.planning : t.generating} /></GeneratingCanvas>
+                  ? <GeneratingCanvas colors={selected?.brand.colors} hint={sourceHint}><WaitingText label={busy === 'plan' ? t.planning : t.generating} /></GeneratingCanvas>
                   : <span className="remix-slot-empty">{queued ? t.slotQueued : t.emptySlot}</span>}
                 {label && <span className="remix-axis">{label}</span>}
               </div>
