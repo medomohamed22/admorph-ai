@@ -7,7 +7,7 @@ import { z } from 'zod';
  */
 const localPath = z.string().regex(/^\/(?:showcase|demo)\/[\w.-]+\.(?:png|jpe?g|webp)$/);
 export const showcaseSchema = z.object({
-  hero: z.object({ before: localPath, after: localPath, sample: z.boolean(), /** Frame shape; both images should have it. */ ratio: z.enum(['1:1', '4:5']).optional() }).strict(),
+  hero: z.object({ before: localPath, after: localPath, sample: z.boolean(), /** Frame shape; both images should have it. */ ratio: z.enum(['1:1', '4:5']).optional(), /** Name shown on the post preview. */ brand: z.string().trim().min(1).max(40).optional(), /** Caption under the post preview. */ caption: z.string().trim().max(120).optional() }).strict(),
   ads: z.array(z.object({
     src: localPath,
     category: z.enum(['food', 'electronics', 'fashion', 'perfume', 'beauty', 'other']),
