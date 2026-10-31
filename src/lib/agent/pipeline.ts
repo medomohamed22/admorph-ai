@@ -2,15 +2,16 @@ import type { MetaModelKey } from '../ai/models';
 import type { VerifyResult } from '../ai/oneshot';
 
 /**
- * The visible agent: seven steps, three models, one repair loop. Each step
+ * The visible agent: eight steps, three models, one repair loop. Each step
  * names the model that does it (or `local` for the deterministic check), so
  * the judge can read the architecture off the screen while it runs.
  */
-export type AgentStepId = 'locate' | 'cutout' | 'brand' | 'ideas' | 'check' | 'paint' | 'critic';
+export type AgentStepId = 'locate' | 'cutout' | 'brand' | 'research' | 'ideas' | 'check' | 'paint' | 'critic';
 export const AGENT_STEPS: { id: AgentStepId; model: MetaModelKey | 'local' }[] = [
   { id: 'locate', model: 'spark' },
   { id: 'cutout', model: 'sam' },
   { id: 'brand', model: 'spark' },
+  { id: 'research', model: 'spark' },
   { id: 'ideas', model: 'spark' },
   { id: 'check', model: 'local' },
   { id: 'paint', model: 'image' },

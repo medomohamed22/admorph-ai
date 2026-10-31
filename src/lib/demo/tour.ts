@@ -14,7 +14,7 @@ export type DemoStep = { id: DemoStepId; page: DemoPage; models: DemoModel[]; /*
 export const DEMO_STEPS: readonly DemoStep[] = [
   { id: 'product', page: 'oneshot', models: ['spark', 'sam'], timeoutMs: 150_000 },
   { id: 'brand', page: 'oneshot', models: ['local'], timeoutMs: 30_000 },
-  { id: 'ideas', page: 'oneshot', models: ['spark'], timeoutMs: 150_000 },
+  { id: 'ideas', page: 'oneshot', models: ['spark'], timeoutMs: 240_000 },
   { id: 'arrange', page: 'oneshot', models: ['local'], timeoutMs: 30_000 },
   { id: 'paint', page: 'oneshot', models: ['image', 'spark'], timeoutMs: 300_000 },
   { id: 'season', page: 'themes', models: ['spark', 'image'], timeoutMs: 300_000 },

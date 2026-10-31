@@ -23,7 +23,7 @@ export const researchRequestSchema = metaBase.extend({
 export type ResearchRequest = z.infer<typeof researchRequestSchema>;
 
 const text = (max: number) => z.string().trim().min(1).transform(value => value.slice(0, max));
-export const researchTrendSchema = z.object({ name: text(80), visual: text(400), copy: text(300) });
+export const researchTrendSchema = z.object({ name: text(80), visual: text(700), copy: text(400) });
 export const researchSourceSchema = z.object({ url: z.string().url().max(400), title: z.string().max(160).optional() });
 export const researchResultSchema = z.object({
   productType: text(120),
@@ -45,7 +45,7 @@ export function buildResearchPrompt(input: Pick<ResearchRequest, 'language' | 's
   return [
     'You research ad styles for an art director. First look at the product photo: say what the product is and who it is for.',
     `Then use web search to find what current (${year - 1}-${year}) advertising, social media posts and product photography${season} for this kind of product look like: on Pinterest, Behance, Instagram ad galleries, design blogs and brand campaign roundups.`,
-    'From what you read, give 5 distinct, modern style directions. Each direction differs from the others in setting, light, color mood and copy tone. Describe the visual (setting, surface, props, light, colors, camera angle) and the headline style (tone, length, pattern).',
+    'From what you read, give 5 distinct, modern style directions. Each direction differs from the others in setting, light, color mood and copy tone. Describe the visual (setting, surface, props, light, colors, camera angle) in at most 70 words and the headline style (tone, length, pattern) in at most 40 words.',
     'Learn styles only: never copy a specific brand\'s ad, slogan, logo, mascot or character, and never name a real brand in the directions.',
     input.avoid?.length ? `Avoid directions close to these, already used for this product: ${input.avoid.map(item => JSON.stringify(item)).join('; ')}.` : '',
     `Write the copy notes so they fit ${input.language === 'ar' ? 'Arabic' : 'English'} headlines.`,

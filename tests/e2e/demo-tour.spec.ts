@@ -30,6 +30,7 @@ async function mockMeta(page: Page) {
     return route.fulfill({ json: { masks: [{ objectId: 'product', left: box.left + dx, top: box.top + dy, right: box.right - dx, bottom: box.bottom - dy, width: 8, height: 8, rasterBase64: Buffer.alloc(64, 1).toString('base64') }] } });
   });
   await page.route('**/api/ai/plan', route => { calls.plan++; return route.fulfill({ json: { concepts } }); });
+  await page.route('**/api/ai/market-research', route => route.fulfill({ json: { productType: 'headphones', audience: 'listeners', searched: true, sources: [{ url: 'https://www.behance.net/gallery/1/x' }], trends: [{ name: 'Quiet desk', visual: 'wood desk, window light', copy: 'calm' }, { name: 'Color pop', visual: 'bold backdrop', copy: 'punchy' }, { name: 'Night city', visual: 'neon street', copy: 'cool' }] } }));
   await page.route('**/api/ai/oneshot', route => { calls.paint++; return route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', route => { calls.verify++; return route.fulfill({ json: verified }); });
   await page.route('**/api/ai/ad-remix', route => { calls.remix.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
