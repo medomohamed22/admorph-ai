@@ -22,6 +22,7 @@ import { sha256Hex, buildManifest, mockupSignature } from '@/lib/evidence/manife
 import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
+import { GeneratingCanvas } from './generating-canvas';
 import { saveAd, loadRecentScenes, rememberRecentScene } from '@/lib/db/repository';
 import { loadDraft, saveDraft, clearDraft, draftHasWork } from '@/lib/oneshot/draft';
 import { PLAN_DIALECTS, DIALECT_EXAMPLE, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
@@ -848,7 +849,7 @@ export default function OneshotStudio() {
       <div className="generate-result">
       <div className={resultBlob ? 'result-frame filled' : 'result-frame'} data-testid="oneshot-result-frame" style={{ aspectRatio: `1080 / ${frameHeight}`, maxWidth: frameHeight > 1350 ? 360 : undefined }}>
         {generating
-          ? <div className="generating-overlay" data-testid="oneshot-generating" role="status"><WaitingText label={busy === 'verify' ? t.verifying : t.generatingNote} /></div>
+          ? <GeneratingCanvas testId="oneshot-generating" colors={brand.colors} hint={cutoutUrl ?? currentUrl}><WaitingText label={busy === 'verify' ? t.verifying : t.generatingNote} /></GeneratingCanvas>
           : resultBlob && resultUrl
             ? <img data-testid="oneshot-result" className="oneshot-reveal" key={resultUrl} src={resultUrl} alt={t.result} />
             : <p>{t.resultEmpty}</p>}

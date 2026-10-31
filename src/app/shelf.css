@@ -119,7 +119,6 @@
 .shelf-score.warn { background: var(--warn-soft, var(--bad-soft)); color: var(--warn); }
 .shelf-ad-frame { position: relative; aspect-ratio: 4 / 5; border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
 .shelf-ad-frame > img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.shelf-ad-frame.is-busy::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.08) 50%, transparent 70%); background-size: 250% 100%; animation: gallery-shimmer 1.6s linear infinite; }
 .shelf-ad-placeholder { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: var(--space-3); padding: var(--space-4); text-align: center; filter: blur(1.5px); opacity: .75; }
 .shelf-ad-placeholder img { max-width: 55%; max-height: 55%; object-fit: contain; }
 .shelf-ad-placeholder p { margin: 0; font-weight: 800; font-size: 20px; }

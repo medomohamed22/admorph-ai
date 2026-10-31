@@ -1,0 +1,43 @@
+/* The shared "image is forming" look (src/components/generating-canvas.tsx). */
+@property --gen-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+.gen-canvas { position: absolute; inset: 0; z-index: 5; overflow: hidden; display: grid; place-items: center; isolation: isolate; border-radius: inherit; background: #0d0c14; color: #fff; }
+
+/* Brand-colored aurora: three soft blobs drifting on slow, offset loops. */
+.gen-aurora { position: absolute; inset: -20%; filter: blur(42px) saturate(1.25); opacity: calc(.85 - var(--gen-focus) * .35); }
+.gen-aurora i { position: absolute; width: 62%; aspect-ratio: 1; border-radius: 50%; mix-blend-mode: screen; opacity: .75; }
+.gen-aurora i:nth-child(1) { background: radial-gradient(circle, var(--gen-a), transparent 66%); left: -6%; top: 2%; animation: gen-drift-a 9s ease-in-out infinite alternate; }
+.gen-aurora i:nth-child(2) { background: radial-gradient(circle, var(--gen-b), transparent 66%); right: -8%; top: 30%; animation: gen-drift-b 11s ease-in-out infinite alternate; }
+.gen-aurora i:nth-child(3) { background: radial-gradient(circle, var(--gen-c), transparent 66%); left: 22%; bottom: -14%; animation: gen-drift-c 13s ease-in-out infinite alternate; }
+@keyframes gen-drift-a { to { transform: translate(28%, 24%) scale(1.15); } }
+@keyframes gen-drift-b { to { transform: translate(-30%, -18%) scale(.9); } }
+@keyframes gen-drift-c { to { transform: translate(16%, -34%) scale(1.2); } }
+
+/* The product, out of focus at first, sharpening as the seconds pass. */
+.gen-hint { position: absolute; inset: 14%; width: 72%; height: 72%; object-fit: contain; filter: blur(calc(26px - var(--gen-focus) * 16px)) saturate(1.1); opacity: calc(.25 + var(--gen-focus) * .4); transform: scale(calc(1.08 - var(--gen-focus) * .08)); transition: filter 1s linear, opacity 1s linear, transform 1s linear; animation: gen-breathe 3.2s ease-in-out infinite; }
+@keyframes gen-breathe { 50% { opacity: calc(.35 + var(--gen-focus) * .4); } }
+
+/* Film grain that thins out over time, like noise being removed. */
+.gen-grain { position: absolute; inset: -50%; opacity: calc(.42 - var(--gen-focus) * .3); mix-blend-mode: overlay; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: gen-grain .9s steps(5) infinite; }
+@keyframes gen-grain { 20% { transform: translate(-6%, 4%); } 40% { transform: translate(5%, -7%); } 60% { transform: translate(-3%, 8%); } 80% { transform: translate(7%, 2%); } }
+
+/* A soft diagonal light passing over the canvas. */
+.gen-sweep { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .13) 50%, transparent 65%); background-size: 300% 100%; animation: gen-sweep 3.4s ease-in-out infinite; }
+@keyframes gen-sweep { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+/* A glowing border that turns around the frame. */
+.gen-ring { position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none;
+  background: conic-gradient(from var(--gen-angle), transparent 0 55%, var(--gen-a) 70%, var(--gen-b) 82%, var(--gen-c) 92%, transparent);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: gen-spin 2.8s linear infinite; }
+@keyframes gen-spin { to { --gen-angle: 360deg; } }
+
+.gen-label { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 8px; max-width: calc(100% - 32px); padding: 10px 16px; border-radius: 999px; font-weight: 700; font-size: 14px; line-height: 1.35; text-align: center;
+  background: rgba(13, 12, 20, .52); border: 1px solid rgba(255, 255, 255, .16); box-shadow: 0 10px 30px rgba(0, 0, 0, .35); -webkit-backdrop-filter: blur(12px) saturate(1.4); backdrop-filter: blur(12px) saturate(1.4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gen-aurora i, .gen-hint, .gen-grain, .gen-sweep, .gen-ring { animation: none !important; transition: none !important; }
+  .gen-ring { background: linear-gradient(135deg, var(--gen-a), var(--gen-b), var(--gen-c)); }
+}

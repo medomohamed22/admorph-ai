@@ -1,6 +1,6 @@
 'use client';
 import { imageFileName } from '@/lib/image-name';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useMessages, useWorkspace } from './workspace';
@@ -16,37 +16,62 @@ import { loadSavedAds, saveAd, deleteSavedAd, loadRecentScenes } from '@/lib/db/
 import type { SavedAd, BrandInput } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
+import { GeneratingCanvas } from './generating-canvas';
 import { withRateLimit } from '@/lib/shelf/queue';
 
 type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis };
 
-function SavedAdCard({ ad, selected, onSelect, onDelete, armed, deleteLabel, confirmLabel, selectedLabel, disabled }: { ad: SavedAd; selected: boolean; onSelect: () => void; onDelete: () => void; armed: boolean; deleteLabel: string; confirmLabel: string; selectedLabel: string; disabled: boolean }) {
+/** One thumbnail in the picker strip. The first button selects it (tests and keyboard users rely on that). */
+function SavedAdCard({ ad, selected, onSelect, disabled }: { ad: SavedAd; selected: boolean; onSelect: () => void; disabled: boolean }) {
   const url = useObjectUrl(ad.blob);
-  return <article className="remix-source-card" data-testid="remix-source-card">
-    <button type="button" aria-pressed={selected} disabled={disabled} onClick={onSelect}>
-      {url && <img src={url} alt="" style={{ maxWidth: '100%' }} />}
-      <span>{ad.brand.name} — {ad.headline || ad.source} — {ad.createdAt.slice(0, 10)}</span>
-      {selected && <strong>{selectedLabel}</strong>}
+  return <article className="remix-source-card" data-testid="remix-source-card" data-selected={selected || undefined}>
+    <button type="button" aria-pressed={selected} disabled={disabled} onClick={onSelect} aria-label={`${ad.headline || ad.brand.name} · ${ad.createdAt.slice(0, 10)}`}>
+      {url && <img src={url} alt="" loading="lazy" />}
     </button>
-    <button type="button" className="button secondary danger" disabled={disabled} onClick={onDelete}>{armed ? confirmLabel : deleteLabel}</button>
   </article>;
 }
 
-function ResultCard({ result, downloadLabel, scoreLabel, axisLabel }: { result: RemixResult; downloadLabel: string; scoreLabel: string; axisLabel?: string }) {
+/** The big preview of the picked ad, with its details and the delete action. */
+function SelectedPreview({ ad, labels, onDelete, armed, disabled, onStep, canStep }: { ad: SavedAd; labels: { delete: string; confirmDelete: string; prev: string; next: string; selected: string }; onDelete: () => void; armed: boolean; disabled: boolean; onStep: (delta: number) => void; canStep: boolean }) {
+  const url = useObjectUrl(ad.blob);
+  return <div className="remix-hero" data-testid="remix-selected">
+    <div className="remix-hero-media">
+      {url && <img key={url} className="media-reveal" src={url} alt={ad.headline || ad.brand.name} />}
+      {canStep && <>
+        <button type="button" className="remix-hero-step is-prev" aria-label={labels.prev} disabled={disabled} onClick={() => onStep(-1)}>‹</button>
+        <button type="button" className="remix-hero-step is-next" aria-label={labels.next} disabled={disabled} onClick={() => onStep(1)}>›</button>
+      </>}
+    </div>
+    <div className="remix-hero-info">
+      <span className="remix-hero-tag">{labels.selected}</span>
+      <strong dir="auto">{ad.headline || ad.brand.name}</strong>
+      <span className="remix-hero-meta"><span className="remix-swatches" aria-hidden="true">{ad.brand.colors.map((color, index) => <i key={`${color}-${index}`} style={{ background: color }} />)}</span>{ad.brand.name} · {ad.createdAt.slice(0, 10)}</span>
+      <button type="button" className="button secondary danger remix-hero-delete" disabled={disabled} onClick={onDelete}>{armed ? labels.confirmDelete : labels.delete}</button>
+    </div>
+  </div>;
+}
+
+function ResultCard({ result, downloadLabel, scoreLabel, notesLabel, axisLabel, index }: { result: RemixResult; downloadLabel: string; scoreLabel: string; notesLabel: string; axisLabel?: string; index: number }) {
   const url = useObjectUrl(result.blob);
-  return <article data-testid="remix-result">
-    {axisLabel && <span className="remix-axis" data-testid="remix-axis">{axisLabel}</span>}
-    {url && <img className="media-reveal" src={url} alt="" style={{ maxWidth: '100%' }} />}
-    <p>{result.headline}</p>
-    {result.score !== null && <p>{scoreLabel}: {result.score}</p>}
-    {result.certificate && <ul>
-      <li>{result.certificate.productNote}</li>
-      <li>{result.certificate.logoNote}</li>
-      <li>{result.certificate.layoutNote}</li>
-    </ul>}
-    {url && <a className="button secondary" href={url} download={imageFileName('admorph-remix', result.blob)}>{downloadLabel}</a>}
+  const notes = result.certificate ? [result.certificate.productNote, result.certificate.logoNote, result.certificate.layoutNote].filter(Boolean) : [];
+  return <article className="remix-box is-done" data-testid="remix-result" style={{ '--i': index } as CSSProperties}>
+    <div className="remix-box-media">
+      {url && <img className="media-reveal" src={url} alt={result.headline} />}
+      {axisLabel && <span className="remix-axis" data-testid="remix-axis">{axisLabel}</span>}
+    </div>
+    <div className="remix-box-body">
+      <p className="remix-box-headline" dir="auto">{result.headline}</p>
+      {result.score !== null && <p className="remix-box-score">{scoreLabel}: {result.score}</p>}
+      {notes.length > 0 && <details className="remix-box-notes"><summary>{notesLabel}</summary><ul>{notes.map((note, i) => <li key={i}>{note}</li>)}</ul></details>}
+      {url && <a className="button secondary" href={url} download={imageFileName('admorph-remix', result.blob)}>{downloadLabel}</a>}
+    </div>
   </article>;
 }
+
+const THEME_GRADIENT: Record<RemixThemeId, string> = { ramadan: 'linear-gradient(135deg,#0e5a3c,#d4af37)', eid: 'linear-gradient(135deg,#0f766e,#f5d76e)', 'black-friday': 'linear-gradient(135deg,#16100c,#df543a)', summer: 'linear-gradient(135deg,#7ed3e0,#f5a623)' };
+
+type SourceFilter = 'all' | 'oneshot' | 'shelf' | 'copies';
+const inFilter = (ad: SavedAd, filter: SourceFilter) => filter === 'all' || (filter === 'copies' ? ad.source === 'variants' || ad.source === 'themes' : ad.source === filter);
 
 /** Shared studio for the two remix pages: pick a saved ad, make new
  *  versions of it. Variants change the angle; themes restyle it for a
@@ -64,6 +89,8 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const [failed, setFailed] = useState(0);
   const [notice, setNotice] = useState('');
   const [armingDelete, setArmingDelete] = useState<string | null>(null);
+  const [filter, setFilter] = useState<SourceFilter>('all');
+  const strip = useRef<HTMLDivElement | null>(null);
   // Variants make several requests in a row; a per-minute limit pauses and retries instead of failing.
   const [waitSeconds, setWaitSeconds] = useState(0);
   const onWait = (seconds: number) => setWaitSeconds(seconds);
@@ -138,6 +165,8 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   async function generate() {
     if (!selected || !plannerModel || !imageModel || !key || busy) return;
     setBusy('plan'); setError(''); setResults([]); setFailed(0); setNotice('');
+    // On a phone the boxes sit below the options: bring them into view so the painting is visible.
+    if (window.matchMedia('(max-width: 979px)').matches) requestAnimationFrame(() => document.getElementById('remix-results-title')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     try {
       const brand: BrandInput = selected.brand;
       // A finished ad is a photographic PNG that can exceed the 2 MB
@@ -203,36 +232,86 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const busyLabel = busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
   const expected = mode === 'variants' ? count : themes.length;
 
+  const themeLabel = (id: RemixThemeId | undefined) => id === 'ramadan' ? t.themeRamadan : id === 'eid' ? t.themeEid : id === 'black-friday' ? t.themeBlackFriday : id === 'summer' ? t.themeSummer : undefined;
+  const visible = ads.filter(ad => inFilter(ad, filter));
+  const filters = (['all', 'oneshot', 'shelf', 'copies'] as const).filter(item => item === 'all' || ads.some(ad => inFilter(ad, item)));
+  const filterLabel = { all: t.filterAll, oneshot: t.filterOneshot, shelf: t.filterShelf, copies: t.filterCopies };
+  const sourceHint = useObjectUrl(selected?.cutout ?? selected?.blob ?? null);
+  function pick(ad: SavedAd) { setSelected(ad); setArmingDelete(null); }
+  function step(delta: number) {
+    if (!visible.length) return;
+    const at = selected ? visible.findIndex(ad => ad.id === selected.id) : -1;
+    pick(visible[(at + delta + visible.length) % visible.length]);
+  }
+  // Keep the picked thumbnail in view (also when the gallery preselects one).
+  useEffect(() => {
+    const node = strip.current?.querySelector('[data-selected]');
+    if (node && 'scrollIntoView' in node) (node as HTMLElement).scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+  }, [selected, filter]);
+
   return <>
     <div className="page-head reveal-up"><div><h1>{mode === 'variants' ? t.titleVariants : t.titleThemes}</h1>
     <p>{mode === 'variants' ? t.descriptionVariants : t.descriptionThemes}</p></div></div>
-    <section className="feature-card">
-    {!key && <p><Link href="/settings">{t.needKey}</Link></p>}
-    {error && <p className="request-error" role="alert">{error}</p>}
-    {notice && <p className="request-status" role="status">{notice}</p>}
-    {waitSeconds > 0 && <p className="request-status" role="status" data-testid="remix-rate-wait">{m.shelf.rateWait.replace('{s}', String(waitSeconds))}</p>}
-    <h2>{t.pickSource}</h2>
-    {ads.length === 0 && <p>{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>}
-    <div className="remix-source-grid">{ads.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => setSelected(ad)} onDelete={() => void removeAd(ad)} armed={armingDelete === ad.id} deleteLabel={t.delete} confirmLabel={t.confirmDelete} selectedLabel={t.selected} disabled={busy !== ''} />)}</div>
-    {mode === 'variants' && <fieldset className="segmented-fieldset"><legend>{t.countLabel}</legend><div className="segmented" role="group" aria-label={t.countLabel}>{[2, 3].map(value => <button key={value} type="button" aria-pressed={count === value} disabled={busy !== ''} onClick={() => setCount(value)}>{value}</button>)}</div></fieldset>}
-    {mode === 'themes' && <fieldset className="theme-pick-fieldset">
-      <legend>{t.themesLabel}</legend>
-      <div className="theme-pick-grid">
-      {REMIX_THEMES.map(theme => {
-        const label = theme.id === 'ramadan' ? t.themeRamadan : theme.id === 'eid' ? t.themeEid : theme.id === 'black-friday' ? t.themeBlackFriday : t.themeSummer;
-        const checked = themes.includes(theme.id);
-        return <button key={theme.id} type="button" className={checked ? 'theme-pick selected' : 'theme-pick'} aria-pressed={checked} disabled={busy !== '' || (!checked && themes.length >= 3)} onClick={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])}><span className="theme-pick-strip" style={{ background: theme.id === 'ramadan' ? 'linear-gradient(135deg,#0e5a3c,#d4af37)' : theme.id === 'eid' ? 'linear-gradient(135deg,#0f766e,#f5d76e)' : theme.id === 'black-friday' ? 'linear-gradient(135deg,#16100c,#df543a)' : 'linear-gradient(135deg,#7ed3e0,#f5a623)' }} /><strong>{label}</strong></button>;
-      })}
+    {!key && <p className="campaign-notice"><Link href="/settings">{t.needKey}</Link></p>}
+    <div className="remix-layout" data-mode={mode}>
+      <div className="remix-side">
+        <section className="remix-panel" aria-labelledby="remix-pick-title">
+          <header className="remix-panel-head"><span className="remix-step">1</span><h2 id="remix-pick-title">{t.stepPick}</h2>{ads.length > 0 && <small>{t.savedCount.replace('{n}', String(ads.length))}</small>}</header>
+          {ads.length === 0
+            ? <p className="remix-empty">{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>
+            : <>
+              {selected
+                ? <SelectedPreview ad={selected} labels={{ delete: t.delete, confirmDelete: t.confirmDelete, prev: t.prev, next: t.next, selected: t.selected }} onDelete={() => void removeAd(selected)} armed={armingDelete === selected.id} disabled={busy !== ''} onStep={step} canStep={visible.length > 1} />
+                : <div className="remix-hero is-empty"><strong>{t.noSelection}</strong><span>{t.noSelectionHint}</span></div>}
+              {filters.length > 2 && <div className="remix-filters" role="group" aria-label={t.pickSource}>{filters.map(item => <button key={item} type="button" aria-pressed={filter === item} onClick={() => setFilter(item)}>{filterLabel[item]}</button>)}</div>}
+              <div className="remix-strip" ref={strip} role="group" aria-label={t.pickSource}>
+                {visible.map(ad => <SavedAdCard key={ad.id} ad={ad} selected={selected?.id === ad.id} onSelect={() => pick(ad)} disabled={busy !== ''} />)}
+                {visible.length === 0 && <p className="remix-empty">{t.noneInFilter}</p>}
+              </div>
+              <p className="remix-hint">{t.pickHint}</p>
+            </>}
+        </section>
+
+        <section className="remix-panel" aria-labelledby="remix-options-title">
+          <header className="remix-panel-head"><span className="remix-step">2</span><h2 id="remix-options-title">{mode === 'variants' ? t.countLabel : t.themesLabel}</h2></header>
+          {mode === 'variants' && <div className="segmented remix-count" role="group" aria-label={t.countLabel}>{[2, 3].map(value => <button key={value} type="button" aria-pressed={count === value} disabled={busy !== ''} onClick={() => setCount(value)}>{value}</button>)}</div>}
+          {mode === 'themes' && <div className="theme-pick-grid">
+            {REMIX_THEMES.map(theme => {
+              const label = theme.id === 'ramadan' ? t.themeRamadan : theme.id === 'eid' ? t.themeEid : theme.id === 'black-friday' ? t.themeBlackFriday : t.themeSummer;
+              const checked = themes.includes(theme.id);
+              return <button key={theme.id} type="button" className={checked ? 'theme-pick selected' : 'theme-pick'} aria-pressed={checked} disabled={busy !== '' || (!checked && themes.length >= 3)} onClick={() => setThemes(previous => checked ? previous.filter(item => item !== theme.id) : [...previous, theme.id])}><span className="theme-pick-strip" style={{ background: THEME_GRADIENT[theme.id] }} /><strong>{label}</strong></button>;
+            })}
+          </div>}
+          <button type="button" className="button primary remix-go" disabled={!canGenerate} onClick={() => void generate()}>{busy ? <WaitingText label={busyLabel} /> : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
+          {waitSeconds > 0 && <p className="request-status" role="status" data-testid="remix-rate-wait">{m.shelf.rateWait.replace('{s}', String(waitSeconds))}</p>}
+        </section>
       </div>
-    </fieldset>}
-    <button type="button" className="button primary" disabled={!canGenerate} onClick={() => void generate()}>{busy ? <WaitingText label={busyLabel} /> : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
-    {failed > 0 && <p role="status">{t.failedSome}</p>}
-    {selected && expected > 0 && <div>
-      <h2>{mode === 'variants' ? t.resultsVariants : t.resultsThemes}</h2>
-      {Array.from({ length: expected }).map((_, index) => index < results.length
-        ? <ResultCard key={results[index].id} result={results[index]} downloadLabel={t.download} scoreLabel={t.score} axisLabel={results[index].axis ? t[`axis_${results[index].axis}`] : undefined} />
-        : <div key={`slot-${index}`} data-testid="remix-slot" className="remix-slot"><p>{t.emptySlot}</p></div>)}
-    </div>}
-  </section>
+
+      <section className="remix-panel remix-results" aria-labelledby="remix-results-title">
+        <header className="remix-panel-head"><span className="remix-step">3</span><h2 id="remix-results-title">{mode === 'variants' ? t.resultsVariants : t.resultsThemes}</h2></header>
+        {error && <p className="request-error" role="alert">{error}</p>}
+        {notice && <p className="request-status" role="status">{notice}</p>}
+        {failed > 0 && <p role="status">{t.failedSome}</p>}
+        <div className="remix-boxes">
+          {Array.from({ length: Math.max(expected, results.length) }).map((_, index) => {
+            if (index < results.length) {
+              const result = results[index];
+              return <ResultCard key={result.id} index={index} result={result} downloadLabel={t.download} scoreLabel={t.score} notesLabel={t.reviewNotes} axisLabel={result.axis ? t[`axis_${result.axis}`] : undefined} />;
+            }
+            const active = busy === 'plan' || (busy === 'generate' && index === results.length);
+            const queued = busy === 'generate' && index > results.length;
+            const label = mode === 'themes' ? themeLabel(themes[index]) : undefined;
+            return <div key={`slot-${index}`} data-testid="remix-slot" className={`remix-box remix-slot${active ? ' is-busy' : ''}`}>
+              <div className="remix-box-media">
+                {active
+                  ? <GeneratingCanvas colors={selected?.brand.colors} hint={sourceHint}><WaitingText label={busy === 'plan' ? t.planning : t.generating} /></GeneratingCanvas>
+                  : <span className="remix-slot-empty">{queued ? t.slotQueued : t.emptySlot}</span>}
+                {label && <span className="remix-axis">{label}</span>}
+              </div>
+            </div>;
+          })}
+        </div>
+      </section>
+    </div>
   </>;
 }

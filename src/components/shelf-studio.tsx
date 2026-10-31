@@ -7,6 +7,7 @@ import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
+import { GeneratingCanvas } from './generating-canvas';
 import { Button, ButtonLink, ModelBadge, ScoreRing } from './ui';
 import { IconCheck, IconSparkles } from './ui/icons';
 import { metaFetch } from '@/lib/ai/meta-fetch';
@@ -70,7 +71,7 @@ function TrayCard({ item, index, onChange, disabled, labels }: { item: Item; ind
   </article>;
 }
 
-function AdCard({ item, ad, index, labels, onRetry }: { item: Item; ad: Ad; index: number; labels: Record<'painting' | 'reviewing' | 'repairing' | 'waiting' | 'failed' | 'retry' | 'download' | 'share' | 'score' | 'copy' | 'paint' | 'review', string>; onRetry: () => void }) {
+function AdCard({ item, ad, index, labels, onRetry, colors }: { item: Item; ad: Ad; index: number; colors: readonly string[]; labels: Record<'painting' | 'reviewing' | 'repairing' | 'waiting' | 'failed' | 'retry' | 'download' | 'share' | 'score' | 'copy' | 'paint' | 'review', string>; onRetry: () => void }) {
   const url = useObjectUrl(ad.blob ?? null);
   const thumb = useObjectUrl(item.cutout ?? null);
   const busy = ad.state === 'painting' || ad.state === 'reviewing' || ad.state === 'repairing';
@@ -91,7 +92,7 @@ function AdCard({ item, ad, index, labels, onRetry }: { item: Item; ad: Ad; inde
     <div className={busy || ad.state === 'waiting' ? 'shelf-ad-frame is-busy' : 'shelf-ad-frame'}>
       {url ? <img className="oneshot-reveal" key={url} src={url} alt={ad.headline} data-testid="shelf-ad-image" />
         : <div className="shelf-ad-placeholder">{thumb && <img src={thumb} alt="" />}<p dir="auto">{ad.headline}</p></div>}
-      {busy && <div className="shelf-ad-status" role="status"><WaitingText label={labels[ad.state as 'painting' | 'reviewing' | 'repairing']} /></div>}
+      {busy && <GeneratingCanvas colors={colors} hint={url ?? thumb}><WaitingText label={labels[ad.state as 'painting' | 'reviewing' | 'repairing']} /></GeneratingCanvas>}
     </div>
     <ol className="shelf-ad-steps" aria-label={item.name}>
       {steps.map(step => <li key={step.key} className={step.done ? 'done' : step.active ? 'active' : ''}><span className="model-dot" data-model={step.model} aria-hidden="true" />{step.label}{step.done && <IconCheck size={12} />}</li>)}
@@ -431,7 +432,7 @@ export default function ShelfStudio() {
         <ScoreRing value={chosen.length ? Math.round((readyAds / chosen.length) * 100) : 0} size={88} stroke={8} label={t.progressLabel} />
       </div>
       <div className="shelf-ads">
-        {chosen.map((item, index) => ads[item.id] && <AdCard key={item.id} item={item} ad={ads[item.id]} index={index} labels={adLabels} onRetry={() => void runAd(item, ads[item.id])} />)}
+        {chosen.map((item, index) => ads[item.id] && <AdCard key={item.id} item={item} ad={ads[item.id]} index={index} labels={adLabels} colors={brand.colors} onRetry={() => void runAd(item, ads[item.id])} />)}
       </div>
       {stage === 'done' && <div className="shelf-done">
         <Button variant="primary" size="lg" loading={zipping} disabled={readyAds === 0} onClick={() => void downloadCampaign()}>{t.downloadAll}</Button>

@@ -129,8 +129,11 @@ test('waiting indicator shows a live seconds counter while generating', async ({
   await expect(page.locator('[data-testid="remix-source-card"]')).toHaveCount(2);
   await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
   await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
-  const indicator = page.locator('[data-testid="waiting-indicator"]');
+  const indicator = page.locator('.remix-go [data-testid="waiting-indicator"]');
   await expect(indicator).toBeVisible({ timeout: 60000 });
+  // The box being painted shows the shared "image is forming" canvas, the next one waits its turn.
+  await expect(page.locator('[data-testid="remix-slot"].is-busy .gen-canvas')).toHaveCount(1, { timeout: 60000 });
+  await expect(page.locator('[data-testid="remix-slot"]').last()).toContainText('Waiting its turn');
   const first = await indicator.textContent();
   await page.waitForTimeout(1300);
   const second = await indicator.textContent();
