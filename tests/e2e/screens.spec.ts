@@ -13,7 +13,13 @@ for (const locale of ['en', 'ar'] as const) {
     test.setTimeout(240_000);
     const context = await browser.newContext({ locale: locale === 'ar' ? 'ar-EG' : 'en-US', baseURL: 'http://localhost:3000' });
     const page = await context.newPage();
-    if (locale === 'ar') { await page.goto('/'); await page.getByRole('button', { name: 'Switch to Arabic' }).click(); await expect(page.locator('html')).toHaveAttribute('dir', 'rtl'); }
+    if (locale === 'ar') {
+      // Every first visit is English; switch once and let the choice save before moving on.
+      await page.goto('/'); await page.getByRole('button', { name: 'Switch to Arabic' }).click();
+      await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+      await page.waitForTimeout(800); await page.reload();
+      await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+    }
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: width < 768 ? 844 : 1000 });
       for (const path of PAGES) {
