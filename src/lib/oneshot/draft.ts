@@ -21,6 +21,8 @@ export type OneshotDraft = {
   selectedBrandId: string;
   headlineFont: string | null;
   brief: string;
+  /** The place the user typed for the ad (optional). */
+  place?: string;
   scene: string;
   concepts: { angle: string; title: string; headline: string; caption: string; visualDirection: string; artBrief?: ArtBrief }[];
   selectedConcept: number | null;

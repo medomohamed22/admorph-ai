@@ -179,15 +179,5 @@ html:has(.wizard-bar) { scroll-padding-top: 88px; scroll-padding-bottom: 150px; 
 .format-1080x1080 { height: 14px; }
 .format-1080x1920 { width: 11px; height: 20px; }
 .result-next[aria-disabled=true] { opacity: .5; pointer-events: none; }
-/* Web research: the switch before ideas and the "inspired by" box after them. */
-.research-toggle { display: flex !important; align-items: flex-start; gap: 10px; margin: var(--space-3) 0; font-weight: 600; }
-.research-toggle input { margin-top: 4px; flex: none; }
-.research-toggle span { display: grid; gap: 2px; }
-.research-toggle small { font-weight: 400; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-.research-box { display: grid; gap: 8px; margin: var(--space-4) 0; padding: 14px 16px; border-radius: var(--radius); border: 1px solid color-mix(in srgb, var(--model-spark, #7c5cff) 35%, var(--line)); background: color-mix(in srgb, var(--model-spark, #7c5cff) 7%, var(--surface)); animation: home-rise-in var(--dur-base, .3s) var(--ease-out, ease) both; }
-.research-box > strong { font-size: 14px; }
-.research-box p { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
-.research-box small { color: var(--muted); font-size: 12px; margin-inline-end: 4px; }
-.research-chip { padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--line); }
-.research-sources a { padding: 2px 10px; border-radius: 999px; font-size: 12px; border: 1px solid var(--line); color: var(--accent-text); text-decoration: none; overflow-wrap: anywhere; }
-.research-sources a:hover { border-color: var(--accent-1, var(--accent-solid)); }
+/* The optional place for the ad, above the free-text direction. */
+.place-field small { display: block; margin-top: 6px; font-weight: 400; font-size: 12.5px; color: var(--muted); line-height: 1.5; }

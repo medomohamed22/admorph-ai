@@ -5,8 +5,8 @@ import { buildOneshotPrompt, oneshotRequestSchema, oneshotScore, type VerifyResu
 const passing: VerifyResult = { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [{ id: 'headline', expected: 'Fresh', found: 'Fresh', match: true }] };
 
 describe('agent pipeline', () => {
-  it('has eight steps over three models plus the local check', () => {
-    expect(AGENT_STEPS.map(step => step.id)).toEqual(['locate', 'cutout', 'brand', 'research', 'ideas', 'check', 'paint', 'critic']);
+  it('has seven steps over three models plus the local check', () => {
+    expect(AGENT_STEPS.map(step => step.id)).toEqual(['locate', 'cutout', 'brand', 'ideas', 'check', 'paint', 'critic']);
     expect(new Set(AGENT_STEPS.map(step => step.model))).toEqual(new Set(['spark', 'sam', 'image', 'local']));
     expect(Object.values(emptyRecords()).every(record => record.status === 'waiting')).toBe(true);
   });

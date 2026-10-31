@@ -79,22 +79,6 @@ function responseShape(value:unknown):string[]{
  return [...Object.keys(value as Record<string,unknown>).map(key=>`top:${key}`),...first.map(key=>`item:${key}`),`items:${Array.isArray(data)?data.length:'not-array'}`];
 }
 /**
- * Market research: the product photo plus Meta's built-in web_search tool on
- * the Responses endpoint. Returns the raw envelope; research.ts reads it. If
- * Meta refuses the tool for this model, the caller can ask again without it.
- */
-export async function metaResearch(model:string,key:string,prompt:string,image:z.infer<typeof inputImage>,withSearch:boolean,signal:AbortSignal,options:TransportOptions={}):Promise<unknown>{
- await validateRaster(image);
- return metaCall('responses',{model,input:[{role:'user',content:[{type:'input_text',text:prompt},{type:'input_image',image_url:`data:${image.mimeType};base64,${image.data}`}]}],...(withSearch?{tools:[{type:'web_search'}]}:{})},key,signal,options);
-}
-/** Item and part types only (never content), so an unexpected research envelope can be diagnosed. */
-export function researchShape(value:unknown):string[]{
- const output=(value as {output?:unknown})?.output;
- const top=value&&typeof value==='object'&&!Array.isArray(value)?Object.keys(value).map(key=>`top:${key}`):['<non-object>'];
- const items=Array.isArray(output)?output.slice(0,12).map(item=>{const record=item as {type?:unknown;content?:unknown};const parts=Array.isArray(record.content)?record.content.map(part=>String((part as {type?:unknown})?.type??'?')).join('+'):'';return `item:${String(record.type??'?')}${parts?`(${parts})`:''}`;}):[];
- return [...top,...items].slice(0,20);
-}
-/**
  * SAM 3.1 segmentation through Meta's OpenAI-compatible Responses endpoint.
  * The request shape follows that convention (model + input parts); the
  * response's output_text lane is parsed by @meta-sam/parser on the server.
