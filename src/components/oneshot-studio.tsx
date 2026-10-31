@@ -35,6 +35,8 @@ import { removeLogoBackground } from '@/lib/oneshot/logo-background';
 import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import { useDemoDriver } from './demo-tour';
+import { cropToProduct } from '@/lib/shelf/crop';
+import { productReference } from '@/lib/oneshot/product-reference';
 import { DEMO_PRODUCT_URL, demoBrand } from '@/lib/demo/tour';
 import type { BrandInput } from '@/lib/db/schema';
 
@@ -173,17 +175,22 @@ export default function OneshotStudio() {
     // a silent local fallback — the fallback used to hide every SAM failure.
     if (!segmentModel || !key) throw new ProviderError(!key ? 'missing_key' : 'sam_unavailable', 400);
     const result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, signal: AbortSignal.timeout(65000), ...(geometric?.box ? { box: geometric.box } : geometric?.point ? { point: geometric.point } : { prompt: SAM_PRODUCT_PROMPT }) });
-    setCutoutBlob(result.cutoutBlob); setCutoutMethod('meta-sam');
+    // SAM returns the whole photo frame with the background cleared. Crop it
+    // to the product at full resolution: uncropped, the product shrank to a
+    // fraction of its box on the mockup and its label text became unreadable.
+    const cut = await cropToProduct(result.cutoutBlob, 0.03).catch(() => result.cutoutBlob);
+    const aspect = await createImageBitmap(cut).then(bitmap => { const value = bitmap.width / bitmap.height; bitmap.close(); return value; }).catch(() => undefined);
+    setCutoutBlob(cut); setCutoutMethod('meta-sam');
     setElements(previous => {
       const product = previous.find(item => item.kind === 'product');
-      if (product) return previous.map(item => item.kind === 'product' ? { ...item, blob: result.cutoutBlob } : item);
+      if (product) return previous.map(item => item.kind === 'product' ? { ...item, blob: cut } : item);
       // The first cutout creates the layout; it is not an undoable edit.
       skipHistory.current = true;
-      const layout = initialOneshotLayout(!!logoBlob);
-      return layout.map(item => item.kind === 'product' ? { ...item, blob: result.cutoutBlob } : item.kind === 'logo' && logoBlob ? { ...item, blob: logoBlob } : item);
+      const layout = initialOneshotLayout(!!logoBlob, aspect, frameHeight);
+      return layout.map(item => item.kind === 'product' ? { ...item, blob: cut } : item.kind === 'logo' && logoBlob ? { ...item, blob: logoBlob } : item);
     });
     setLoaded(new Set());
-    return result.cutoutBlob;
+    return cut;
   }
 
   async function uploadProduct(file: File): Promise<Blob | null> {
@@ -454,10 +461,10 @@ export default function OneshotStudio() {
   }
 
   /** One painting pass plus its review. `fixNotes` turns it into the repair retry. */
-  async function paintAndReview(mockup: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }, layout: ReturnType<typeof toServerLayout>, sanitizedBrand: BrandInput, fixNotes?: string[]): Promise<Attempt> {
+  async function paintAndReview(mockup: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }, layout: ReturnType<typeof toServerLayout>, sanitizedBrand: BrandInput, fixNotes?: string[], product?: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }): Promise<Attempt> {
     if (!imageModel) throw new ProviderError('invalid_model', 400);
     const language = workspace.locale === 'ar' ? 'ar' : 'en';
-    const body = { providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitizedBrand, scene: scene.trim(), language, layout, format, ...(fixNotes ? { fixNotes } : {}) };
+    const body = { providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitizedBrand, scene: scene.trim(), language, layout, format, ...(fixNotes ? { fixNotes } : {}), ...(product ? { product } : {}) };
     if (!fixNotes) startStep('paint', body);
     setBusy('generate');
     const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(65000) });
@@ -513,7 +520,10 @@ export default function OneshotStudio() {
       setGeneratedLayout(elements);
       const sanitizedBrand: BrandInput = { ...brand, colors: brand.colors.map(color => /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#16100C') as [string, string, string] };
       const encodedMockup = await encodeProduct(fittedMockup);
-      const first = await paintAndReview(encodedMockup, layout, sanitizedBrand);
+      // A sharp close-up of the product goes along, so its label is copied, not guessed from the small mockup.
+      const reference = cutoutBlob ? await productReference(cutoutBlob).catch(() => null) : null;
+      const encodedProduct = reference ? await encodeProduct(reference) : undefined;
+      const first = await paintAndReview(encodedMockup, layout, sanitizedBrand, undefined, encodedProduct);
       setAttempts([first]); showAttempt(first);
       if (navigator.vibrate) navigator.vibrate(30);
       // One repair loop: a weak certificate sends the critic's notes back to
@@ -524,7 +534,7 @@ export default function OneshotStudio() {
         const started = Date.now();
         setRepair({ status: 'running', startedAt: started, firstScore: first.score ?? undefined, detail: { request: { fixNotes: notes } } });
         try {
-          const second = await paintAndReview(encodedMockup, layout, sanitizedBrand, notes);
+          const second = await paintAndReview(encodedMockup, layout, sanitizedBrand, notes, encodedProduct);
           setAttempts([first, second]);
           const better = (second.score ?? -1) > (first.score ?? -1) ? second : first;
           showAttempt(better);

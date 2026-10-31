@@ -41,9 +41,11 @@ export async function fitImageResponse(bytes:Buffer,format:string,limit=RESPONSE
  for(const quality of [92,85,78]){const jpeg=await sharp(bytes).flatten({background:'#ffffff'}).jpeg({quality,mozjpeg:true}).toBuffer();if(jpeg.length<=limit)return {bytes:jpeg,mimeType:'image/jpeg'};}
  throw new ProviderError('image_response',502);
 }
-export async function metaImage(model:string,key:string,prompt:string,signal:AbortSignal,options:TransportOptions={},image?:z.infer<typeof inputImage>){
- if(image)await validateRaster(image);
- const json=await metaCall(image?'images/edits':'images/generations',{model,prompt,n:1,response_format:'b64_json',output_format:'png',...(image?{images:[{image_url:`data:${image.mimeType};base64,${image.data}`}]}:{})},key,signal,options);
+/** One image edits it; several (the mockup first, then references) are sent in order. */
+export async function metaImage(model:string,key:string,prompt:string,signal:AbortSignal,options:TransportOptions={},image?:z.infer<typeof inputImage>|z.infer<typeof inputImage>[]){
+ const images=image?(Array.isArray(image)?image:[image]):[];
+ for(const item of images)await validateRaster(item);
+ const json=await metaCall(images.length?'images/edits':'images/generations',{model,prompt,n:1,response_format:'b64_json',output_format:'png',...(images.length?{images:images.map(item=>({image_url:`data:${item.mimeType};base64,${item.data}`}))}:{})},key,signal,options);
  const strict=z.object({data:z.array(z.object({b64_json:z.string().max(Math.ceil(RAW_IMAGE_LIMIT*4/3)+4).regex(/^[A-Za-z0-9+/]+={0,2}$/)})).length(1)}).safeParse(json);
  let bytes:Buffer;
  if(strict.success){bytes=Buffer.from(strict.data.data[0].b64_json,'base64');if(bytes.length>RAW_IMAGE_LIMIT)throw new ProviderError('image_response',502);}
