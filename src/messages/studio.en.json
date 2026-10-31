@@ -225,7 +225,12 @@
     "category_beauty": "Beauty",
     "category_other": "Other",
     "showcaseNote": "Real ads made on this site with Muse Image from a single product photo, each with its fidelity certificate.",
-    "shelfCta": "Shoot a whole shelf"
+    "shelfCta": "Shoot a whole shelf",
+    "flowCut": "cuts it out",
+    "flowWrite": "writes the idea",
+    "flowPaint": "paints the ad",
+    "postPreview": "Preview as a post",
+    "sponsored": "Sponsored"
   },
   "shelf": {
     "eyebrow": "Shelf to campaign",

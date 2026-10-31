@@ -1,7 +1,7 @@
 'use client';
-import { Fragment, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
-import { useMessages, useWorkspace } from './workspace';
+import { useMessages } from './workspace';
 import { useObjectUrl } from './logo';
 import { ButtonLink } from './ui';
 import { IconArrow, IconLayers, IconSparkles } from './ui/icons';
@@ -22,49 +22,42 @@ function StaggerTitle({ text }: { text: string }) {
 }
 
 /**
- * Before/after comparison with a draggable handle. The range input carries
- * keyboard and screen-reader control; pointer drags anywhere on the frame
- * move it too. It sweeps once on first view to show it can be dragged.
+ * The hero story in one picture: a phone takes the photo, AdMorph's three
+ * Meta models work on it (cut, write, paint), and the finished ad appears as
+ * a post preview. A short loop plays the sequence (flash, flow, steps light
+ * up one by one, the post lands); with reduced motion it all stands still.
+ * The post shows no likes or other numbers: it is a preview, not a claim.
  */
-export function BeforeAfter({ before, after, beforeLabel, afterLabel, handleLabel, ratio = '4:5' }: { before: string; after: string; beforeLabel: string; afterLabel: string; handleLabel: string; ratio?: '1:1' | '4:5' }) {
-  const [position, setPosition] = useState(50);
-  const frame = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-  const { locale } = useWorkspace();
-  const rtl = locale === 'ar';
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const keys = [50, 78, 28, 50], started = performance.now(), each = 650;
-    let raf = 0;
-    const tick = (now: number) => {
-      const t = (now - started) / each, index = Math.floor(t);
-      if (index >= keys.length - 1) { setPosition(50); return; }
-      const local = t - index, eased = local < .5 ? 2 * local * local : 1 - Math.pow(-2 * local + 2, 2) / 2;
-      setPosition(keys[index] + (keys[index + 1] - keys[index]) * eased);
-      raf = requestAnimationFrame(tick);
-    };
-    const timer = setTimeout(() => { raf = requestAnimationFrame(tick); }, 900);
-    return () => { clearTimeout(timer); cancelAnimationFrame(raf); };
-  }, []);
-  function fromPointer(clientX: number) {
-    const box = frame.current?.getBoundingClientRect();
-    if (!box || box.width === 0) return;
-    const ratio = Math.min(1, Math.max(0, (clientX - box.left) / box.width)) * 100;
-    setPosition(rtl ? 100 - ratio : ratio);
-  }
-  // In RTL the "after" side grows from the right, matching reading order.
-  const clip = rtl ? `inset(0 0 0 ${100 - position}%)` : `inset(0 ${100 - position}% 0 0)`;
-  return <div className="before-after" ref={frame} data-testid="before-after" style={{ aspectRatio: ratio === "1:1" ? "1 / 1" : "4 / 5" }}
-    onPointerDown={event => { dragging.current = true; event.currentTarget.setPointerCapture(event.pointerId); fromPointer(event.clientX); }}
-    onPointerMove={event => { if (dragging.current) fromPointer(event.clientX); }}
-    onPointerUp={() => { dragging.current = false; }} onPointerCancel={() => { dragging.current = false; }}>
-    <Image className="ba-before" src={before} alt={beforeLabel} draggable={false} fill priority sizes="(max-width: 1024px) 92vw, 560px" />
-    <Image className="ba-after" src={after} alt={afterLabel} draggable={false} fill priority sizes="(max-width: 1024px) 92vw, 560px" style={{ clipPath: clip }} />
-    <span className="ba-tag ba-tag--before">{beforeLabel}</span>
-    <span className="ba-tag ba-tag--after">{afterLabel}</span>
-    <span className="ba-handle" aria-hidden="true" style={{ insetInlineStart: `${position}%` }}><i /></span>
-    <input className="ba-range" type="range" min={0} max={100} step={1} value={Math.round(position)} aria-label={handleLabel} onChange={event => setPosition(Number(event.target.value))} />
-  </div>;
+export function HeroFlow({ before, after, brand, caption, labels }: { before: string; after: string; brand: string; caption: string; labels: { before: string; after: string; cut: string; write: string; paint: string; preview: string; sponsored: string } }) {
+  const handle = brand.toLowerCase().replace(/[^a-z0-9]+/g, '') || 'yourbrand';
+  const initials = brand.split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]?.toUpperCase()).join('') || 'A';
+  const steps = [{ model: 'sam', name: 'SAM 3.1', text: labels.cut }, { model: 'spark', name: 'Muse Spark', text: labels.write }, { model: 'image', name: 'Muse Image', text: labels.paint }];
+  return <figure className="hero-flow" data-testid="hero-flow">
+    <div className="hero-phone" aria-hidden="true">
+      <div className="hero-phone-screen">
+        <Image src={before} alt="" fill priority sizes="(max-width: 760px) 30vw, 200px" />
+        <span className="hero-phone-notch" />
+        <span className="hero-phone-vf"><i /><i /><i /><i /></span>
+        <span className="hero-phone-shutter" />
+        <span className="hero-phone-flash" />
+      </div>
+    </div>
+    <div className="hero-flow-middle">
+      <svg className="hero-flow-arrow" viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
+        <defs><linearGradient id="heroFlowGradient" x1="0" x2="1"><stop offset="0" stopColor="#7c5cff" /><stop offset="1" stopColor="#e26d9b" /></linearGradient></defs>
+        <path className="hero-flow-path" d="M4 46 C 60 4, 140 4, 186 34" />
+        <path d="M174 22 L189 36 L170 41" fill="none" stroke="#e26d9b" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      <span className="hero-flow-brand" dir="ltr"><span className="hero-flow-logo">A</span><b>ad</b>morph</span>
+      <ol className="hero-flow-steps">{steps.map((step, index) => <li key={step.model} data-model={step.model} style={{ '--i': index } as CSSProperties}><i aria-hidden="true" /><b dir="ltr">{step.name}</b><span>{step.text}</span></li>)}</ol>
+    </div>
+    <div className="hero-post">
+      <header><span className="hero-post-avatar" aria-hidden="true">{initials}</span><span><b dir="ltr">{handle}</b><small>{labels.sponsored}</small></span></header>
+      <div className="hero-post-image"><Image src={after} alt={labels.after} fill priority sizes="(max-width: 760px) 50vw, 320px" /></div>
+      <footer><span aria-hidden="true">♡ 💬 ↗</span><small>{labels.preview}</small>{caption && <p dir="auto"><b dir="ltr">{handle}</b> {caption}</p>}</footer>
+    </div>
+    <figcaption className="sr-only">{labels.before} → {labels.after}</figcaption>
+  </figure>;
 }
 
 function SavedAdTile({ ad, label }: { ad: SavedAd; label: string }) {
@@ -97,7 +90,8 @@ export default function HomePage() {
         <DemoStart className="home-demo" />
       </div>
       <div className="home-hero-visual">
-        <BeforeAfter before={showcase.hero.before} after={showcase.hero.after} beforeLabel={t.before} afterLabel={t.after} handleLabel={t.compare} ratio={showcase.hero.ratio} />
+        <HeroFlow before={showcase.hero.before} after={showcase.hero.after} brand={showcase.hero.brand ?? 'AdMorph'} caption={showcase.hero.caption ?? ''}
+          labels={{ before: t.before, after: t.after, cut: t.flowCut, write: t.flowWrite, paint: t.flowPaint, preview: t.postPreview, sponsored: t.sponsored }} />
         {showcase.hero.sample && <p className="home-sample-note" data-testid="home-sample-note">{t.sampleNote}</p>}
       </div>
     </section>

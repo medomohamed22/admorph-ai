@@ -1,17 +1,19 @@
 import { test, expect } from '@playwright/test';
 
-test('home shows the value line, a working before/after and the three models', async ({ page }) => {
+test('home shows the value line, the photo-to-post story and the three models', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('From a phone photo to an Instagram ad in a minute, in your dialect.');
-  const slider = page.getByRole('slider', { name: 'Compare before and after' });
-  await expect(slider).toBeVisible();
-  // Keyboard moves the divider; the "after" image is clipped to match.
-  await slider.focus();
-  await page.waitForTimeout(3500); // let the one-time intro sweep finish
-  await slider.fill('20');
-  await expect(page.locator('.ba-after')).toHaveAttribute('style', /inset\(0px 80% 0px 0px\)/);
+  // The hero tells the story: phone photo -> AdMorph's three models -> the finished ad as a post preview.
+  const hero = page.getByTestId('hero-flow');
+  await expect(hero).toBeVisible();
+  await expect(hero.getByRole('img', { name: 'Finished ad' })).toBeVisible();
+  await expect(hero.locator('.hero-flow-steps li')).toHaveText([/SAM 3\.1/, /Muse Spark/, /Muse Image/]);
+  await expect(hero.locator('.hero-post')).toContainText('monoaudio');
+  await expect(hero.locator('.hero-post')).toContainText('Preview as a post');
+  // A preview, not a claim: no likes or other made-up numbers.
+  await expect(hero.locator('.hero-post')).not.toContainText(/likes|\d{2,}/);
   // The hero is a real before/after (the phone photo and the ad made from it), so no sample label.
   await expect(page.getByTestId('home-sample-note')).toHaveCount(0);
   const powered = page.locator('.home-powered li');
@@ -46,16 +48,18 @@ test('home shows the visitor\'s own saved ads when there are some', async ({ pag
   await expect(page.getByTestId('home-saved-ad')).toContainText('Home Brand');
 });
 
-test('home reads right to left in Arabic with the before/after mirrored', async ({ browser }) => {
+test('home reads right to left in Arabic with the story mirrored', async ({ browser }) => {
   const context = await browser.newContext({ locale: 'ar-EG', baseURL: 'http://localhost:3000' });
   const page = await context.newPage();
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName('من صورة موبايل إلى إعلان Instagram في دقيقة، بلهجتك.');
-  const slider = page.getByRole('slider', { name: 'قارن قبل وبعد' });
-  await page.waitForTimeout(3500);
-  await slider.fill('20');
-  await expect(page.locator('.ba-after')).toHaveAttribute('style', /inset\(0px 0px 0px 80%\)/);
+  const hero = page.getByTestId('hero-flow');
+  await expect(hero.locator('.hero-post')).toContainText('معاينة كمنشور');
+  await expect(hero.locator('.hero-flow-steps li').first()).toContainText('يقصّ المنتج');
+  // In Arabic the story reads right to left: the phone sits on the right of the post.
+  const phone = await hero.locator('.hero-phone').boundingBox(), post = await hero.locator('.hero-post').boundingBox();
+  expect(phone!.x).toBeGreaterThan(post!.x);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await context.close();
 });
