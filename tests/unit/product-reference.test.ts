@@ -67,3 +67,14 @@ describe('product box shaped like the product', () => {
     expect(initialOneshotLayout(false, 1)[0]).toMatchObject({ width: 760, height: 760 });
   });
 });
+
+describe('the review ignores the logo\'s own words', () => {
+  it('tells the reviewer that a logo\'s name and tagline are not extra text', async () => {
+    const fetcher = vi.fn(async () => Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [], extraText: [] }) } }] }));
+    const verify = { providerId: 'meta', apiKey: crypto.randomUUID(), modelId: 'account-model', consent: true, imageConsent: true, image: { mimeType: 'image/png', data: await png('#ddd') }, layout: [...layout, { id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 }], language: 'ar' };
+    const response = await handleMetaRoute(new Request('https://app.test/api/ai/verify-oneshot', { method: 'POST', headers: { Origin: 'https://app.test', 'Content-Type': 'application/json' }, body: JSON.stringify(verify) }), 'verify-oneshot', { fetcher });
+    expect(response.status).toBe(200);
+    const prompt = JSON.stringify(JSON.parse(String((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body)));
+    expect(prompt).toContain('is not part of the brand logo in the logo zone');
+  });
+});

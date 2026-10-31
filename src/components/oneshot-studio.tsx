@@ -771,7 +771,7 @@ export default function OneshotStudio() {
       <h2 id="wizard-title-0">{t.uploadProduct}</h2>
       <p className="wizard-lead">{t.stepProductLead}</p>
       <UploadCard testId="upload-card-product" title={t.uploadProduct} hint={t.uploadHintProduct} preview={cutoutUrl ?? originalUrl} state={cutting ? 'busy' : cutoutBlob ? 'done' : 'idle'} busyText={t.uploadCutting} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.uploadProduct} onFile={file => void uploadProduct(file)} />
-      <button type="button" className="button secondary" disabled={!originalBlob || cutting} onClick={() => void isolateBackground()}>{cutting ? <WaitingText label={t.isolateBackground} /> : t.isolateBackground}</button>
+      <button type="button" className="button secondary" disabled={!originalBlob || cutting || provider.siteKey === 'checking'} onClick={() => void isolateBackground()}>{cutting ? <WaitingText label={t.isolateBackground} /> : t.isolateBackground}</button>
       {tapCutout && originalUrl && <div>
         <p>{t.cutoutTapHint}</p>
         <img data-testid="cutout-tap-photo" src={originalUrl} alt="" onClick={event => void tapCutoutPhoto(event)} style={{ maxWidth: '100%', cursor: 'crosshair' }} />
