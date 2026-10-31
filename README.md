@@ -6,9 +6,9 @@ A small shop owner has one phone photo of a product, or one photo of a whole she
 
 Built for the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). Live site: <https://admorph-ai-app.vercel.app/> · Demo video: _to be added before submission_.
 
-| Home | Wizard | Arabic on a phone |
-| --- | --- | --- |
-| ![Home page](docs/screens/home.png) | ![One-shot wizard](docs/screens/wizard.png) | ![Arabic home on a phone](docs/screens/home-ar-phone.png) |
+![AdMorph home page: a phone photo becomes a finished ad through SAM 3.1, Muse Spark and Muse Image](docs/screens/home-desktop.png)
+
+![The one-shot studio on the live site: the agent's steps with their models and timings, and the finished ad](docs/screens/studio-desktop.png)
 
 ## Three Meta models, fixed jobs
 
@@ -44,19 +44,19 @@ On screen each step is a card with its model badge, live timer, real duration, a
 
 A five-step wizard, one decision per screen, with Back/Next always in reach and progress saved in IndexedDB:
 
-1. **Product** — upload a phone photo; SAM cuts it out (glowing-edge reveal); tap the product if the cutout misses; optional enhance.
+1. **Product** — upload a phone photo (large photos are compressed on the device first); Muse Spark finds the product and SAM cuts it out at full resolution, cropped to the product (glowing-edge reveal); tap the product if the cutout misses; optional enhance.
 2. **Brand** — a saved brand kit, or a name and description; Muse Spark can extract it from the photo. The logo slot lives here, with a one-tap **transparent background** for a logo on a flat color (done on the device, no request).
-3. **Idea** — pick the dialect (Egyptian, Gulf, Levantine, Sudanese, Standard Arabic, English) and get three ideas. Each idea carries an **art-direction brief** (place, props, light, camera, composition, palette, headline style, what to avoid) that becomes the scene, and the last five places are remembered so every round lands somewhere new. Pick a headline font from 23 curated Latin and Arabic families, each previewed in its own face.
+3. **Idea** — pick the dialect (Egyptian, Gulf, Levantine, Sudanese, Standard Arabic, English), optionally type **where the ad takes place**, and get three ideas. Without a place, Muse Spark recognizes the product and sets each idea in a different place where it is naturally used. Each idea carries an **art-direction brief** (place, props, light, camera, composition, palette, headline style, what to avoid) that becomes the scene, and the last five places are remembered so every round lands somewhere new. Pick a headline font from 23 curated Latin and Arabic families, each previewed in its own face.
 4. **Arrange** — pick the **ad size first** (4:5 feed, 1:1 square, 9:16 story); the mockup, the request and the result all use it. Drag the product, logo and words; add price, discount and button **badges** or your own icon, style each text (color, size, bold, alignment, font), reorder or delete in the **layers** panel, and let elements **snap** to the frame and to each other. A deterministic check flags overlaps, contrast and safe margins, each with a one-click fix and undo.
-5. **Generate** — the agent runs, the ad fades in, the certificate ring fills and its checks tick in; download the PNG or the evidence ZIP, open **Why trust this ad?**, or make variants and seasonal copies.
+5. **Generate** — the agent runs (the frame shows the product forming: brand-colored glow, grain that clears, the photo coming into focus), the ad fades in, the certificate ring fills and its checks tick in; download the PNG or the evidence ZIP, open **Why trust this ad?**, or make variants and seasonal copies.
 
-Finished ads land in **My gallery** on the device. Any saved ad can become **variants** (each one changes a different thing: the place, the light and angle, or the palette and mood) or a **seasonal copy** for Ramadan, Eid, Black Friday or Summer, painted fresh from the product cutout with that season's palette and props.
+Muse Image receives the mockup plus a sharp close-up of the product, so the label's words are copied rather than guessed. Finished ads land in **My gallery** on the device. On the copies and seasons pages you pick an ad from a large preview and a swipeable strip, and each new copy appears in its own box. Any saved ad can become **variants** (each one changes a different thing: the place, the light and angle, or the palette and mood) or a **seasonal copy** for Ramadan, Eid, Black Friday or Summer, painted fresh from the product cutout with that season's palette and props.
 
 ## Shoot the shelf, get a campaign
 
 `/shelf` turns one photo, or a short video, of a shop shelf into a campaign:
 
-1. **Capture** — a photo or a video of up to 20 seconds from the phone camera; for a video the sharpest frame is picked on the device. A sample shelf runs the whole flow in one click.
+1. **Upload** — a photo or a short video of the shelf (large files are compressed on the device); for a video the sharpest frame is picked on the device. A sample shelf runs the whole flow in one click.
 2. **Find** — Muse Spark finds up to six products and reads each price tag; numbered boxes appear on the photo.
 3. **Cut, live** — SAM cuts each product from its box on screen, and each cutout flies from the shelf into its own card.
 4. **Check** — edit names and prices, switch products off, pick a brand and dialect; the screen shows how many requests the campaign will make.
