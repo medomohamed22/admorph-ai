@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { metaBase, inputImage } from './meta-contracts';
 import { brandInputSchema } from '../db/schema';
+import { qualityRules } from './quality';
 
 /**
  * Seasonal themes. Each card names a palette, the cues that MUST be visible
@@ -46,6 +47,7 @@ export function buildRemixPrompt(brand: { name: string; colors: [string, string,
   lines.push(`The only words allowed in the image are "${headline}" (rendered exactly as written, in one clear headline) plus text already printed on the product itself. Write no other word, slogan, tag text or watermark.`);
   if (language === 'ar') lines.push('Arabic text reads right to left with correctly joined letters.');
   lines.push('No objects cropped by the frame edges.');
+  lines.push(qualityRules(true));
   return lines.join(' ');
 }
 

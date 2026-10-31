@@ -1,4 +1,5 @@
 'use client';
+import { prepareImageUpload } from '@/lib/media/prepare-image';
 import { ModelBadge } from './ui';
 import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
@@ -7,7 +8,6 @@ import { extractedSchema, type extractRequest } from '@/lib/ai/meta-contracts';
 import { z } from 'zod';
 import { useMessages, useWorkspace } from './workspace';
 import { useProviderSession } from './provider-session';
-import { validateProduct } from '@/lib/campaign/client';
 import { sampleColors, type ColorSample } from '@/lib/brand/sample-colors';
 
 export type BrandSuggestion = z.infer<typeof extractedSchema>;
@@ -62,7 +62,7 @@ export function BrandExtraction({ onAccept }: { onAccept: (suggestion: BrandSugg
     abort.current?.abort();
     setImage(null); setSuggestion(null); setConsent(false); setError(''); setSamples([]); setTook(null);
     try {
-      await validateProduct(file);
+      file = await prepareImageUpload(file);
       const bitmap = await createImageBitmap(file), scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height)), canvas = document.createElement('canvas');
       canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
       const context = canvas.getContext('2d', { willReadFrequently: true })!;

@@ -1,4 +1,5 @@
 'use client';
+import { prepareImageUpload } from '@/lib/media/prepare-image';
 import { imageFileName } from '@/lib/image-name';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
@@ -11,7 +12,7 @@ import { IconCheck, IconSparkles } from './ui/icons';
 import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
 import { ProviderError } from '@/lib/ai/errors';
-import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct } from '@/lib/campaign/client';
+import { encodeProduct, fitProductImage, validateGeneratedImage } from '@/lib/campaign/client';
 import { cutoutImage } from '@/lib/cutout/provider';
 import { oneshotScore, verifyResultSchema, type VerifyResult } from '@/lib/ai/oneshot';
 import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
@@ -147,8 +148,9 @@ export default function ShelfStudio() {
 
   async function pickPhoto(file: File) {
     setError('');
-    try { await validateProduct(file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); return; }
-    const fitted = await fitProductImage(file);
+    let prepared: File;
+    try { prepared = await prepareImageUpload(file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); return; }
+    const fitted = await fitProductImage(prepared);
     setFrames([]); setBestFrame(null);
     setPhoto(fitted); void detect(fitted);
   }
@@ -342,12 +344,12 @@ export default function ShelfStudio() {
 
     {stage === 'capture' && <section className="shelf-capture" data-testid="shelf-capture">
       <label className="shelf-drop">
-        <input type="file" accept="image/png,image/jpeg,image/webp" capture="environment" aria-label={t.photoInput} disabled={!key} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void pickPhoto(file); }} />
+        <input type="file" accept="image/png,image/jpeg,image/webp" aria-label={t.photoInput} disabled={!key} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void pickPhoto(file); }} />
         <span className="shelf-drop-art" aria-hidden="true"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="12" width="36" height="28" rx="5" /><circle cx="24" cy="26" r="7" /><path d="M17 12l3-5h8l3 5" /></svg></span>
         <strong>{t.photoTitle}</strong><small>{t.photoHint}</small>
       </label>
       <label className="shelf-drop">
-        <input type="file" accept="video/mp4,video/webm,video/quicktime" capture="environment" aria-label={t.videoInput} disabled={!key} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void pickVideo(file); }} />
+        <input type="file" accept="video/mp4,video/webm,video/quicktime" aria-label={t.videoInput} disabled={!key} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void pickVideo(file); }} />
         <span className="shelf-drop-art" aria-hidden="true"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="12" width="28" height="24" rx="5" /><path d="M33 21l10-6v18l-10-6z" /></svg></span>
         <strong>{t.videoTitle}</strong><small>{t.videoHint}</small>
       </label>

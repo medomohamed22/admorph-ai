@@ -153,6 +153,8 @@ test('Arabic switching translates all screens, persists and preserves edits', as
   await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toContainText(arStudio.home.title);
   await page.getByRole('button', { name: ar.nav.switchLanguage, exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toContainText('From a phone photo');
+  // The choice is written to IndexedDB in the background; reload only once it is stored.
+  await page.waitForFunction(() => new Promise<boolean>(resolve => { const open = indexedDB.open('admorph-local-v1'); open.onsuccess = () => { const db = open.result, get = db.transaction('settings').objectStore('settings').get('locale'); get.onsuccess = () => { db.close(); resolve(get.result?.value === 'en'); }; get.onerror = () => { db.close(); resolve(false); }; }; open.onerror = () => resolve(false); }));
   await page.reload(); await expect(page.locator('html')).toHaveAttribute('lang', 'en');
 });
 

@@ -58,6 +58,9 @@ export function repairNotes(certificate: VerifyResult, logoExpected: boolean): s
     if (!text.match) notes.push(`Write "${clip(text.expected)}" exactly as given${text.found ? `; the last attempt read "${clip(text.found)}"` : ''}.`);
   }
   for (const extra of certificate.extraText ?? []) notes.push(`Remove the text "${clip(extra)}"; only the mockup's own words may appear.`);
+  const why = certificate.qualityNote ? ` Critic: ${clip(certificate.qualityNote)}` : '';
+  if (certificate.textReadable === false) notes.push(`Make every word readable: put light text on a dark calm area or dark text on a light calm area, or set the words on a solid panel.${why}`);
+  if (certificate.textClearOfProduct === false) notes.push(`Move the text, price tag and button off the product with a clear gap; the product must be fully visible.${why}`);
   return notes.slice(0, 8);
 }
 

@@ -179,7 +179,9 @@
     "formatTitle": "مقاس الإعلان",
     "formatFeed": "4:5 فيد",
     "formatSquare": "1:1 مربع",
-    "formatStory": "9:16 ستوري"
+    "formatStory": "9:16 ستوري",
+    "certQuality": "جاهز للنشر",
+    "certQualityOk": "كل الكلمات مقروءة وبعيدة عن المنتج"
   },
   "home": {
     "eyebrow": "مبني على ثلاثة نماذج من Meta",

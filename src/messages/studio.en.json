@@ -179,7 +179,9 @@
     "formatTitle": "Ad size",
     "formatFeed": "4:5 Feed",
     "formatSquare": "1:1 Square",
-    "formatStory": "9:16 Story"
+    "formatStory": "9:16 Story",
+    "certQuality": "Ready to post",
+    "certQualityOk": "Every word is readable and clear of the product"
   },
   "home": {
     "eyebrow": "Built on three Meta models",
