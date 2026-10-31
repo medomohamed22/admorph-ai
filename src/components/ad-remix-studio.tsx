@@ -17,6 +17,7 @@ import type { SavedAd, BrandInput } from '@/lib/db/schema';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { GeneratingCanvas } from './generating-canvas';
+import { useDemoDriver } from './demo-tour';
 import { withRateLimit } from '@/lib/shelf/queue';
 
 type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis };
@@ -232,6 +233,21 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const busyLabel = busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
   const expected = mode === 'variants' ? count : themes.length;
 
+  // The guided demo makes the Ramadan version of the ad it just painted.
+  useDemoDriver(mode === 'themes' ? 'themes' : null, async (id, phase, memory) => {
+    if (id !== 'season') return 'wait';
+    if (phase === 0) {
+      const match = memory.adId ? ads.find(ad => ad.id === memory.adId) : ads[0];
+      // The gallery write of a fresh ad can land a moment after the page opens.
+      if (!match) { await refreshGallery(); return 'wait'; }
+      setSelected(match); setThemes(['ramadan']); setFilter('all');
+      return 'next';
+    }
+    if (phase === 1) { if (!canGenerate) return 'wait'; await generate(); return 'next'; }
+    if (busy) return 'wait';
+    if (results.length === 0) throw new Error(error || 'season');
+    return 'done';
+  });
   const themeLabel = (id: RemixThemeId | undefined) => id === 'ramadan' ? t.themeRamadan : id === 'eid' ? t.themeEid : id === 'black-friday' ? t.themeBlackFriday : id === 'summer' ? t.themeSummer : undefined;
   const visible = ads.filter(ad => inFilter(ad, filter));
   const filters = (['all', 'oneshot', 'shelf', 'copies'] as const).filter(item => item === 'all' || ads.some(ad => inFilter(ad, item)));

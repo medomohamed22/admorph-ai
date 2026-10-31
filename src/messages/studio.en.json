@@ -333,5 +333,77 @@
     "extractBusy": "Analyzing… {s} s",
     "extractTook": "Read in {s} s",
     "extractTone": "Tone"
+  },
+  "demo": {
+    "label": "Guided demo",
+    "startButton": "Watch the full demo",
+    "alreadyRunning": "Demo running…",
+    "sheetTitle": "The full AdMorph demo",
+    "sheetLead": "One run walks the whole site with real Meta models: a phone photo becomes a finished ad, then a Ramadan version, then a shelf photo becomes one ad per product.",
+    "sheetCost": "Every image is generated live — nothing is pre-recorded. One run makes about {n} Meta requests and takes 4–7 minutes.",
+    "startAuto": "Play automatically",
+    "startStep": "Step by step (press Next)",
+    "cancel": "Cancel",
+    "stepOf": "Step {n} of {total}",
+    "onDevice": "On this device",
+    "running": "Working",
+    "stepDone": "Done",
+    "seconds": "s",
+    "failed": "This step did not finish. Retry it or skip to the next one.",
+    "timeout": "This step took too long. Retry it or skip to the next one.",
+    "pressRun": "Press Run to start this step.",
+    "paused": "Paused. Press Resume to carry on.",
+    "starting": "Starting…",
+    "modeLabel": "Demo mode",
+    "auto": "Auto",
+    "step": "Step",
+    "retry": "Retry",
+    "skip": "Skip",
+    "run": "Run",
+    "next": "Next",
+    "finish": "Finish",
+    "pause": "Pause",
+    "resume": "Resume",
+    "exit": "Exit the demo",
+    "finishedKicker": "Demo complete",
+    "finishedTitle": "From a phone photo to a whole campaign",
+    "finishedNote": "{done} of {total} steps finished in {s} s. Every ad is saved in your gallery.",
+    "skipped": "skipped",
+    "openGallery": "Open my gallery",
+    "close": "Close",
+    "steps": {
+      "product": {
+        "title": "Phone photo → clean cutout",
+        "body": "A real phone photo of headphones goes in. Muse Spark finds the product and SAM 3.1 cuts it out of the background."
+      },
+      "brand": {
+        "title": "Brand kit and size",
+        "body": "The Mono Audio brand is applied: name, description and colors. The ad size is set to 4:5 before anything is painted."
+      },
+      "ideas": {
+        "title": "Three ad ideas",
+        "body": "Muse Spark looks at the product and the brand and writes three ideas: headline, scene and caption. The first one is used."
+      },
+      "arrange": {
+        "title": "Arranged on the canvas",
+        "body": "The cutout, the headline and the safe margins are laid out on the canvas, and the layout is checked on this device."
+      },
+      "paint": {
+        "title": "Painted, reviewed, repaired",
+        "body": "Muse Image paints the finished ad from the arrangement. Muse Spark reviews it against the layout and, if the score is low, sends it back once to fix."
+      },
+      "season": {
+        "title": "A Ramadan version",
+        "body": "The same ad is redesigned for Ramadan: new seasonal headline, lanterns and crescent, and a seasonal check by the reviewer."
+      },
+      "shelf-detect": {
+        "title": "A whole shelf in one photo",
+        "body": "A shelf photo goes in. Muse Spark finds each product and its price, and SAM 3.1 cuts every product out."
+      },
+      "shelf-campaign": {
+        "title": "One ad per product",
+        "body": "Muse Spark plans a campaign and Muse Image paints an ad for each product, with its price and an order button placed clear of the product."
+      }
+    }
   }
 }

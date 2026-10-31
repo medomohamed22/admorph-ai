@@ -6,6 +6,7 @@ import { useObjectUrl } from './logo';
 import { ButtonLink } from './ui';
 import { IconArrow, IconLayers, IconSparkles } from './ui/icons';
 import { META_MODELS, META_MODEL_ORDER } from '@/lib/ai/models';
+import { DemoStart } from './demo-tour';
 import { parseShowcase } from '@/lib/showcase/manifest';
 import { loadSavedAds } from '@/lib/db/repository';
 import type { SavedAd } from '@/lib/db/schema';
@@ -93,6 +94,7 @@ export default function HomePage() {
           <ButtonLink variant="primary" size="lg" href="/oneshot" icon={<IconSparkles size={18} />}>{t.cta}</ButtonLink>
           <ButtonLink size="lg" href="/shelf" icon={<IconLayers size={18} />}>{t.shelfCta}</ButtonLink>
         </div>
+        <DemoStart className="home-demo" />
       </div>
       <div className="home-hero-visual">
         <BeforeAfter before={showcase.hero.before} after={showcase.hero.after} beforeLabel={t.before} afterLabel={t.after} handleLabel={t.compare} ratio={showcase.hero.ratio} />
