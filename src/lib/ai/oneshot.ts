@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { metaBase, inputImage } from './meta-contracts';
 import { brandInputSchema, type BrandInput } from '../db/schema';
+import { qualityRules } from './quality';
 
 /** One-shot canvas coordinates: always 1080 wide; the height follows the size picked before generating. */
 export const ONESHOT_WIDTH = 1080;
@@ -74,6 +75,10 @@ export const verifyResultSchema = z.object({
   extraText: z.array(z.string().max(120)).max(8).optional(),
   /** Seasonal elements the critic can see, when a season was asked for. */
   seasonCues: z.array(z.string().max(80)).max(10).optional(),
+  /** Publish-ready checks: every word contrasts with what is behind it, and no word, price or button touches the product. */
+  textReadable: z.boolean().optional(),
+  textClearOfProduct: z.boolean().optional(),
+  qualityNote: z.string().max(300).optional(),
 }).strict();
 export type VerifyResult = z.infer<typeof verifyResultSchema>;
 
@@ -117,6 +122,7 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     : 'Write no words at all, except text already printed on the product itself.');
   if (language === 'ar') lines.push('Arabic text reads right to left with correctly joined letters.');
   lines.push('No extra logos, no watermark, no objects cropped by the frame edges.');
+  lines.push(qualityRules(allowed.length > 0));
   if (fixNotes.length) lines.push(`A previous attempt failed review. Fix exactly these problems: ${fixNotes.map((note, index) => `(${index + 1}) ${note}`).join(' ')}`);
   return lines.join(' ');
 }
@@ -133,7 +139,9 @@ export function oneshotScore(result: VerifyResult, logoExpected: boolean): numbe
   // Painted words the mockup never had cost 10 each (at most 30), so an ad
   // that invents a slogan falls under the repair threshold.
   const extraPenalty = Math.min(30, 10 * (result.extraText?.length ?? 0));
-  return Math.max(0, Math.round((earned / possible) * 100) - extraPenalty);
+  // Words that cannot be read, or that sit on the product, make an ad unpublishable: 15 each.
+  const qualityPenalty = (result.textReadable === false ? 15 : 0) + (result.textClearOfProduct === false ? 15 : 0);
+  return Math.max(0, Math.round((earned / possible) * 100) - extraPenalty - qualityPenalty);
 }
 
 /** Canvas-side element: the server layout plus the local render payload. */

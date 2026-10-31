@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "releases/**",
     "next-env.d.ts",
+    // Third-party build copied in for the image compressor's web worker.
+    "public/vendor/**",
   ]),
 ]);
 

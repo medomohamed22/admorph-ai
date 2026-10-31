@@ -7,7 +7,8 @@
 export type ScannedFrame = { time: number; blob: Blob; thumb: string; sharpness: number };
 
 export const MAX_VIDEO_SECONDS = 20;
-export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
+/** The video never leaves the device (only its sharpest frame is sent), so large phone videos are fine. */
+export const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
 /** Variance of the 4-neighbour Laplacian over a grey image. Pure, so it is unit-testable. */
 export function laplacianVariance(grey: Float32Array | number[], width: number, height: number): number {

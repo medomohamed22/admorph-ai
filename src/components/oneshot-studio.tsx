@@ -1,4 +1,5 @@
 'use client';
+import { prepareImageUpload } from '@/lib/media/prepare-image';
 import { imageFileName } from '@/lib/image-name';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -11,7 +12,7 @@ import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error
 import { ProviderError } from '@/lib/ai/errors';
 import { extractedSchema, productBoxSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
-import { encodeProduct, fitProductImage, validateGeneratedImage, validateProduct, requestPlan } from '@/lib/campaign/client';
+import { encodeProduct, fitProductImage, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
 import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, reflowLayout, frameHeightOf, ONESHOT_FORMATS, type OneshotFormat, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { resolveBrandFontFamily, brandFontStylesheetUrl, fontsForScript } from '@/lib/brand/fonts';
 import { artBriefToScene, settingOf, type ArtBrief } from '@/lib/ai/art-brief';
@@ -184,7 +185,8 @@ export default function OneshotStudio() {
   async function uploadProduct(file: File) {
     setError('');
     try {
-      await validateProduct(file); const blob = file;
+      // Large phone photos are compressed on the device instead of refused.
+      const blob = await prepareImageUpload(file);
       setOriginalBlob(blob); setCurrentBlob(blob); setEnhance(false); setEnhanceNote('');
       // A new product starts a fresh mockup: the old cutout, layout, result
       // and certificate belong to the previous product, so none of it is
@@ -255,7 +257,7 @@ export default function OneshotStudio() {
   async function uploadLogo(file: File) {
     setError('');
     try {
-      await validateProduct(file); placeLogo(file); setLogoMissing(false); setLogoNote('');
+      placeLogo(await prepareImageUpload(file)); setLogoMissing(false); setLogoNote('');
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
   }
   function placeLogo(blob: Blob) {
@@ -801,7 +803,7 @@ export default function OneshotStudio() {
         <button type="button" className="button secondary" disabled={!newText.trim() || !cutoutBlob} onClick={() => { addElement('text', undefined, newText.trim()); setNewText(''); }}>{t.addText}</button>
         <input aria-label={t.phonePlaceholder} value={newPhone} maxLength={40} placeholder={t.phonePlaceholder} dir="ltr" onChange={event => setNewPhone(event.target.value)} />
         <button type="button" className="button secondary" disabled={!newPhone.trim() || !cutoutBlob} onClick={() => { addElement('phone', undefined, newPhone.trim()); setNewPhone(''); }}>{t.addPhone}</button>
-        <UploadCard testId="upload-card-icon" title={t.addIcon} hint={t.uploadHintIcon} preview={null} state={elements.some(item => item.kind === 'icon') ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.addIcon} disabled={!cutoutBlob} onFile={async file => { try { await validateProduct(file); addElement('icon', file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); } }} />
+        <UploadCard testId="upload-card-icon" title={t.addIcon} hint={t.uploadHintIcon} preview={null} state={elements.some(item => item.kind === 'icon') ? 'done' : 'idle'} busyText={t.uploadChoose} chooseText={t.uploadChoose} changeText={t.uploadChange} inputLabel={t.addIcon} disabled={!cutoutBlob} onFile={async file => { try { addElement('icon', await prepareImageUpload(file)); } catch (cause) { setError(metaErrorMessage(cause, errorText)); } }} />
       </div>
       {selectedTextElement && <label>{t.selectedText}<input value={selectedTextElement.text ?? ''} maxLength={200} onChange={event => setElements(previous => previous.map(item => item.id === selectedTextElement.id ? { ...item, text: event.target.value } : item))} /></label>}
       {selected && <button type="button" className="button secondary" onClick={() => { setElements(previous => previous.filter(item => item.id !== selected)); setSelected(null); }}>{t.deleteSelected}</button>}
