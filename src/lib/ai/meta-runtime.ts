@@ -9,7 +9,7 @@ import {applyActions} from '../repair/engine';
 import {brandInputSchema} from '../db/schema';
 import {readJsonLimited,type TransportOptions} from './transport';
 import {metaBase,inputImage,shiftRequest,shiftedSchema,extractRequest,extractedSchema,productBoxSchema,taskTestRequest} from './meta-contracts';
-import {metaJson,metaImage,metaSegment,issueProof,validateRaster} from './meta-transport';
+import {metaJson,metaImage,metaSegment,metaResearch,researchShape,issueProof,validateRaster} from './meta-transport';
 import {parseSamMasks} from '../cutout/sam';
 import {visionBackgroundAnalysisSchema,checkBackgroundSchema} from '../background/brief';
 import { referenceRequest, referenceLayoutSchema, buildReferencePrompt } from './reference';
@@ -18,6 +18,7 @@ import { remixRequestSchema, buildRemixPrompt } from './remix';
 import {acquireBudget} from '../security/ai-budget';
 import {withServerKey,serverMetaKey} from './server-key';
 import {ProviderError} from './errors';
+import {researchRequestSchema,buildResearchPrompt,parseResearchResponse} from './research';
 import {spatialInstruction} from '../editor/spatial';
 import { backgroundBriefSchema, buildBackgroundPrompt } from '../background/brief';
 import { ARABIC_BRAND_FONTS, LATIN_BRAND_FONTS } from '../brand/fonts';
@@ -31,7 +32,7 @@ export const segmentPixelPoint=z.object({x:z.number().int().min(0),y:z.number().
 export const segmentPixelSize=z.object({width:z.number().int().min(1),height:z.number().int().min(1)}).strict();
 /** Exactly one prompt kind: a noun phrase, a pixel box, or a pixel point, each with its size. Object prompts must never combine with a noun phrase. */
 export const segmentRequest=metaBase.extend({imageConsent:z.literal(true),image:inputImage,prompt:z.string().trim().min(1).max(120).optional(),box:segmentPixelBox.optional(),point:segmentPixelPoint.optional(),size:segmentPixelSize.optional()}).strict().superRefine((value,ctx)=>{const modes=[value.prompt!==undefined,value.box!==undefined,value.point!==undefined].filter(Boolean).length;if(modes!==1)ctx.addIssue({code:'custom',message:'exactly one of prompt, box or point is required'});if((value.box||value.point)&&!value.size)ctx.addIssue({code:'custom',message:'size is required with a box or point'});if(value.box&&value.size&&(value.box.right>value.size.width||value.box.bottom>value.size.height||value.box.right<=value.box.left||value.box.bottom<=value.box.top))ctx.addIssue({code:'custom',message:'box must fit inside size'});if(value.point&&value.size&&(value.point.x>=value.size.width||value.point.y>=value.size.height))ctx.addIssue({code:'custom',message:'point must fit inside size'});});
-type Operation='planner'|'image'|'critic'|'edit'|'vision'|'copy'|'makeover'|'segment'|'product-box'|'vision-background'|'check-background'|'reference'|'reference-layout'|'oneshot'|'verify-oneshot'|'ad-remix'|'shelf-detect'|'shelf-plan'|'test';
+type Operation='market-research'|'planner'|'image'|'critic'|'edit'|'vision'|'copy'|'makeover'|'segment'|'product-box'|'vision-background'|'check-background'|'reference'|'reference-layout'|'oneshot'|'verify-oneshot'|'ad-remix'|'shelf-detect'|'shelf-plan'|'test';
 export async function handleMetaRoute(request:Request,operation:Operation,options:TransportOptions={}){
  const requestId=crypto.randomUUID(),headers={'Cache-Control':'no-store, private','X-Content-Type-Options':'nosniff','X-AdMorph-Request-Id':requestId};let release:(()=>void)|undefined;
  try{
@@ -40,7 +41,7 @@ export async function handleMetaRoute(request:Request,operation:Operation,option
  // With the site key configured, it replaces any browser key and the per-key budget does not apply.
  const raw=withServerKey(await readJsonLimited(request,4*1024*1024));if(z.object({providerId:z.string()}).safeParse(raw).success&&(raw as {providerId:string}).providerId!=='meta')throw new ProviderError('meta_only',400);
  const base=metaBase.parse(raw);release=serverMetaKey()?undefined:acquireBudget(base.apiKey);const signal=AbortSignal.any([request.signal,AbortSignal.timeout(options.timeoutMs??45000)]),language=(raw as {language?:string}).language??'en';
- const successHeaders=()=>({...headers,...(operation!=='test'?{'X-AdMorph-Task-Proof':issueProof(base.apiKey,base.modelId,operation==='makeover'||operation==='oneshot'||operation==='ad-remix'?'image_edit':operation==='vision-background'||operation==='check-background'||operation==='reference-layout'||operation==='verify-oneshot'||operation==='product-box'||operation==='shelf-detect'?'vision':operation==='shelf-plan'?'planner':operation==='reference'?'image':operation)}:{})});
+ const successHeaders=()=>({...headers,...(operation!=='test'?{'X-AdMorph-Task-Proof':issueProof(base.apiKey,base.modelId,operation==='makeover'||operation==='oneshot'||operation==='ad-remix'?'image_edit':operation==='vision-background'||operation==='check-background'||operation==='reference-layout'||operation==='verify-oneshot'||operation==='product-box'||operation==='shelf-detect'||operation==='market-research'?'vision':operation==='shelf-plan'?'planner':operation==='reference'?'image':operation)}:{})});
  const json=(value:unknown)=>Response.json(value,{headers:successHeaders()});
  const imageResponse=(image:{bytes:Buffer;mimeType:string})=>new Response(new Uint8Array(image.bytes),{headers:{...successHeaders(),'Content-Type':image.mimeType}});
  if(operation==='planner'){const input=planRequestSchema.parse(raw);return json(await metaJson(base.modelId,base.apiKey,`Plan exactly three distinct offer/benefit/lifestyle concepts. Preserve facts. Copy language ${input.creativeLanguage}.${input.dialect ? ` Write every headline and caption in ${DIALECT_PROMPT[input.dialect]}; keep the brand name as written.` : ''} Use spatialPreset and negativeSpaceInstruction. Each text layer (headline, brand, CTA) must be in exactly one language; a Latin brand name stays in its own brand layer and is never mixed with Arabic text in the same layer. ${artBriefInstruction(input.avoidScenes ?? [])} Also suggest three headline Google Fonts families that fit the product, the brand and the typeStyle, most fitting first, as fonts: the headlines are in ${input.creativeLanguage==='ar'?'Arabic script, so pick from '+ARABIC_BRAND_FONTS.join(', '):'Latin script, so pick from '+LATIN_BRAND_FONTS.join(', ')} only, and omit fonts if none fits. Brand: ${JSON.stringify(input.brand)}; goal: ${input.goal}. ${input.brief ? `Written brief: ${JSON.stringify(input.brief)}` : 'No written brief was supplied: derive the concepts from the product photo and the brand identity alone.'}`,planSchema,input.product,signal,options));}
@@ -57,6 +58,14 @@ export async function handleMetaRoute(request:Request,operation:Operation,option
  if(operation==='check-background'){const input=extractRequest.parse(raw);return json(await metaJson(base.modelId,base.apiKey,'Does this advertising background image contain any product, package, can, bottle, container, or logo? Answer hasProduct true/false and a short description of what you found (empty when none). Also report whether the image contains a raised platform, pedestal, slab, plate, or table with a visible edge that a product would stand on: hasPlatform true/false and a short description of what you found (empty when none).',checkBackgroundSchema,input.image,signal,options));}
  if(operation==='copy'){const input=shiftRequest.parse(raw),result=await metaJson(base.modelId,base.apiKey,`Rewrite using locale ${input.targetLocale}, headline at most ${input.maxHeadlineChars} Unicode characters. Preserve factual claims. Do not invent offers or stereotypes. Reference: ${JSON.stringify({headline:input.currentHeadline,caption:input.currentCaption,brief:input.productBrief})}`,shiftedSchema,undefined,signal,options);if([...result.headline].length>input.maxHeadlineChars)throw new ProviderError('invalid_response',502);return json(result);}
  if(operation==='makeover'){const input=makeoverRequest.parse(raw);return imageResponse(await metaImage(base.modelId,base.apiKey,`Enhance this product photo: better materials, lighting and finish. Keep the exact product shape, proportions, colors, packaging and identity. Do not add, remove, or re-render any text, lettering, or logos; every existing text element must stay exactly as it is. ${input.preset} preset. User reference instruction (not code): ${input.prompt}`,signal,options,input.image));}
+ if(operation==='market-research'){const input=researchRequestSchema.parse(raw);const prompt=buildResearchPrompt(input);
+  // Web search first; if Meta refuses the tool, ask once without it and say no search ran.
+  let searched=true,envelope:unknown;
+  try{envelope=await metaResearch(base.modelId,base.apiKey,prompt,input.image,true,signal,options);}
+  catch(error){if(!(error instanceof ProviderError&&(error.code==='invalid_request'||error.code==='unsupported_task')))throw error;searched=false;envelope=await metaResearch(base.modelId,base.apiKey,prompt,input.image,false,signal,options);}
+  const result=parseResearchResponse(envelope,searched);
+  if(!result)throw new ProviderError('invalid_response',502,{source:'meta',fields:researchShape(envelope)});
+  return json(result);}
  if(operation==='oneshot'){const input=oneshotRequestSchema.parse(raw);const paint=(withProduct:boolean)=>metaImage(base.modelId,base.apiKey,buildOneshotPrompt(input.brand,input.scene,input.layout,input.language,input.fixNotes,input.format,withProduct),signal,options,withProduct&&input.product?[input.mockup,input.product]:input.mockup);
   // The product close-up rides along as a second image. If Meta refuses a second image, paint once from the mockup alone.
   if(input.product){try{return imageResponse(await paint(true));}catch(error){if(!(error instanceof ProviderError&&(error.code==='invalid_request'||error.code==='unsupported_task')))throw error;}}
