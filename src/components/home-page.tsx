@@ -121,7 +121,7 @@ export default function HomePage() {
       </div>
       {ads.length > 0 && <>
         <p className="home-gallery-note">{t.showcaseNote}</p>
-        <div className="home-ad-grid">{ads.map(ad => <figure key={ad.src} className="home-ad" data-ratio={ad.ratio} data-testid="home-showcase-ad">
+        <div className="home-ad-grid home-ad-grid--showcase">{ads.map(ad => <figure key={ad.src} className="home-ad" data-ratio={ad.ratio} data-testid="home-showcase-ad">
           <Image src={ad.src} alt={ad.headline} width={1080} height={ad.ratio === '1:1' ? 1080 : ad.ratio === '9:16' ? 1920 : 1350} sizes="(max-width: 640px) 92vw, 380px" />
           <figcaption><span>{t[`category_${ad.category}`]} · {ad.ratio}</span>{ad.score !== null && <small>{t.certificate} {ad.score}/100</small>}</figcaption>
         </figure>)}</div>
