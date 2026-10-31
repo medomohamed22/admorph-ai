@@ -1,12 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { browserPrefersArabic } from '../../src/lib/i18n';
+import { initialLocale } from '../../src/lib/i18n';
 
 describe('first-visit language', () => {
-  it('starts in Arabic only when the browser prefers Arabic', () => {
-    expect(browserPrefersArabic(['ar-EG', 'en'])).toBe(true);
-    expect(browserPrefersArabic(['ar'])).toBe(true);
-    expect(browserPrefersArabic(['en-US', 'ar'])).toBe(false);
-    expect(browserPrefersArabic([])).toBe(false);
-    expect(browserPrefersArabic(undefined)).toBe(false);
+  it('starts in English unless the visitor saved Arabic', () => {
+    expect(initialLocale(undefined)).toBe('en');
+    expect(initialLocale('en')).toBe('en');
+    expect(initialLocale('ar')).toBe('ar');
+    expect(initialLocale('fr')).toBe('en');
   });
 });

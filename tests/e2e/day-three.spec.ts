@@ -25,9 +25,14 @@ async function fillBrand(page: Page) {
   await page.getByLabel('Accent color HEX', { exact: true }).fill('#29b8a0');
 }
 
-test('a fresh Arabic browser starts in Arabic and other browsers start in English', async ({ browser }) => {
+test('every fresh browser starts in English, an Arabic one too; a saved Arabic choice wins', async ({ browser }) => {
   const arabic = await browser.newContext({ locale: 'ar-EG', baseURL: 'http://localhost:3000' }); const page = await arabic.newPage();
   await page.goto('/');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await page.getByRole('button', { name: 'Switch to Arabic' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await arabic.close();

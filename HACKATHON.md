@@ -2,7 +2,7 @@
 
 - Three fixed Meta models replace the per-role model pickers; a dark design system and a cleanup of unreachable screens landed (PR #75).
 - Navigation is down to four items (Create, My gallery, Brand kits, Settings); variants and seasonal themes open from each saved ad in the gallery.
-- First visits from an Arabic browser start in Arabic; everyone else starts in English. A saved choice always wins.
+- Every first visit starts in English, whatever the browser language; the AR/EN button switches, and that saved choice always wins (changed 31 October so judges always land in English).
 - Milestone validation and release reports moved to `docs/archive/`.
 
 ## Compliance and completion record — 28 October 2026
