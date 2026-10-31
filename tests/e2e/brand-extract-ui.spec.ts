@@ -9,7 +9,6 @@ test('extracting a brand shows the photo being read, a seconds counter, then the
     await route.fulfill({ json: { suggestedName: 'Sora Matcha', primaryHex: '#52633c', secondaryHex: '#dce5bb', accentHex: '#f2d1bc', brandTone: 'Calm', shortDescriptionEn: 'Ceremonial matcha.', shortDescriptionAr: 'ماتشا.', recommendedFontEn: 'Inter', recommendedFontAr: 'Cairo', rationale: 'Fixture.' } });
   });
   await page.goto('/settings');
-  await page.getByLabel('API key', { exact: true }).fill('fixture-extract-ui');
   await page.getByRole('link', { name: 'Brand kits', exact: true }).click();
   await page.getByRole('link', { name: en.brands.create, exact: false }).click();
   const section = page.getByTestId('brand-extraction');

@@ -16,16 +16,15 @@ test('landing points to the wizard and the gallery', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('settings shows the three fixed Meta models and needs a key before testing', async ({ page }) => {
+test('settings shows the three fixed Meta models, ready with the site key and no key field', async ({ page }) => {
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: 'The three models', exact: true })).toBeVisible();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
+  await expect(page.locator('#api-key')).toHaveCount(0);
   for (const model of ['spark', 'sam', 'image']) {
     const card = page.getByTestId(`model-${model}`);
-    await expect(card).toContainText('Needs your key');
-    await expect(card.getByRole('button', { name: /^Test/ })).toBeDisabled();
+    await expect(card.getByRole('button', { name: /^Test/ })).toBeEnabled();
   }
-  await page.getByLabel('API key', { exact: true }).fill('fixture-key-never-real');
-  await expect(page.getByTestId('model-spark').getByRole('button', { name: /^Test/ })).toBeEnabled();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

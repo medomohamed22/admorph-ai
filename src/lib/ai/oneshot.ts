@@ -78,6 +78,8 @@ export const verifyResultSchema = z.object({
   /** Publish-ready checks: every word contrasts with what is behind it, and no word, price or button touches the product. */
   textReadable: z.boolean().optional(),
   textClearOfProduct: z.boolean().optional(),
+  /** False when the picture keeps flat bands, borders, letterbox bars or a frame instead of one full scene. */
+  cleanFrame: z.boolean().optional(),
   qualityNote: z.string().max(300).optional(),
 }).strict();
 export type VerifyResult = z.infer<typeof verifyResultSchema>;
@@ -140,7 +142,7 @@ export function oneshotScore(result: VerifyResult, logoExpected: boolean): numbe
   // that invents a slogan falls under the repair threshold.
   const extraPenalty = Math.min(30, 10 * (result.extraText?.length ?? 0));
   // Words that cannot be read, or that sit on the product, make an ad unpublishable: 15 each.
-  const qualityPenalty = (result.textReadable === false ? 15 : 0) + (result.textClearOfProduct === false ? 15 : 0);
+  const qualityPenalty = (result.textReadable === false ? 15 : 0) + (result.textClearOfProduct === false ? 15 : 0) + (result.cleanFrame === false ? 15 : 0);
   return Math.max(0, Math.round((earned / possible) * 100) - extraPenalty - qualityPenalty);
 }
 

@@ -70,7 +70,7 @@ export type VariantAxis = (typeof VARIANT_AXES)[number]['id'];
 /** The planner's instructions for the art brief, shared by the wizard and the variants. */
 export function artBriefInstruction(avoid: readonly string[]): string {
   const lines = [
-    'For every concept also write artBrief: setting (one specific real place, never a plain studio backdrop, empty void or seamless paper), two to four props that belong there and suit the product, lighting, camera (angle and lens), composition (where the product and the headline sit), a palette of two to four colors echoing the brand colors, typeStyle (how the headline should look, e.g. bold condensed white sans) and avoid (things that would clash).',
+    'For every concept also write artBrief: setting (one specific real place, never a plain studio backdrop, empty void or seamless paper), two to four props that belong there and suit the product, lighting, camera (angle and lens), composition (where the product sits and which calm, object-free part of the scene holds the headline), a palette of two to four colors echoing the brand colors, typeStyle (how the headline should look, e.g. bold condensed white sans) and avoid (things that would clash).',
     'The three concepts must use three clearly different settings, lights and camera angles.',
     'Set visualDirection to the same scene in one sentence.',
   ];

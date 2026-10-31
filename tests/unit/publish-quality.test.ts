@@ -39,7 +39,10 @@ describe('publish-ready rules', () => {
   it('every ad prompt carries the readability and clearance rules', () => {
     const layout: OneshotElement[] = [{ id: 'p', kind: 'product', x: 300, y: 300, width: 400, height: 500 }, { id: 'h', kind: 'text', x: 80, y: 80, width: 900, height: 120, text: 'Hi' }];
     for (const prompt of [buildOneshotPrompt(brand, 'a cafe', layout, 'en'), buildRemixPrompt(brand, 'a cafe', 'Hi', 'en', 'product', 'ramadan')]) {
-      expect(prompt).toContain('light text only over dark, calm areas');
+      expect(prompt).toContain('never over a mirror, window, plant');
+      expect(prompt).toContain('Never leave any flat gray, white or black area, band');
+      expect(prompt).toContain('brand-new retail unit');
+      expect(prompt).not.toContain('solid or softly blurred panel');
       expect(prompt).toContain('Never let any text, price tag or button touch, overlap or hide the product');
       expect(prompt).toContain('sized to its own words');
     }
@@ -51,8 +54,11 @@ describe('publish-ready rules', () => {
     const bad = { ...base, textReadable: false, textClearOfProduct: false, qualityNote: 'white price on a white wall' };
     expect(oneshotScore(bad, false)).toBe(70);
     const notes = repairNotes(bad, false);
-    expect(notes.some(note => note.includes('Make every word readable') && note.includes('white price on a white wall'))).toBe(true);
+    expect(notes.some(note => note.includes('Make every word readable') && note.includes('never a band or box') && note.includes('white price on a white wall'))).toBe(true);
     expect(notes.some(note => note.includes('off the product'))).toBe(true);
+    const banded = { ...base, cleanFrame: false, qualityNote: 'white band at the top' };
+    expect(oneshotScore(banded, false)).toBe(85);
+    expect(repairNotes(banded, false).some(note => note.includes('Fill the whole frame') && note.includes('white band at the top'))).toBe(true);
   });
 });
 

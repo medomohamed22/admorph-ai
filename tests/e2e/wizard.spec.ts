@@ -7,7 +7,6 @@ test('wizard progress survives a reload and Start over clears it', async ({ page
   await page.route('**/api/ai/product-box', route => route.fulfill({ json: { left: 0, top: 0, right: 1, bottom: 1 } }));
   await page.route('**/api/ai/segment', route => route.fulfill({ json: { masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] } }));
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-wizard-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
@@ -43,7 +42,7 @@ test('wizard progress survives a reload and Start over clears it', async ({ page
 test('the wizard reads right to left in Arabic', async ({ page }) => {
   await page.goto('/settings');
   // Wait for the stored workspace to load, so the choice is not overwritten.
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.getByRole('radio', { name: 'العربية' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
   await page.getByRole('link', { name: 'إنشاء', exact: true }).click();
@@ -69,7 +68,6 @@ test('the dialect picker previews the tone and the planner receives the chosen d
     ] } });
   });
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-dialect-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();

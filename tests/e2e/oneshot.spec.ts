@@ -18,7 +18,7 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   // Wait for the app session (and its Dexie database) to be ready before
   // touching IndexedDB directly: opening the database first would create a
   // schemaless v1 copy and block the app's own upgrade.
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -32,7 +32,6 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
       tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   // Client-side navigation only from here, so the session key survives.
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
@@ -79,7 +78,7 @@ test('One-shot enhance shows a success note and a before/after preview', async (
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -93,7 +92,6 @@ test('One-shot enhance shows a success note and a before/after preview', async (
       tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
@@ -125,7 +123,7 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -139,7 +137,6 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
       tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
@@ -157,7 +154,7 @@ test('One-shot SAM failure shows the precise no-mask diagnosis, not a generic er
 
 test('brand picker fills identity and logo from a saved brand kit', async ({ page }) => {
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const brandId = crypto.randomUUID();
@@ -179,7 +176,6 @@ test('brand picker fills identity and logo from a saved brand kit', async ({ pag
     return brandId;
   });
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   // The brand step opens once the product is cut out.
   const mask = Buffer.alloc(300 * 330, 1);
@@ -201,7 +197,7 @@ test('brand picker fills identity and logo from a saved brand kit', async ({ pag
 
 test('ideas generate from the product photo and brand with no written brief', async ({ page }) => {
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -215,7 +211,6 @@ test('ideas generate from the product photo and brand with no written brief', as
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -247,7 +242,7 @@ test('ideas generate from the product photo and brand with no written brief', as
 test('stepper tracks progress and the canvas blurs while generating', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -261,7 +256,6 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const steps = page.locator('.oneshot-stepper li');
   await expect(steps).toHaveCount(5);
@@ -328,7 +322,7 @@ test('stepper tracks progress and the canvas blurs while generating', async ({ p
 test('brand extraction applies its font to the headline', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -342,7 +336,6 @@ test('brand extraction applies its font to the headline', async ({ page }) => {
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -363,7 +356,7 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -377,7 +370,6 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -415,7 +407,7 @@ test('canvas controls resize and nudge the selected element', async ({ page }) =
 test('canvas undo and redo restore the selected text', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -429,7 +421,6 @@ test('canvas undo and redo restore the selected text', async ({ page }) => {
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -451,7 +442,7 @@ test('canvas undo and redo restore the selected text', async ({ page }) => {
 test('mockup check flags text overlapping the product', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -465,7 +456,6 @@ test('mockup check flags text overlapping the product', async ({ page }) => {
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -488,7 +478,7 @@ test('evidence export downloads a ZIP and editing clears the certificate', async
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -502,7 +492,6 @@ test('evidence export downloads a ZIP and editing clears the certificate', async
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -535,7 +524,7 @@ test('evidence export downloads a ZIP and editing clears the certificate', async
 test('planner suggests three fonts and picking one applies it to the headline', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -549,7 +538,6 @@ test('planner suggests three fonts and picking one applies it to the headline', 
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -578,7 +566,7 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -592,7 +580,6 @@ test('product drag moves the product and the canvas owns touch', async ({ page }
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -641,7 +628,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   const ids = await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const brandA = crypto.randomUUID();
@@ -669,7 +656,6 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
     return { brandA, brandB };
   });
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -713,7 +699,7 @@ test('brand picker keeps the arranged logo position', async ({ page }) => {
 test('repair loop proposes a fix, applies it, and undo reverses it', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -727,7 +713,6 @@ test('repair loop proposes a fix, applies it, and undo reverses it', async ({ pa
       tx.onabort = () => { db.close(); reject(new Error('seed aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   const mask = Buffer.alloc(300 * 330, 1);
   await page.route('**/api/ai/segment', async (route) => { await route.fulfill({ body: JSON.stringify({ masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] }), contentType: 'application/json' }); });
@@ -758,7 +743,7 @@ test('Geometric cutout rescues a product the noun phrase cannot ground', async (
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -772,7 +757,6 @@ test('Geometric cutout rescues a product the noun phrase cannot ground', async (
       tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 
@@ -801,7 +785,7 @@ test('Tap-to-cut rescues a product when automatic cutout fails twice', async ({ 
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(() => new Promise<void>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
     open.onerror = () => reject(new Error('db open failed'));
@@ -815,7 +799,6 @@ test('Tap-to-cut rescues a product when automatic cutout fails twice', async ({ 
       tx.onabort = () => { db.close(); reject(new Error('seed transaction aborted')); }; };
   }));
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
 

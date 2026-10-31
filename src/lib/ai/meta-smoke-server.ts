@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {acquireBudget} from '../security/ai-budget';
+import {withServerKey,serverMetaKey} from './server-key';
 import { ProviderError, httpError } from './errors';
 import { providers } from './registry';
 import { readJsonLimited, type TransportOptions } from './transport';
@@ -10,9 +11,9 @@ export async function handleMetaSmoke(request: Request, options: TransportOption
   try {
     if (request.headers.get('origin') !== new URL(request.url).origin || request.headers.get('sec-fetch-site') === 'cross-site') throw new ProviderError('origin', 403);
     if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') throw new ProviderError('invalid_request', 415);
-    const parsed = metaSmokeRequestSchema.safeParse(await readJsonLimited(request, 12000)); if (!parsed.success) throw new ProviderError('invalid_request');
+    const parsed = metaSmokeRequestSchema.safeParse(withServerKey(await readJsonLimited(request, 12000))); if (!parsed.success) throw new ProviderError('invalid_request');
     const input = parsed.data, deadline = AbortSignal.timeout(options.timeoutMs ?? 45000), signal = AbortSignal.any([deadline, request.signal]);
-    release=acquireBudget(input.apiKey);
+    release=serverMetaKey()?undefined:acquireBudget(input.apiKey);
     try {
       const response = await (options.fetcher ?? fetch)(`${providers.meta.baseUrl}/${input.kind === 'text' ? 'chat/completions' : 'images/generations'}`, {
         method: 'POST', headers: { Authorization: `Bearer ${input.apiKey}`, 'Content-Type': 'application/json' },

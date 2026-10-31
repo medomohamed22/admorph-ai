@@ -13,7 +13,7 @@ const concepts = [
 
 async function seedGallery(page: import('@playwright/test').Page) {
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const now = new Date().toISOString();
@@ -34,7 +34,6 @@ async function seedGallery(page: import('@playwright/test').Page) {
     });
   });
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
 }
 
 async function interceptRemix(page: import('@playwright/test').Page) {
@@ -61,7 +60,7 @@ test('variants page makes 2 new versions of a saved ad', async ({ page }) => {
 test('variants page fits an oversized saved ad before sending it', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   const oversizedBytes = await page.evaluate(async () => {
     const canvas = document.createElement('canvas'); canvas.width = 1080; canvas.height = 1350;
     const ctx = canvas.getContext('2d')!;
@@ -91,7 +90,6 @@ test('variants page fits an oversized saved ad before sending it', async ({ page
   });
   expect(oversizedBytes).toBeGreaterThan(2 * 1024 * 1024);
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'My gallery', exact: true }).click();
   await page.getByRole('link', { name: 'Variants', exact: true }).click();
   let planBytes = 0;
@@ -164,7 +162,7 @@ test('empty gallery shows one clear call to action', async ({ page }) => {
 test('seasonal copies redesign from the saved cutout, name the season, and repaint once when the cues are missing', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(async () => {
     const canvas = document.createElement('canvas'); canvas.width = 40; canvas.height = 50;
     const blob = await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value!), 'image/png'));
@@ -177,7 +175,6 @@ test('seasonal copies redesign from the saved cutout, name the season, and repai
     });
   });
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   const remixes: { source?: string; theme?: string }[] = [];
   let verifies = 0;
   await page.route('**/api/ai/plan', route => route.fulfill({ json: { concepts } }));
@@ -235,7 +232,6 @@ test('variants of an Arabic ad are written in Arabic, even in the English interf
     });
   });
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'My gallery', exact: true }).click();
   await page.getByRole('link', { name: 'Variants', exact: true }).click();
   await interceptRemix(page);

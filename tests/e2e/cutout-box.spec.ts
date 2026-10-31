@@ -13,7 +13,6 @@ test('a tight vision box is padded, and a cut that runs into the box edge is ret
     return route.fulfill({ json: { masks: [{ objectId: 'product', left: 0, top: 0, right: 300, bottom: 330, width: 300, height: 330, rasterBase64: mask.toString('base64') }] } });
   });
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-box-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByRole('button', { name: 'Isolate background', exact: true }).click();
@@ -48,7 +47,6 @@ test('Improve product keeps the improved photo and cuts it along the Muse Spark 
     return route.fulfill({ json: { masks: [{ objectId: 'product', left: left + dx, top: top + dy, right: right - dx, bottom: bottom - dy, width: 8, height: 8, rasterBase64: Buffer.alloc(64, 1).toString('base64') }] } });
   });
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-enhance-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Product photo', { exact: true }).setInputFiles('public/demo/sora-product.png');
   await page.getByLabel(/Improve product/).click();

@@ -11,7 +11,7 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const brandA = crypto.randomUUID();
@@ -38,7 +38,6 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
     return { brandA, brandB };
   });
   await page.reload();
-  await page.locator('#api-key').fill('fixture-image-key');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.route('**/api/ai/product-box', async (route) => { await route.fulfill({ body: JSON.stringify({ left: 0, top: 0, right: 1, bottom: 1 }), contentType: 'application/json' }); });
   const mask = Buffer.alloc(300 * 330, 1);
@@ -59,7 +58,7 @@ test('brand with a missing logo clears the previous logo and warns', async ({ pa
 test('deleting a brand asks in-page and removes the card', async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto('/settings');
-  await expect(page.locator('#api-key')).toBeEnabled();
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
   await page.evaluate(async () => {
     const blob = await (await fetch('/demo/sora-product.png')).blob();
     const brandId = crypto.randomUUID();

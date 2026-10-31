@@ -172,7 +172,7 @@
     "cleared": "Key and its encrypted copy cleared. Non-secret model settings were kept.",
     "cancelled": "Request cancelled.",
     "errors": {
-      "missing_key": "Enter a key before testing this connection or fetching this provider’s catalog.",
+      "missing_key": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
       "consent": "Accept the request consent before contacting a provider.",
       "invalid_request": "The request is invalid. Check the provider and key fields.",
       "custom_server": "Custom endpoints cannot be forwarded by this server. Use the direct browser connection.",
@@ -1127,7 +1127,7 @@
       "Bottom banner / center stage"
     ],
     "errors": {
-      "missing_key": "Enter a key before testing this connection or fetching this provider’s catalog.",
+      "missing_key": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
       "consent": "Accept the request consent before contacting a provider.",
       "invalid_request": "The request is invalid. Check the provider and key fields.",
       "custom_server": "Custom endpoints cannot be forwarded by this server. Use the direct browser connection.",

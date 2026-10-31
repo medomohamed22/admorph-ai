@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useProviderSession } from './provider-session';
 import { useMessages, useWorkspace } from './workspace';
-import { CredentialVault } from './credential-vault';
 import { StorageControls } from './storage-controls';
 import { SessionPrivacy } from './session-privacy';
 import { ProjectBackup } from './project-backup';
@@ -11,13 +10,12 @@ import { taskSchema, supportOutcome } from '@/lib/ai/task-support';
 import { errorCode, type ErrorCode, ProviderError } from '@/lib/ai/errors';
 import { META_MODELS, META_MODEL_ORDER, type MetaModelKey } from '@/lib/ai/models';
 import { Button, Card, ModelBadge, Segmented, StatusChip } from './ui';
-import { IconEye, IconEyeOff, IconKey } from './ui/icons';
+import { IconKey } from './ui/icons';
 
 type TestState = 'idle' | 'running' | 'passed' | 'failed';
 
 export function MetaSettings() {
   const session = useProviderSession(), m = useMessages(), s = m.settings, t = m.meta, x = m.models, w = useWorkspace();
-  const [show, setShow] = useState(false);
   const [tests, setTests] = useState<Partial<Record<MetaModelKey, TestState>>>({});
   const [error, setError] = useState<ErrorCode | null>(null), [notice, setNotice] = useState('');
   const abort = useRef<AbortController | null>(null), token = useRef(0);
@@ -93,19 +91,11 @@ export function MetaSettings() {
       </section>
 
       <div className="settings-split section-gap">
-        <Card className="settings-card">
-          <h2 className="section-title with-icon"><IconKey size={18} />{x.keyTitle}</h2>
-          <p className="section-note">{x.keyLead}</p>
-          <label htmlFor="api-key">{s.key}</label>
-          <div className="key-row">
-            <input id="api-key" dir="ltr" type={show ? 'text' : 'password'} autoComplete="off" spellCheck={false} maxLength={4096} value={key}
-              placeholder={s.keyPlaceholder}
-              onChange={e => session.setConfigs(previous => ({ ...previous, meta: { ...previous.meta, apiKey: e.target.value, consent: false } }))} />
-            <Button variant="secondary" onClick={() => setShow(!show)} aria-label={show ? s.hide : s.show} icon={show ? <IconEyeOff size={16} /> : <IconEye size={16} />} />
-          </div>
-          <p className="field-note">{t.keyNote}</p>
-          <div className="inline-actions"><Button size="sm" variant="ghost" disabled={!hasKey} onClick={() => void session.forgetKey('meta')}>{s.clear}</Button></div>
-          <CredentialVault key={epoch} />
+        <Card className="settings-card" data-testid="site-ai-status" data-state={session.siteKey}>
+          <h2 className="section-title with-icon"><IconKey size={18} />{x.siteTitle}</h2>
+          {session.siteKey === 'ready' && <><StatusChip tone="ok">{x.siteReady}</StatusChip><p className="section-note">{x.siteReadyNote}</p></>}
+          {session.siteKey === 'checking' && <StatusChip busy>{x.siteChecking}</StatusChip>}
+          {session.siteKey === 'missing' && <><StatusChip tone="warn">{x.siteMissing}</StatusChip><p className="section-note">{x.siteMissingNote}</p></>}
         </Card>
         <Card className="settings-card">
           <h2 className="section-title">{x.language}</h2>
