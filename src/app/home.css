@@ -124,3 +124,5 @@
 .home-gallery-note { margin: 0 0 var(--space-4); color: var(--muted); }
 .home-yours { margin-top: var(--space-10); }
 .home-ad-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+/* The showcase always has three ads: one row of three on wide screens. */
+@media (min-width: 900px) { .home-ad-grid--showcase { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

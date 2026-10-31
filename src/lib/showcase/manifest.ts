@@ -18,7 +18,7 @@ export const showcaseSchema = z.object({
 }).strict();
 export type Showcase = z.infer<typeof showcaseSchema>;
 
-export const EMPTY_SHOWCASE: Showcase = { hero: { before: '/showcase/talj-photo.webp', after: '/showcase/ad-talj.webp', sample: false }, ads: [] };
+export const EMPTY_SHOWCASE: Showcase = { hero: { before: '/showcase/headphones-photo.webp', after: '/showcase/headphones-ad.webp', sample: false }, ads: [] };
 
 export function parseShowcase(raw: unknown): Showcase {
   const parsed = showcaseSchema.safeParse(raw);
