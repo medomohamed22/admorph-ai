@@ -3,14 +3,12 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRef } from 'react';
 import { useMessages, useWorkspace } from './workspace';
-import { useProviderSession } from './provider-session';
-import { IconLayers, IconLock, IconPalette, IconSettings, IconSparkles, LogoMark } from './ui/icons';
+import { IconLayers, IconPalette, IconSettings, IconSparkles, LogoMark } from './ui/icons';
 import { useSlidingIndicator } from './ui';
 
 type NavItem = { href: string; label: string; icon: React.ReactNode; active: (path: string) => boolean };
 
 export function Header() {
-  const session = useProviderSession();
   const m = useMessages();
   const { locale, setLocale } = useWorkspace();
   const path = usePathname();
@@ -41,9 +39,6 @@ export function Header() {
       <div className="header-actions">
         <button type="button" className="chip-button" aria-label={m.nav.switchLanguage} onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}>
           {locale === 'ar' ? 'EN' : 'ع'}
-        </button>
-        <button type="button" className="chip-button" disabled={!session.ready} onClick={session.lockAll} title={m.publicMode.lock} aria-label={m.publicMode.lock}>
-          <IconLock size={15} />
         </button>
       </div>
     </header>

@@ -35,7 +35,6 @@ test('shelf to campaign: find, cut live, pick, and paint one ad per product', as
   page.on('pageerror', error => errors.push(error.message));
   const calls = await mockMeta(page);
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-shelf-key');
   await page.getByRole('link', { name: 'Create', exact: true }).first().click();
   await page.getByRole('link', { name: 'Whole shelf? Make a campaign', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Shoot the shelf. Get a campaign.');
@@ -94,7 +93,6 @@ test('shelf to campaign: find, cut live, pick, and paint one ad per product', as
 test('a shelf with nothing on it says so and stays on the capture step', async ({ page }) => {
   await page.route('**/api/ai/shelf-detect', route => route.fulfill({ json: { products: [] } }));
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-shelf-key');
   await page.getByRole('link', { name: 'Create', exact: true }).first().click();
   await page.getByRole('link', { name: 'Whole shelf? Make a campaign', exact: true }).click();
   await page.getByRole('button', { name: 'Try the sample shelf', exact: true }).click();
@@ -102,8 +100,9 @@ test('a shelf with nothing on it says so and stays on the capture step', async (
   await expect(page.getByTestId('shelf-capture')).toBeVisible();
 });
 
-test('without a key the shelf page asks for one and does not start', async ({ page }) => {
+test('without the site key the shelf page says so and does not start', async ({ page }) => {
+  await page.route('**/api/site-config', route => route.fulfill({ json: { siteKey: false } }));
   await page.goto('/shelf');
-  await expect(page.getByText('Add your Meta key in Settings to start.')).toBeVisible();
+  await expect(page.getByText('AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Try the sample shelf', exact: true })).toBeDisabled();
 });

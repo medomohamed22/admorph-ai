@@ -3,17 +3,8 @@ import { readFile } from 'node:fs/promises';
 import ar from '../../src/messages/ar.json';
 import arStudio from '../../src/messages/studio.ar.json';
 
-const fixtureKey = 'fixture-key-never-real';
-const fixturePassphrase = 'fixture passphrase with enough length';
 const catalog = { models: [{ id: 'fixture-text', name: 'Fixture Text', provider: 'meta', capabilities: ['text'], availability: 'unknown' }],
   fetchedAt: '2026-10-26T10:00:00.000Z', credentialStatus: 'accepted' };
-async function openVault(page: Page) {
-  // The vault auto-opens when a key needs saving or unlocking; clicking the
-  // summary then would close it again.
-  const input = page.getByLabel('Encryption passphrase', { exact: true });
-  if (!(await input.isVisible())) await page.getByText('Optional encrypted key storage', { exact: true }).click();
-  await expect(input).toBeVisible();
-}
 async function persistedStore(page: Page, name: string): Promise<unknown[]> {
   return page.evaluate(store => new Promise<unknown[]>((resolve, reject) => {
     const open = indexedDB.open('admorph-local-v1');
@@ -47,41 +38,20 @@ test('a fresh Arabic browser starts in Arabic and other browsers start in Englis
   await english.close();
 });
 
-test('the key never persists in plaintext and the three models are fixed', async ({ page }) => {
+test('the site key never reaches the browser and the three models are fixed', async ({ page }) => {
+  // The test server runs with META_API_KEY set; the browser may only learn that it exists.
+  const siteKey = 'fixture-site-key-not-a-secret';
   await page.goto('/settings');
-  await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
+  await expect(page.locator('#api-key')).toHaveCount(0);
   await expect(page.getByTestId('model-spark')).toContainText('muse-spark-1.3-contributor');
   await expect(page.getByTestId('model-sam')).toContainText('sam-3.1');
   await expect(page.getByTestId('model-image')).toContainText('muse-image-1.0');
-  await page.reload();
-  await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
+  expect(await (await page.request.get('/api/site-config')).json()).toEqual({ siteKey: true });
+  expect(await page.content()).not.toContain(siteKey);
   for (const name of ['settings', 'modelCatalogCache', 'encryptedCredentials']) {
-    expect(JSON.stringify(await persistedStore(page, name))).not.toContain(fixtureKey);
+    expect(JSON.stringify(await persistedStore(page, name))).not.toContain(siteKey);
   }
-});
-
-test('optional encrypted credentials need a passphrase after reload and clear removes ciphertext', async ({ page }) => {
-  await page.goto('/settings');
-  await page.getByLabel('API key', { exact: true }).fill(fixtureKey);
-  await openVault(page);
-  await page.getByLabel('Encryption passphrase', { exact: true }).fill(fixturePassphrase);
-  await page.getByRole('button', { name: 'Remember key on this device', exact: true }).click();
-  await expect(page.locator('.vault-result')).toContainText('Encrypted key saved');
-  await expect(page.getByLabel('Encryption passphrase', { exact: true })).toHaveValue('');
-  const encrypted = JSON.stringify(await persistedStore(page, 'encryptedCredentials'));
-  expect(encrypted).not.toContain(fixtureKey); expect(encrypted).not.toContain(fixturePassphrase);
-  await page.reload();
-  await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
-  await openVault(page);
-  await page.getByLabel('Encryption passphrase', { exact: true }).fill('wrong passphrase');
-  await page.getByRole('button', { name: 'Unlock saved key', exact: true }).click();
-  await expect(page.locator('.vault-result')).toContainText('Could not unlock');
-  await page.getByLabel('Encryption passphrase', { exact: true }).fill(fixturePassphrase);
-  await page.getByRole('button', { name: 'Unlock saved key', exact: true }).click();
-  await expect(page.getByLabel('API key', { exact: true })).toHaveValue(fixtureKey);
-  await page.getByRole('button', { name: 'Clear key', exact: true }).click();
-  await expect(page.getByLabel('API key', { exact: true })).toHaveValue('');
-  expect(await persistedStore(page, 'encryptedCredentials')).toEqual([]);
 });
 
 test('brand logo, palette, theme and portable import/export survive reload', async ({ page }, info) => {
@@ -148,7 +118,7 @@ test('Arabic switching translates all screens, persists and preserves edits', as
   }
   await page.goto('/settings');
   await expect(page.getByRole('radio', { name: ar.settings.arabic, exact: true })).toHaveAttribute('aria-checked', 'true');
-  await expect(page.getByTestId('model-spark')).toContainText(arStudio.models.needsKey);
+  await expect(page.getByTestId('model-spark')).toContainText(arStudio.models.ready);
   await page.screenshot({ path: `test-results/${info.project.name}-day3-ar-settings.png`, fullPage: true });
   await page.goto('/'); await expect(page.getByRole('heading', { level: 1 })).toContainText(arStudio.home.title);
   await page.getByRole('button', { name: ar.nav.switchLanguage, exact: true }).click();

@@ -10,6 +10,7 @@ import {supportEventSchema} from '@/lib/ai/meta-fetch';
 import {accountContext,supportStatus,supportSchema,type MetaTask,type TaskSupport} from '@/lib/ai/task-support';
 import type {ModelSelection} from '@/lib/ai/schemas';
 import {selectionForTask} from '@/lib/ai/models';
+import {SITE_KEY_PLACEHOLDER} from '@/lib/ai/server-key';
 
 export type ProviderConfig = { apiKey: string; baseUrl: string; consent: boolean };
 type Configs = Record<ProviderId, ProviderConfig>;
@@ -30,6 +31,19 @@ function useSessionState() {
   const [keyEpoch, setKeyEpoch] = useState(0), epoch = useRef(0);
   const [extraRoles,setExtraRoles]=useState<Partial<Record<MetaTask,ModelSelection>>>({});
   const [support,setSupport]=useState<TaskSupport[]>([]),[binding,setBinding]=useState({key:'',account:''});
+  // The site's own key lives on the server (META_API_KEY). The browser only learns that it is there
+  // and sends a placeholder the server replaces; there is no key field for visitors.
+  const [siteKey, setSiteKey] = useState<'checking' | 'ready' | 'missing'>('checking');
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/site-config', { cache: 'no-store' }).then(response => response.json()).then((body: { siteKey?: unknown }) => {
+      if (!alive) return;
+      const ready = body.siteKey === true;
+      setSiteKey(ready ? 'ready' : 'missing');
+      if (ready) setConfigs(previous => ({ ...previous, meta: { ...previous.meta, apiKey: SITE_KEY_PLACEHOLDER, consent: true } }));
+    }).catch(() => { if (alive) setSiteKey('missing'); });
+    return () => { alive = false; };
+  }, []);
   const activeAccount=binding.key===configs.meta.apiKey?binding.account:'';
   useEffect(()=>{let alive=true;const key=configs.meta.apiKey;accountContext(key).then(account=>{if(alive)setBinding({key,account:key?account:''});});return()=>{alive=false;};},[configs.meta.apiKey,keyEpoch]);
   useEffect(()=>{let alive=true;Promise.resolve().then(()=>Promise.all([getDatabase().taskSupport.toArray(),getDatabase().settings.get('metaExtraRoles')])).then(([records,extra])=>{if(alive){setSupport(records.map(row=>supportSchema.parse(row)));if(extra)setExtraRoles(extra.value as Partial<Record<MetaTask,ModelSelection>>);}}).catch(()=>{});return()=>{alive=false;};},[]);
@@ -43,7 +57,7 @@ function useSessionState() {
 
   function lockAll() {
     epoch.current++; setKeyEpoch(epoch.current);
-    setConfigs(previous => Object.fromEntries(Object.entries(previous).map(([id, config]) => [id, { ...config, apiKey: '', consent: false }])) as Configs);
+    setConfigs(previous => Object.fromEntries(Object.entries(previous).map(([id, config]) => [id, id === 'meta' && config.apiKey === SITE_KEY_PLACEHOLDER ? config : { ...config, apiKey: '', consent: false }])) as Configs);
     setCatalogs(previous => Object.fromEntries(Object.entries(previous).map(([id, catalog]) => [id, { ...catalog, credentialStatus: 'not_tested', cached: true }])));
   }
   useEffect(() => {
@@ -97,7 +111,7 @@ function useSessionState() {
     } catch { setStorageError(true); return false; }
   }
   return { provider, setProvider, configs, setConfigs, catalogs, setCatalogs, roles, setRoles, savedRoles, setSavedRoles,
-    ready,invalidRecords, vault, persistSettings, rememberCatalog, forgetKey, storeEncrypted, keyEpoch, lockAll, currentKeyEpoch: () => epoch.current,extraRoles,saveExtra,taskModel,taskState,taskProof,recordSupport };
+    ready,invalidRecords, siteKey, vault, persistSettings, rememberCatalog, forgetKey, storeEncrypted, keyEpoch, lockAll, currentKeyEpoch: () => epoch.current,extraRoles,saveExtra,taskModel,taskState,taskProof,recordSupport };
 }
 const SessionContext = createContext<ReturnType<typeof useSessionState> | null>(null);
 export function ProviderSession({ children }: { children: ReactNode }) {

@@ -59,7 +59,8 @@ export function repairNotes(certificate: VerifyResult, logoExpected: boolean): s
   }
   for (const extra of certificate.extraText ?? []) notes.push(`Remove the text "${clip(extra)}"; only the mockup's own words may appear.`);
   const why = certificate.qualityNote ? ` Critic: ${clip(certificate.qualityNote)}` : '';
-  if (certificate.textReadable === false) notes.push(`Make every word readable: put light text on a dark calm area or dark text on a light calm area, or set the words on a solid panel.${why}`);
+  if (certificate.textReadable === false) notes.push(`Make every word readable: move the headline to a calm, object-free part of the scene with strong contrast (dark on light or light on dark), with at most a soft shadow, never a band or box.${why}`);
+  if (certificate.cleanFrame === false) notes.push(`Fill the whole frame with one continuous scene: remove every flat band, bar, border, box or frame, including behind the headline.${why}`);
   if (certificate.textClearOfProduct === false) notes.push(`Move the text, price tag and button off the product with a clear gap; the product must be fully visible.${why}`);
   return notes.slice(0, 8);
 }

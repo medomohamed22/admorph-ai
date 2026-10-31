@@ -9,7 +9,7 @@
   "models": {
     "eyebrow": "Settings",
     "title": "Settings",
-    "lead": "Three Meta models power every ad. Add your key once and you are ready.",
+    "lead": "Three Meta models power every ad. Everything is ready: pick a feature and start.",
     "sectionTitle": "The three models",
     "sectionNote": "Each model has one fixed job, so there is nothing to choose.",
     "spark": "Reads the product photo, extracts your brand, writes ideas and copy in your dialect, and reviews every finished ad.",
@@ -25,7 +25,13 @@
     "keyTitle": "Your Meta key",
     "keyLead": "Stays in this tab's memory. Optional encrypted saving is below.",
     "language": "Language",
-    "dataTitle": "Your data"
+    "dataTitle": "Your data",
+    "siteTitle": "AI on this site",
+    "siteReady": "Ready",
+    "siteReadyNote": "The site's own Meta key is set up on the server, so every feature works right away. Nothing to enter, and no key ever reaches your browser.",
+    "siteChecking": "Checking…",
+    "siteMissing": "Not set up yet",
+    "siteMissingNote": "The site owner adds the Meta key as META_API_KEY in the hosting settings (Vercel → Environment Variables), then redeploys."
   },
   "gallery": {
     "title": "My gallery",
@@ -181,7 +187,9 @@
     "formatSquare": "1:1 Square",
     "formatStory": "9:16 Story",
     "certQuality": "Ready to post",
-    "certQualityOk": "Every word is readable and clear of the product"
+    "certQualityOk": "One full scene; every word readable and clear of the product",
+    "missingKey": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
+    "enhanceNeedsSetup": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel."
   },
   "home": {
     "eyebrow": "Built on three Meta models",
@@ -228,7 +236,7 @@
     "stageScan": "Find",
     "stageCut": "Cut",
     "stageCampaign": "Campaign",
-    "needKey": "Add your Meta key in Settings to start.",
+    "needKey": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
     "rateWait": "Pausing {s} s to stay inside your key’s per-minute limit…",
     "photoInput": "Shelf photo",
     "videoInput": "Shelf video",
@@ -292,7 +300,8 @@
     "axis_setting": "New place",
     "axis_light": "New light and angle",
     "axis_palette": "New palette and mood",
-    "fallbackUsed": "Meta declined part of this request, so a plain version was made instead."
+    "fallbackUsed": "Meta declined part of this request, so a plain version was made instead.",
+    "needKey": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel."
   },
   "meta": {
     "extractLead": "One photo of your logo, package or shop sign. Muse Spark reads the name, colors, tone and lettering, and you edit everything before saving.",

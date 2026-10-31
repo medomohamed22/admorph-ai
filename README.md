@@ -81,7 +81,7 @@ npm ci
 npm run dev -- --hostname 127.0.0.1     # http://localhost:3000
 ```
 
-Add your own Meta key in **Settings**. It stays in the tab's memory; optional encrypted saving uses your passphrase. No owner-funded key is read from the environment, and every model request comes from an explicit user action.
+The site uses its own Meta key, set on the server as the environment variable **`META_API_KEY`** (on Vercel: Project → Settings → Environment Variables, then redeploy). Visitors never enter a key, and the key never reaches the browser: AI routes add it server-side, and the browser only learns that one is configured (`/api/site-config`). Never name it with a `NEXT_PUBLIC_` prefix. For local runs, put it in `.env.local` (see `.env.example`). Every model request still comes from an explicit user action.
 
 ## Checks
 
@@ -99,7 +99,7 @@ The E2E suite intercepts every Meta route, so it never makes a paid call. A scre
 
 - Brands, logos, saved ads and the wizard draft live in IndexedDB on this browser (Blobs, never base64 in localStorage). Nothing syncs to a server.
 - AI routes accept same-origin JSON only, validate every request and response with strict Zod schemas, call fixed Meta hosts, and apply per-instance best-effort rate limits per hashed key.
-- Plaintext keys stay in memory; the optional vault is AES-GCM with PBKDF2 (600,000 iterations).
+- The Meta key lives only in the server environment (`META_API_KEY`); it is never sent to, shown in or stored by the browser. With it set, the per-key request budget is off, so usage is limited only by the Meta account.
 
 ## History and honesty notes
 

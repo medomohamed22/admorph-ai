@@ -22,7 +22,6 @@ test('a large phone photo is compressed on the device instead of refused', async
     return route.fulfill({ json: { masks: [{ objectId: 'product', left: left + 20, top: top + 20, right: right - 20, bottom: bottom - 20, width: 8, height: 8, rasterBase64: mask.toString('base64') }] } });
   });
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-big-upload');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.getByLabel('Product photo', { exact: true }).setInputFiles({ name: 'phone.jpg', mimeType: 'image/jpeg', buffer: photo });
   await expect(page.locator('.wizard-error')).toHaveCount(0);
@@ -34,7 +33,6 @@ test('a large phone photo is compressed on the device instead of refused', async
 
 test('the shelf asks for an upload, not the live camera', async ({ page }) => {
   await page.goto('/settings');
-  await page.locator('#api-key').fill('fixture-shelf-upload');
   await page.getByRole('link', { name: 'Create', exact: true }).click();
   await page.locator('a[href="/shelf"]:visible').first().click();
   for (const input of await page.locator('input[type=file]').all()) expect(await input.getAttribute('capture')).toBeNull();
