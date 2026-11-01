@@ -10,7 +10,7 @@ export const showcaseSchema = z.object({
   hero: z.object({ before: localPath, after: localPath, sample: z.boolean(), /** Frame shape; both images should have it. */ ratio: z.enum(['1:1', '4:5']).optional(), /** Name shown on the post preview. */ brand: z.string().trim().min(1).max(40).optional(), /** Caption under the post preview. */ caption: z.string().trim().max(120).optional() }).strict(),
   ads: z.array(z.object({
     src: localPath,
-    category: z.enum(['food', 'electronics', 'fashion', 'perfume', 'beauty', 'other']),
+    category: z.enum(['food', 'electronics', 'fashion', 'perfume', 'beauty', 'home', 'drinkware', 'other']),
     ratio: z.enum(['1:1', '4:5', '9:16']),
     headline: z.string().max(120),
     score: z.number().int().min(0).max(100).nullable(),
