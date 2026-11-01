@@ -23,6 +23,8 @@ test('home shows the value line, the photo-to-post story and the three models', 
   const showcase = page.getByTestId('home-showcase-ad');
   await expect(showcase).toHaveCount(3);
   await expect(showcase.first()).toContainText('Certificate 100/100');
+  // Each showcase ad names its real product type, never a placeholder like "Other".
+  await expect(showcase.locator('figcaption span')).toHaveText(['Home · 1:1', 'Beauty · 1:1', 'Drinkware · 1:1']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
@@ -63,4 +65,21 @@ test('home reads right to left in Arabic with the story mirrored', async ({ brow
   expect(phone!.x).toBeGreaterThan(post!.x);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await context.close();
+});
+
+test('the site has its own icon, a link preview card and a title per page', async ({ page, request }) => {
+  await page.goto('/');
+  await expect(page).toHaveTitle('AdMorph AI — From a phone photo to a ready ad');
+  const head = page.locator('head');
+  await expect(head.locator('link[rel="icon"][href^="/icon.svg"]')).toHaveCount(1);
+  await expect(head.locator('link[rel="apple-touch-icon"]')).toHaveCount(1);
+  const og = await head.locator('meta[property="og:image"]').getAttribute('content');
+  expect(og).toMatch(/^https:\/\/admorph-ai-app\.vercel\.app\/opengraph-image\.png/);
+  await expect(head.locator('meta[property="og:image:alt"]')).toHaveAttribute('content', /phone photo/);
+  await expect(head.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+  for (const path of ['/icon.svg', '/apple-icon.png', '/favicon.ico', '/opengraph-image.png']) expect((await request.get(path)).ok(), path).toBe(true);
+  for (const [path, title] of [['/shelf', 'Shelf to campaign'], ['/oneshot', 'One-shot ad studio'], ['/gallery', 'My gallery'], ['/hackathon', 'Hackathon build log']]) {
+    await page.goto(path);
+    await expect(page).toHaveTitle(`${title} · AdMorph AI`);
+  }
 });

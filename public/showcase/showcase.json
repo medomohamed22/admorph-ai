@@ -10,7 +10,7 @@
   "ads": [
     {
       "src": "/showcase/ad-dafa-candle.webp",
-      "category": "other",
+      "category": "home",
       "ratio": "1:1",
       "headline": "الشتا بيحلو لما البيت يدفا",
       "score": 100
@@ -24,7 +24,7 @@
     },
     {
       "src": "/showcase/ad-hope-bottle.webp",
-      "category": "other",
+      "category": "drinkware",
       "ratio": "1:1",
       "headline": "Cold sips all workday long",
       "score": 100
