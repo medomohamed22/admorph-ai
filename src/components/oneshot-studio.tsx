@@ -125,6 +125,8 @@ export default function OneshotStudio() {
   const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [restored, setRestored] = useState(false);
   const [restoredNote, setRestoredNote] = useState(false);
+  // True once an ad has finished on the Generate step. The saved draft then says so, and the next visit starts a new ad.
+  const [finished, setFinished] = useState(false);
   const [repair, setRepair] = useState<RepairRecord | null>(null);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
   const [past, setPast] = useState<OneshotCanvasElement[][]>([]);
@@ -346,7 +348,8 @@ export default function OneshotStudio() {
     let alive = true;
     loadDraft().then(draft => {
       if (!alive) return;
-      if (draftHasWork(draft)) {
+      // A draft whose ad already finished is not reopened: that ad is in the gallery, and Create starts a new one.
+      if (draftHasWork(draft) && !draft.finished) {
         skipHistory.current = true;
         setOriginalBlob(draft.originalBlob); setCurrentBlob(draft.currentBlob); setCutoutBlob(draft.cutoutBlob);
         setCutoutMethod(draft.cutoutBlob ? 'meta-sam' : null); setLogoBlob(draft.logoBlob); setEnhance(draft.enhance);
@@ -361,10 +364,10 @@ export default function OneshotStudio() {
   useEffect(() => {
     if (!restored || !originalBlob) return;
     const timer = setTimeout(() => {
-      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, place, scene, concepts, selectedConcept, suggestedFonts, elements, format, dialect: pickedDialect ?? undefined, savedAt: new Date().toISOString() }).catch(() => {});
+      void saveDraft({ version: 1, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, place, scene, concepts, selectedConcept, suggestedFonts, elements, format, dialect: pickedDialect ?? undefined, finished: finished && step === 4, savedAt: new Date().toISOString() }).catch(() => {});
     }, 400);
     return () => clearTimeout(timer);
-  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, place, scene, concepts, selectedConcept, suggestedFonts, elements, format, pickedDialect]);
+  }, [restored, step, originalBlob, currentBlob, cutoutBlob, logoBlob, enhance, brand, selectedBrandId, headlineFont, brief, place, scene, concepts, selectedConcept, suggestedFonts, elements, format, pickedDialect, finished]);
 
   /** Start over: drop the saved draft and every piece of this ad. */
   function startOver() {
@@ -377,7 +380,7 @@ export default function OneshotStudio() {
     setElements([]); setSelected(null); setPast([]); setFuture([]); setAppliedRepairs([]); setLoaded(new Set());
     setResultBlob(null); setResultAdId(null); setCertificate(null); setScore(null); setGeneratedLayout(null); setCertSignature(null);
     setRecords(emptyRecords()); setRepair(null); setAttempts([]); setError(''); setRestoredNote(false);
-    setDirection('back'); setStep(0);
+    setFinished(false); setDirection('back'); setStep(0);
   }
 
   async function extractBrand() {
@@ -526,6 +529,7 @@ export default function OneshotStudio() {
     if (!cutoutBlob || !imageModel || !key || !scene.trim() || !canvasHandle.current || !canvasReady) return;
     setBusy('generate'); setError(''); setCertificate(null); setScore(null); setCertSignature(null); setGeneratedLayout(null);
     setRepair(null); setAttempts([]);
+    setFinished(false);
     setRecords(previous => ({ ...previous, paint: { status: 'waiting' }, critic: { status: 'waiting' } }));
     let step: AgentStepId = 'paint';
     try {
@@ -568,6 +572,9 @@ export default function OneshotStudio() {
           setRepair({ status: 'failed', startedAt: started, endedAt: Date.now(), firstScore: first.score ?? undefined, error: metaErrorMessage(cause, errorText), detail: { request: { fixNotes: notes } } });
         }
       }
+      // The finished ad is in the gallery, so the next visit to Create starts a new ad instead of
+      // reopening this one at an empty Generate step. Going back to edit clears the flag again.
+      setFinished(true);
     } catch (cause) {
       setError(metaErrorMessage(cause, errorText));
       setRecords(previous => {

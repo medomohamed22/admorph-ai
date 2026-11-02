@@ -114,8 +114,9 @@ The E2E suite intercepts every Meta route, so it never makes a paid call. A scre
 ## Security and storage
 
 - Brands, logos, saved ads and the wizard draft live in IndexedDB on this browser (Blobs, never base64 in localStorage). Nothing syncs to a server.
-- AI routes accept same-origin JSON only, validate every request and response with strict Zod schemas, call fixed Meta hosts, and apply per-instance best-effort rate limits per hashed key.
-- The Meta key lives only in the server environment (`META_API_KEY`); it is never sent to, shown in or stored by the browser. With it set, the per-key request budget is off, so usage is limited only by the Meta account.
+- AI routes check that the `Origin` header matches the site. That stops other websites from using a visitor's browser, but it is **not authentication**: a script can send any header. The routes also validate every request and response with strict Zod schemas, cap bodies at 4 MB and each image at 2 MB and 4096 px, and call fixed Meta hosts.
+- The Meta key lives only in the server environment (`META_API_KEY`); it is never sent to, shown in or stored by the browser. Visitors need no account, so anyone can use the site's key. What limits that: a **Vercel Firewall rate-limit rule** (60 requests per 10 minutes per client), which is set in the Vercel dashboard and is not stored in this repository, plus the Meta account's own limits. With the site key set, the in-app per-key budget is off (it only applies to keys sent by a browser). Set a spend limit on the Meta account as well.
+- `/api/health` is public and returns the status, whether the site key is configured (never the key) and the three fixed model ids.
 
 ## History and honesty notes
 

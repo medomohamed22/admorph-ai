@@ -15,7 +15,7 @@
 
 1. افتح مستودعك الموجود أو أنشئ مستودعًا جديدًا في GitHub Desktop. لو عندك مستودع منشور بالفعل، استخدم نفس المستودع للحفاظ على السجل.
 2. انسخ محتويات مجلد المصدر الجاهز إلى مجلد المستودع. حافظ على مجلد `.git` الخاص بالمستودع ولا تنسخ مجلدات البناء أو بيانات المتصفح.
-3. راجع Changes. تأكد من وجود `.github/workflows/ci.yml` و`.gitignore` و`.env.example`، وعدم وجود أي مفتاح حقيقي.
+3. راجع Changes. تأكد من وجود `.gitignore` و`.env.example`، وعدم وجود أي مفتاح حقيقي. (لا يوجد ملف GitHub Actions في المستودع حاليًا.)
 4. اكتب عنوانًا عامًا مثل `feat: prepare verified creative studio release and demo` ثم Commit وبعده Push/Publish repository.
 5. إن أردت PR، أنشئ فرعًا من Desktop، انسخ التحديثات واعمل Commit ثم Publish branch وCreate Pull Request. لا تغيّر تواريخ العمل أو تنشئ commits وهمية.
 
@@ -27,9 +27,9 @@
 2. Framework: **Next.js**. Root Directory: الجذر الذي يحتوي `package.json`.
 3. Node.js: **24.x**. Install Command: `npm ci`. Build Command: `npm run build`.
 4. اترك Output Directory تلقائيًا؛ لا تستخدم `dist` أو `out` أو static export، لأن التطبيق يحتاج Route Handlers.
-5. لا توجد متغيرات بيئة مطلوبة لهذه النسخة. مفاتيح BYOK تُدخل من Settings لكل مستخدم وبموافقته، ولا توضع مفاتيح المستخدمين في Vercel أو `NEXT_PUBLIC_`.
+5. أضف متغير البيئة **`META_API_KEY`** (مفتاح Meta الخاص بالموقع) من Vercel: Project → Settings → Environment Variables، ثم أعد النشر. بدونه يظهر الذكاء الاصطناعي "غير مُعدّ" ولا تعمل أي ميزة. الزائر لا يدخل أي مفتاح، ولا تسمّ المتغير بـ `NEXT_PUBLIC_` ولا تضعه في الكود. ولأن أي زائر يستخدم هذا المفتاح، أضف قاعدة Rate Limit في Vercel → Firewall (مثلًا 60 طلبًا كل 10 دقائق لكل زائر على مسارات `/api/`)، وحدّد سقف إنفاق على حساب Meta نفسه.
 6. انشر ثم افتح رابط Production في نافذة خاصة. راجع إعدادات Deployment Protection حتى يمكن للجنة فتح الرابط دون حسابك، حسب الإتاحة في حسابك.
-7. راقب GitHub Actions. الإعداد يشغّل lint/typecheck/unit/build واختبارات Chrome على نسخة الإنتاج، ويسجل الوقت وSHA الحقيقيين. وجود ملف الإعداد لا يثبت أن CI عمل قبل الرفع.
+7. لا يوجد في المستودع حاليًا ملف GitHub Actions، فشغّل الفحوصات يدويًا قبل كل دمج: `npm run lint` و`npm run typecheck` و`npm test` و`npm run build` و`CI=1 npm run test:e2e`. ثم تحقق من الموقع بعد النشر (القسم التالي) وافتح `/api/health` وتأكد أن `siteKeyConfigured` يساوي `true`.
 
 ## تحقق من الموقع بعد النشر
 

@@ -6,7 +6,7 @@ for(const path of ['/api/health','/','/campaigns/new','/settings','/hackathon'])
  const response=await fetch(base+path,{redirect:'error',signal:AbortSignal.timeout(15000),cache:'no-store',credentials:'omit'});
  if(response.status!==200)throw new Error(`${path} returned ${response.status}; check deployment access/protection.`);
  if(response.headers.get('x-content-type-options')!=='nosniff'||response.headers.get('x-frame-options')!=='DENY')throw new Error(`${path}: expected application security headers missing.`);
- if(path==='/api/health'){const health=await response.json();if(health.status!=='ok'||health.milestone!=='meta-only-m12'||health.serverOwnedKeys!==false||health.creativeSet!==3)throw new Error('Unexpected application/milestone at target origin.');}else await response.body?.cancel();
+ if(path==='/api/health'){const health=await response.json();if(health.status!=='ok'||health.aiProvider!=='meta'||health.mode!=='site-key'||typeof health.siteKeyConfigured!=='boolean')throw new Error('Unexpected application at target origin.');}else await response.body?.cancel();
  checked.push({path,status:response.status});
 }
 for(const path of ['/api/ai/plan','/api/ai/background','/api/ai/critic','/api/ai/repairs','/api/providers/meta-smoke','/api/ai/brand-extract','/api/ai/shift-copy','/api/ai/product-makeover','/api/providers/task-test','/api/providers/models','/api/providers/test']){

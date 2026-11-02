@@ -89,7 +89,7 @@ try {
   await page.getByRole('button', { name: ar.repair.redo, exact: true }).click(); await expect(page.getByTestId('rule-text_clipped')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const health = await page.request.get(`${base}/api/health`);
-  expect((await health.json()).milestone).toBe('meta-only-m12');
+  expect(await health.json()).toMatchObject({ status: 'ok', aiProvider: 'meta', mode: 'site-key' });
   const noKey = await page.request.post(`${base}/api/providers/models`, { headers: { Origin: base }, data: { providerId: 'meta', apiKey: '', consent: true } });
   expect(noKey.status()).toBe(400); expect(await noKey.json()).toEqual({ error: { code: 'missing_key' } });
   const custom = await page.request.post(`${base}/api/providers/models`, { headers: { Origin: base }, data: { providerId: 'custom', apiKey: '', consent: true } });
