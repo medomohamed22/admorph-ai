@@ -258,7 +258,7 @@ export default function ShelfStudio() {
       setAds(previous => ({ ...previous, [item.id]: { ...previous[item.id], state: 'reviewing' } }));
       const fitted = await encodeProduct(await fitProductImage(blob));
       const certificate = await withRateLimit(async () => {
-        const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: spark.modelId, apiKey: key, consent: true, imageConsent: true, image: fitted, layout, language }), signal: AbortSignal.timeout(65000) });
+        const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: spark.modelId, apiKey: key, consent: true, imageConsent: true, image: fitted, layout, language, ...(product ? { product } : {}) }), signal: AbortSignal.timeout(65000) });
         await requireMetaSuccess(response);
         return verifyResultSchema.parse(await response.json());
       }, onWait);
