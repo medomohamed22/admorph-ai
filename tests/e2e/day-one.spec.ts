@@ -36,5 +36,8 @@ test('navigation shells and health', async ({ page, request }) => {
   }
   const health = await request.get('/api/health');
   expect(health.ok()).toBe(true);
-  expect(await health.json()).toMatchObject({ status: 'ok', milestone: 'meta-only-m12', aiProvider: 'meta' });
+  expect(await health.json()).toMatchObject({ status: 'ok', aiProvider: 'meta', mode: 'site-key', models: { brain: 'muse-spark-1.3-contributor', cutter: 'sam-3.1', painter: 'muse-image-1.0' } });
+  // The status page must not carry the old bring-your-own-key claims, and never the key itself.
+  const text = JSON.stringify(await (await request.get('/api/health')).json());
+  expect(text).not.toMatch(/byok|unverified|sessionKeyLock|serverOwnedKeys/i);
 });

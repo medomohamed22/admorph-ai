@@ -2,13 +2,13 @@
 
 ## Project description
 
-**AdMorph AI turns one product and a Brand Kit into three editable bilingual campaign designs, then explains measured layout problems and previews safe, undoable repairs.**
+**AdMorph AI turns one phone photo of a product (or of a whole shelf) into finished, Instagram-ready ads in the shop owner's dialect, using three Meta models: Muse Spark 1.3 reads, writes and reviews; SAM 3.1 cuts the product out; Muse Image 1.0 paints.**
 
-The working local flow includes separate offer/benefit/lifestyle layouts, English/Arabic text layers, full-size PNG and caption exports, browser-local persistence, optional Gemini BYOK planning/background/review/repair adapters, and separate Meta text/image smoke adapters. Local templates and measured repair work without provider keys. No shared owner-funded generation key is used.
+Current flows: a five-step one-shot studio; shelf to campaign (a photo or short video, one ad per product); seasonal copies and variants of a saved ad that keep the logo and icons where they were; six copy dialects with right-to-left support; and a guided demo that runs the whole site. The site uses its own Meta key, set on the server as `META_API_KEY`; visitors enter no key. Brands, ads and drafts stay on the device (IndexedDB). See `README.md`, `HACKATHON.md`, `BUILD_LOG.md` and the `/hackathon` page for the current state; the evidence list below comes from an earlier, local-only version (27 October).
 
 ## Review the evidence
 
-- `docs/demo/AdMorph-demo.mp4`: actual app footage with English chapter annotations; silent, matching SRT supplied.
+- `docs/demo/AdMorph-demo.mp4`: app footage of that earlier local-only version (silent; see `docs/demo/recording.json` for its date). It is not the final demo video, which is still to be recorded.
 - `docs/demo/recording.json`: actual recording time, chapters, dimensions and no-paid-call boundary.
 - `docs/demo/three-designs.png`: real three-design gallery.
 - `docs/demo/repair-comparison.png`: actual full-resolution before/after canvas comparison.
@@ -38,12 +38,12 @@ Title: `feat: prepare verified creative studio release and demo`
 
 Description:
 
-> Complete the bilingual three-design workflow with editable layers, measured repair previews, persistent undo snapshots and safe BYOK controls. Add local demo assets, release integrity checks, production browser CI and manual deployment instructions. Authenticated paid-provider access and remote publication are documented separately from local verification.
+> Meta-only AdMorph AI: one-shot ads, shelf campaigns, seasonal copies and variants, six dialects with right-to-left support, and a guided demo, all on Muse Spark 1.3, SAM 3.1 and Muse Image 1.0 with the site's own server-side key. See README.md and BUILD_LOG.md for the checks and the live-verification record.
 
 If the repo already exists, update the same repository using a branch/PR or normal commit. Preserve its `.git` directory and existing history; do not replace the repository or force-push.
 
 ## Final owner review
 
-Open the deployed site in an incognito browser. Create a local sample, approve/build/export all three designs, switch to Arabic and reload, then verify repair/undo and blank-key consent guards. Verify public links without your own logged-in access. Local browser data does not automatically transfer to the deployed origin; only Brand Kit export/import is currently portable.
+Open the deployed site in a private window. Open `/api/health` and check that `siteKeyConfigured` is `true`. Run **Watch the full demo**, then make one ad in Create, a Ramadan copy of it from the gallery, and a shelf campaign from the sample shelf. Switch to Arabic and reload. Verify public links without your own logged-in access. Local browser data does not transfer to the deployed origin.
 
 Official event page: [Meta Global AI Developer Hackathon](https://cerebralvalley.ai/e/meta-ai-developer-hackathon). The public page was checked during release preparation; use the accepted-participant portal for current final submission fields and requirements.

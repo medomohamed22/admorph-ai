@@ -30,6 +30,8 @@ export type OneshotDraft = {
   elements: OneshotCanvasElement[];
   dialect?: PlanDialect;
   format?: OneshotFormat;
+  /** The ad on this draft finished on the Generate step; it is in the gallery and is not reopened. */
+  finished?: boolean;
   savedAt: string;
 };
 

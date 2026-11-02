@@ -86,6 +86,19 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
   expect((captured.oneshot?.product?.data.length ?? 0) * 0.75).toBeLessThan(800 * 1024);
   expect(captured.verify?.layout?.some(item => item.kind === 'product')).toBe(true);
   expect(errors).toEqual([]);
+
+  // A finished ad is in the gallery: coming back to Create starts a new ad, not the old one at an empty Generate step.
+  await expect.poll(() => page.evaluate(() => new Promise<boolean>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onerror = () => reject(new Error('db open failed'));
+    open.onsuccess = () => { const read = open.result.transaction(['settings'], 'readonly').objectStore('settings').get('oneshotDraft'); read.onsuccess = () => { open.result.close(); resolve(read.result?.value?.finished === true); }; read.onerror = () => reject(new Error('read failed')); };
+  })), { timeout: 10000 }).toBe(true);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByRole('link', { name: 'Create', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
+  await expect(page.getByTestId('wizard-step-0')).toBeVisible();
+  await expect(page.getByText('Your last ad was restored from this device.')).toHaveCount(0);
+  await expect(page.getByTestId('oneshot-result')).toHaveCount(0);
 });
 
 test('One-shot enhance shows a success note and a before/after preview', async ({ page }) => {
