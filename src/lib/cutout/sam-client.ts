@@ -259,7 +259,7 @@ export function segmentErrorBody(result: unknown, status: number): ProviderError
   const error = (result as { error?: unknown } | null)?.error;
   const code = (error as { code?: unknown } | null)?.code;
   const known = typeof code === 'string' && (errorCodes as readonly string[]).includes(code);
-  return new ProviderError(known ? (code as typeof errorCodes[number]) : 'invalid_response', status, segmentErrorDetails((error as { details?: unknown } | null)?.details));
+  return new ProviderError(known ? (code as typeof errorCodes[number]) : status === 429 ? 'rate_limit' : 'invalid_response', status, segmentErrorDetails((error as { details?: unknown } | null)?.details));
 }
 
 function segmentErrorDetails(value: unknown): ErrorDetails | undefined {
