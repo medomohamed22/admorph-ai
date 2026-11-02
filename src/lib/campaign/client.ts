@@ -71,11 +71,13 @@ export async function requestPlan(input: PlanRequest, signal: AbortSignal) {
   try {
     const response = await metaFetch('planner','/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input), signal: AbortSignal.any([signal, deadline]), cache: 'no-store' });
-    const body = await readJsonLimited(response, 200000);
     if (!response.ok) {
+      const body = await readJsonLimited(response, 200000).catch(() => null);
       const error = z.object({ error: z.object({ code: z.enum(errorCodes) }) }).safeParse(body);
-      throw new ProviderError(error.success ? error.data.error.code : 'plan_invalid', response.status);
+      // A bare 429 is the hosting firewall's per-device limit.
+      throw new ProviderError(error.success ? error.data.error.code : response.status === 429 ? 'rate_limit' : 'plan_invalid', response.status);
     }
+    const body = await readJsonLimited(response, 200000);
     return planSchema.parse(body);
   } catch (error) {
     if (signal.aborted) throw new ProviderError('cancelled', 499);

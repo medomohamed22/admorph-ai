@@ -122,3 +122,17 @@ describe('painted image hand-off', () => {
     expect(Buffer.compare(a, b)).toBe(0);
   });
 });
+
+describe('the per-device firewall limit', () => {
+  it('a bare 429 from the hosting firewall reads as a rate limit, so pages wait and retry', async () => {
+    const { requireMetaSuccess } = await import('../../src/lib/ai/meta-client-error');
+    const { segmentErrorBody } = await import('../../src/lib/cutout/sam-client');
+    const blocked = () => new Response('Too Many Requests', { status: 429, headers: { 'Content-Type': 'text/plain' } });
+    await expect(requireMetaSuccess(blocked())).rejects.toMatchObject({ code: 'rate_limit', status: 429 });
+    expect(segmentErrorBody(null, 429).code).toBe('rate_limit');
+    // A non-JSON error with another status is still a bad answer, not a rate limit.
+    await expect(requireMetaSuccess(new Response('oops', { status: 502 }))).rejects.toMatchObject({ code: 'invalid_response' });
+    // The site's own JSON error keeps its code.
+    await expect(requireMetaSuccess(Response.json({ error: { code: 'quota' } }, { status: 429 }))).rejects.toMatchObject({ code: 'quota' });
+  });
+});
