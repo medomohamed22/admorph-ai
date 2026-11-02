@@ -130,6 +130,11 @@ describe('the per-device firewall limit', () => {
     const blocked = () => new Response('Too Many Requests', { status: 429, headers: { 'Content-Type': 'text/plain' } });
     await expect(requireMetaSuccess(blocked())).rejects.toMatchObject({ code: 'rate_limit', status: 429 });
     expect(segmentErrorBody(null, 429).code).toBe('rate_limit');
+    // The firewall's Deny action answers 403 with its own JSON body and an x-vercel-mitigated header (seen live).
+    const denied = () => new Response(JSON.stringify({ error: { code: '403', message: 'Forbidden', id: 'iad1::x' } }), { status: 403, headers: { 'Content-Type': 'application/json', 'x-vercel-mitigated': 'deny' } });
+    await expect(requireMetaSuccess(denied())).rejects.toMatchObject({ code: 'rate_limit', status: 403 });
+    // Our own 403 (a bad origin) is not a rate limit.
+    await expect(requireMetaSuccess(Response.json({ error: { code: 'origin' } }, { status: 403 }))).rejects.toMatchObject({ code: 'origin' });
     // A non-JSON error with another status is still a bad answer, not a rate limit.
     await expect(requireMetaSuccess(new Response('oops', { status: 502 }))).rejects.toMatchObject({ code: 'invalid_response' });
     // The site's own JSON error keeps its code.

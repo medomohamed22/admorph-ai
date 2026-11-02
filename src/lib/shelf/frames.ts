@@ -43,7 +43,8 @@ export async function scanVideo(file: Blob, count = 8, onFrame?: (frame: Scanned
     await new Promise<void>((resolve, reject) => { video.onloadeddata = () => resolve(); video.onerror = () => reject(new Error('video_decode')); });
     const duration = Math.min(video.duration || 0, MAX_VIDEO_SECONDS);
     if (!duration || !video.videoWidth) throw new Error('video_decode');
-    const scale = Math.min(1, 1600 / Math.max(video.videoWidth, video.videoHeight));
+    // Frames keep up to 2560 px: each product is later cut from its own crop of the chosen frame.
+    const scale = Math.min(1, 2560 / Math.max(video.videoWidth, video.videoHeight));
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(video.videoWidth * scale); canvas.height = Math.round(video.videoHeight * scale);
     const context = canvas.getContext('2d', { willReadFrequently: true })!;

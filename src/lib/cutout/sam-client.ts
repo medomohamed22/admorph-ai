@@ -171,27 +171,39 @@ export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, heigh
   return kept >= 0.03 * (box.right - box.left) * (box.bottom - box.top) ? inverted : ranked[0].alpha;
 }
 
+/** Square erosion (keep = every pixel within `radius` is set) or dilation (any is set), as two separable passes. */
+function morph(input: Uint8Array, width: number, height: number, radius: number, grow: boolean): Uint8Array {
+  const row = new Uint8Array(input.length), out = new Uint8Array(input.length);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    let value = grow ? 0 : 1;
+    for (let dx = -radius; dx <= radius; dx++) { const nx = x + dx; if (nx < 0 || nx >= width) continue; const on = input[y * width + nx]; if (grow ? on : !on) { value = grow ? 1 : 0; break; } }
+    row[y * width + x] = value;
+  }
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    let value = grow ? 0 : 1;
+    for (let dy = -radius; dy <= radius; dy++) { const ny = y + dy; if (ny < 0 || ny >= height) continue; const on = row[ny * width + x]; if (grow ? on : !on) { value = grow ? 1 : 0; break; } }
+    out[y * width + x] = value;
+  }
+  return out;
+}
+
 /**
  * SAM's mask is smaller than the photo and is scaled up, so its edge is
  * blocky and a strip of background (the white halo) rides along with the
  * product. Pull the edge in by `radius` pixels, then soften it over one
  * pixel so the cutout keeps a clean anti-aliased outline.
+ *
+ * Parts thinner than the pull (a strap, a cable, a thin handle) would vanish
+ * entirely, so they are kept: whatever an erosion followed by the same
+ * dilation removes is a thin part, not an edge strip, and is restored.
  */
 export function tightenEdge(alpha: Uint8ClampedArray, width: number, height: number, radius: number): void {
   if (radius < 1) return;
-  const solid = new Uint8Array(alpha.length), row = new Uint8Array(alpha.length);
+  const solid = new Uint8Array(alpha.length);
   for (let i = 0; i < alpha.length; i++) solid[i] = alpha[i] > 127 ? 1 : 0;
-  // Erode with a (2r+1) square: horizontal pass, then vertical.
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    let keep = 1;
-    for (let dx = -radius; dx <= radius && keep; dx++) { const nx = x + dx; if (nx >= 0 && nx < width && !solid[y * width + nx]) keep = 0; }
-    row[y * width + x] = keep;
-  }
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-    let keep = row[y * width + x];
-    for (let dy = -radius; dy <= radius && keep; dy++) { const ny = y + dy; if (ny >= 0 && ny < height && !row[ny * width + x]) keep = 0; }
-    solid[y * width + x] = keep;
-  }
+  const eroded = morph(solid, width, height, radius, false);
+  const opened = morph(eroded, width, height, radius, true);
+  for (let i = 0; i < solid.length; i++) solid[i] = eroded[i] || (solid[i] && !opened[i]) ? 1 : 0;
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     let sum = 0, count = 0;
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
@@ -296,7 +308,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
       signal: options.signal,
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok) throw segmentErrorBody(result, response.status);
+    if (!response.ok) throw response.headers.get('x-vercel-mitigated') ? new ProviderError('rate_limit', response.status) : segmentErrorBody(result, response.status);
     const masks = parseSegmentResponse(result);
     radius = masks.length ? edgeRadius(masks) : radius;
     if (box) {

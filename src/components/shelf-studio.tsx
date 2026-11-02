@@ -22,7 +22,7 @@ import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
 import { PLAN_DIALECTS, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
 import { cleanDetections, shelfDetectionSchema, shelfPlanSchema, type ShelfBox } from '@/lib/shelf/schema';
 import { scanVideo, sharpestFrame, type ScannedFrame } from '@/lib/shelf/frames';
-import { cropToProduct } from '@/lib/shelf/crop';
+import { cropToProduct, cropAround } from '@/lib/shelf/crop';
 import { productReference } from '@/lib/oneshot/product-reference';
 import { shelfLayout, drawShelfMockup } from '@/lib/shelf/mockup';
 import { withRateLimit, runPool, paintLanes } from '@/lib/shelf/queue';
@@ -118,6 +118,8 @@ function AdCard({ item, ad, index, labels, onRetry, colors }: { item: Item; ad: 
  */
 export default function ShelfStudio() {
   const m = useMessages(), t = m.shelf, o = m.oneshot, workspace = useWorkspace(), provider = useProviderSession();
+  /** The largest version of the shelf photo or frame; each product is cut from its own crop of it. */
+  const sourceRef = useRef<Blob | null>(null);
   const key = provider.configs.meta.apiKey.trim();
   const spark = provider.taskModel('vision'), planner = provider.taskModel('planner'), sam = provider.taskModel('segment'), painter = provider.taskModel('image_edit') ?? provider.taskModel('image');
   const errorText = { errors: m.settings.errors, aiError: m.meta.aiError };
@@ -156,17 +158,18 @@ export default function ShelfStudio() {
     try { prepared = await prepareImageUpload(file); } catch (cause) { setError(metaErrorMessage(cause, errorText)); return; }
     const fitted = await fitProductImage(prepared);
     setFrames([]); setBestFrame(null);
+    sourceRef.current = prepared;
     setPhoto(fitted); void detect(fitted);
   }
 
   async function trySample() {
     setError('');
-    try { const blob = await (await fetch('/demo/shelf-sample.jpg')).blob(); setFrames([]); setBestFrame(null); setPhoto(blob); void detect(blob); }
+    try { const blob = await (await fetch('/demo/shelf-sample.jpg')).blob(); setFrames([]); setBestFrame(null); sourceRef.current = blob; setPhoto(blob); void detect(blob); }
     catch { setError(t.videoError); }
   }
 
   async function pickVideo(file: File) {
-    setError(''); setStage('video'); setFrames([]); setBestFrame(null); setPhoto(null);
+    setError(''); setStage('video'); setFrames([]); setBestFrame(null); setPhoto(null); sourceRef.current = null;
     try {
       const scanned = await scanVideo(file, 8, frame => setFrames(previous => [...previous, frame]));
       const best = sharpestFrame(scanned);
@@ -178,6 +181,7 @@ export default function ShelfStudio() {
   async function chooseFrame(index: number) {
     const frame = frames.at(index); if (!frame) return;
     const fitted = await fitProductImage(frame.blob);
+    sourceRef.current = frame.blob;
     setBestFrame(index); setPhoto(fitted); void detect(fitted);
   }
 
@@ -214,7 +218,9 @@ export default function ShelfStudio() {
     if (!sam || !key) return;
     setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, cut: 'cutting', error: undefined } : entry));
     try {
-      const result = await withRateLimit(() => cutoutImage(image, 'meta-sam', { apiKey: key, modelId: sam.modelId, box: item.box, signal: AbortSignal.timeout(65000) }), onWait);
+      // Cut from a crop around the product taken from the full-resolution photo or frame.
+      const crop = await cropAround(sourceRef.current ?? image, item.box).catch(() => null);
+      const result = await withRateLimit(() => cutoutImage(crop?.blob ?? image, 'meta-sam', { apiKey: key, modelId: sam.modelId, box: crop?.box ?? item.box, signal: AbortSignal.timeout(65000) }), onWait);
       const cropped = await cropToProduct(result.cutoutBlob);
       const bitmap = await createImageBitmap(cropped); const aspect = bitmap.width / bitmap.height; bitmap.close();
       const from = boxRect(item.box);

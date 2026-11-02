@@ -305,3 +305,23 @@ test('a variant whose headline came out wrong is repainted once with the reviewe
   expect(repair?.fixNotes?.join(' ')).toContain('Write "Fresh taste daily" exactly as given; the last attempt read "Frseh tsate daly"');
   await expect(page.getByText('Certificate score: 100')).toHaveCount(2);
 });
+
+test('the per-device firewall limit (a 403 Deny from Vercel) also pauses and carries on', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByRole('link', { name: 'Variants', exact: true }).click();
+  await interceptRemix(page);
+  let remixes = 0;
+  await page.route('**/api/ai/ad-remix', async route => {
+    remixes += 1;
+    // Exactly what the live firewall answered: 403, its own JSON body, x-vercel-mitigated: deny.
+    if (remixes === 1) return route.fulfill({ status: 403, headers: { 'x-vercel-mitigated': 'deny' }, json: { error: { code: '403', message: 'Forbidden', id: 'iad1::test' } } });
+    return route.fulfill({ body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'), contentType: 'image/png' });
+  });
+  await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
+  await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
+  await expect(page.getByTestId('remix-rate-wait')).toContainText('Pausing 12 s');
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+  await expect(page.getByText('answer came back incomplete')).toHaveCount(0);
+});
