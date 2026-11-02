@@ -20,8 +20,10 @@ export async function metaCall(path:'chat/completions'|'images/generations'|'ima
  return await readJsonLimited(response,path==='chat/completions'?200000:16*1024*1024);
  }catch(error){if(signal.aborted)throw new ProviderError('timeout',504);throw error instanceof ProviderError?error:new ProviderError('network',502);}
 }
-/** Muse Spark's JSON output cap. Every planner schema is sized so its longest allowed answer fits under it. */
-export const JSON_OUTPUT_TOKENS=4096;
+/** Muse Spark's JSON output cap. Every planner schema keeps its longest visible answer under 4096 tokens; the cap
+ * is twice that because the model's hidden reasoning counts against it too (a short answer was still cut off live).
+ * Only the tokens actually written are used, so a higher cap costs nothing on a normal answer. */
+export const JSON_OUTPUT_TOKENS=8192;
 /** A cut-off or malformed answer is asked again once, if it failed within this long; a slow one is not, so the retry still fits the request window. */
 const JSON_RETRY_WITHIN_MS=25000;
 type JsonSchemaNode={type?:string|string[];maxLength?:number;maxItems?:number;items?:JsonSchemaNode;properties?:Record<string,JsonSchemaNode>;additionalProperties?:unknown};

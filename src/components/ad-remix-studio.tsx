@@ -19,7 +19,7 @@ import { WaitingText } from './waiting';
 import { GeneratingCanvas } from './generating-canvas';
 import { useDemoDriver } from './demo-tour';
 import { pickLooks } from '@/lib/ai/looks';
-import { withRateLimit, runPool, paintLanes } from '@/lib/shelf/queue';
+import { withRateLimit, runPool, paintLanes, withOneRetry } from '@/lib/shelf/queue';
 import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
 import { productReference } from '@/lib/oneshot/product-reference';
 
@@ -134,7 +134,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
     const paint = async (headline: string, scene: string, fixNotes?: string[]) => {
-      const remixResponse = await withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
+      const remixResponse = await withOneRetry(() => withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait));
       const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
       let score: number | null = null, certificate: VerifyResult | null = null;
       const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
