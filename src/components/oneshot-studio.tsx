@@ -483,7 +483,7 @@ export default function OneshotStudio() {
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
     const adId = crypto.randomUUID();
-    const saved: SavedAd = { id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) };
+    const saved: SavedAd = { id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}), ...(logoBlob && elements.some(item => item.kind === 'logo') ? { logo: logoBlob } : {}) };
     void saveAd(saved).catch(() => {});
     if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');

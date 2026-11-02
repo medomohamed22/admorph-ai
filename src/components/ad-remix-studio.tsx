@@ -121,10 +121,10 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     try { setAds(await loadSavedAds()); } catch { /* gallery is best-effort */ }
   }
 
-  function remixLayout(headline: string): OneshotElement[] {
+  function remixLayout(headline: string, withLogo: boolean): OneshotElement[] {
     return [
       { id: 'product', kind: 'product', x: 340, y: 400, width: 400, height: 550 },
-      { id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 },
+      ...(withLogo ? [{ id: 'logo', kind: 'logo' as const, x: 830, y: 40, width: 200, height: 80 }] : []),
       { id: 'headline', kind: 'text', x: 90, y: 90, width: 900, height: 120, text: headline },
     ];
   }
@@ -133,16 +133,19 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
    *  cues is painted once more and the better of the two is kept. */
   async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
+    // The source ad's logo goes along so the copy keeps the brand mark.
+    const logo = source.logo ? await encodeProduct(await fitProductImage(source.logo)).catch(() => null) : null;
+    const withLogo = !!logo;
     const paint = async (headline: string, scene: string, fixNotes?: string[]) => {
-      const remixResponse = await withOneRetry(() => withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait));
+      const remixResponse = await withOneRetry(() => withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}), ...(logo ? { logo } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait));
       const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
       let score: number | null = null, certificate: VerifyResult | null = null;
       const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
       if (verifyModel) {
         const fittedResult = await fitProductImage(blob);
-        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language, freeLayout: true, ...(theme ? { season: theme } : {}), ...(fromProduct ? { product: await encodeProduct(image) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
+        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline, withLogo), language, freeLayout: true, ...(theme ? { season: theme } : {}), ...(fromProduct ? { product: await encodeProduct(image) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
         certificate = verifyResultSchema.parse(await verifyResponse.json());
-        score = oneshotScore(certificate, false) - (theme && (certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES ? 20 : 0);
+        score = oneshotScore(certificate, withLogo) - (theme && (certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES ? 20 : 0);
       }
       return { blob, score, certificate };
     };
@@ -161,7 +164,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     if (best.certificate) {
       const season = theme ? REMIX_THEMES.find(item => item.id === theme) : undefined;
       const fewCues = !!season && (best.certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES;
-      const notes = [...repairNotes(best.certificate, false), ...(fewCues && season ? [`Show at least three of these ${season.id} cues clearly around the product: ${season.cues.join('; ')}.`] : [])];
+      const notes = [...repairNotes(best.certificate, withLogo), ...(fewCues && season ? [`Show at least three of these ${season.id} cues clearly around the product: ${season.cues.join('; ')}.`] : [])];
       if ((fewCues || needsRepair(best.certificate, best.score)) && notes.length) {
         const again = await paint(headline, scene, notes);
         if ((again.score ?? -1) > (best.score ?? -1)) best = again;
@@ -169,7 +172,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     }
     const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}), ...(theme ? { theme } : {}) };
     setResults(previous => [...previous, result]);
-    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
+    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: withLogo, ...(source.logo && withLogo ? { logo: source.logo } : {}), createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
 
   const isFallbackable = (cause: unknown) => cause instanceof ProviderError && (FALLBACK_CODES as readonly string[]).includes(cause.code);
