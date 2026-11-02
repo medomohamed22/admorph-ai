@@ -203,10 +203,10 @@ describe('seasonal copies and variants keep the logo', () => {
   const brand = { name: 'hope.', colors: ['#111111', '#222222', '#333333'] as [string, string, string] };
   it('the painter is told the second image is the logo and to keep it as drawn', () => {
     const prompt = remixPrompt(brand, 'a table', 'Ramadan Kareem', 'en', 'product', 'ramadan', [], true);
-    expect(prompt).toContain("The second image is the brand's logo");
+    expect(prompt).toContain("Image 2 is the brand's logo");
     expect(prompt).toContain('top right');
     expect(remixPrompt(brand, 'a table', 'رمضان كريم', 'ar', 'product', 'ramadan', [], true)).toContain('top left');
-    expect(remixPrompt(brand, 'a table', 'Hi', 'en', 'product')).not.toContain("The second image is the brand's logo");
+    expect(remixPrompt(brand, 'a table', 'Hi', 'en', 'product')).not.toContain("Image 2 is the brand's logo");
   });
   const remixPost = (body: Record<string, unknown>) => new Request('https://app.test/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' }, body: JSON.stringify({ providerId: 'meta', apiKey: 'k-' + crypto.randomUUID(), modelId: 'm', consent: true, imageConsent: true, image: { mimeType: 'image/png', data: png64 }, brand: { name: 'hope.', description: 'x', colors: ['#111111', '#222222', '#333333'] }, scene: 'a table', headline: 'Hi', language: 'en', source: 'product', ...body }) });
   const painted = async () => { const sharp = (await import('sharp')).default; return Response.json({ data: [{ b64_json: (await sharp({ create: { width: 64, height: 80, channels: 3, background: '#888888' } }).png().toBuffer()).toString('base64') }] }); };
@@ -216,12 +216,76 @@ describe('seasonal copies and variants keep the logo', () => {
     expect(result.status).toBe(200);
     const payload = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
     expect(payload.images).toHaveLength(2);
-    expect(payload.prompt).toContain("The second image is the brand's logo");
+    expect(payload.prompt).toContain("Image 2 is the brand's logo");
   });
   it('if Meta refuses a second image, the copy is painted from the product alone as before', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ error: { message: 'one image' } }, { status: 400, statusText: 'Bad Request' })).mockImplementationOnce(painted);
     const result = await handleMetaRoute(remixPost({ logo: { mimeType: 'image/png', data: png64 } }), 'ad-remix', { fetcher });
     const second = fetcher.mock.calls[1] ? JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string) : null;
-    expect(result.status).toBe(200); expect(second?.images).toHaveLength(1); expect(second?.prompt).not.toContain("The second image is the brand's logo");
+    expect(result.status).toBe(200); expect(second?.images).toHaveLength(1); expect(second?.prompt).not.toContain("Image 2 is the brand's logo");
   });
 });
+
+import { remixReviewLayout, freeMarksLine } from '../../src/lib/ai/remix';
+import { zoneOf, zoneWords } from '../../src/lib/editor/logo-placement';
+import { MARK_CONTRAST_RULE } from '../../src/lib/ai/quality';
+import { buildOneshotPrompt as oneshotPromptForMarks } from '../../src/lib/ai/oneshot';
+
+describe('copies keep the logo and icons where the source ad had them', () => {
+  const brand = { name: 'hush', colors: ['#111111', '#222222', '#333333'] as [string, string, string] };
+  const logo = { mimeType: 'image/png', data: png64 };
+  const remixPost = (body: Record<string, unknown>) => new Request('https://app.test/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' }, body: JSON.stringify({ providerId: 'meta', apiKey: 'k-' + crypto.randomUUID(), modelId: 'm', consent: true, imageConsent: true, image: { mimeType: 'image/png', data: png64 }, brand: { name: 'hush', description: 'x', colors: ['#111111', '#222222', '#333333'] }, scene: 'a table', headline: 'Hi', language: 'en', source: 'product', ...body }) });
+  const painted = async () => { const sharp = (await import('sharp')).default; return Response.json({ data: [{ b64_json: (await sharp({ create: { width: 64, height: 80, channels: 3, background: '#888888' } }).png().toBuffer()).toString('base64') }] }); };
+  const sent = (fetcher: ReturnType<typeof vi.fn>, call: number) => JSON.parse((fetcher.mock.calls[call] as unknown as [string, RequestInit])[1].body as string);
+
+  it('reads the canvas zone of the logo and icons', () => {
+    expect(zoneOf({ x: 830, y: 40, width: 200, height: 80 }, 1080, 1350)).toBe('top-right');
+    expect(zoneOf({ x: 40, y: 40, width: 200, height: 80 }, 1080, 1350)).toBe('top-left');
+    expect(zoneOf({ x: 60, y: 1150, width: 160, height: 160 }, 1080, 1350)).toBe('bottom-left');
+    expect(zoneWords('top-right')).toBe('top right corner'); expect(zoneWords('bottom-center')).toBe('bottom center'); expect(zoneWords('middle-center')).toBe('center');
+  });
+  it('the painter puts the logo in its saved place, even an Arabic ad whose logo was on the right', () => {
+    const prompt = remixPrompt(brand, 'a table', 'رمضان كريم', 'ar', 'product', 'ramadan', [], { logo: 'top-right' });
+    expect(prompt).toContain("Image 2 is the brand's logo"); expect(prompt).toContain('at the top right corner of the frame, exactly where the original ad had it');
+    expect(prompt).not.toContain('top left');
+    // Older ads with no saved place keep the reading-side corner.
+    expect(remixPrompt(brand, 'a table', 'Hi', 'en', 'product', undefined, [], true)).toContain('top right corner');
+  });
+  it('icons follow the logo as more images, each in its place', () => {
+    const prompt = remixPrompt(brand, 'a table', 'Hi', 'en', 'product', 'ramadan', [], { logo: 'top-left', icons: ['bottom-left', 'bottom-right'] });
+    expect(prompt).toContain('Images 3 to 4 are small brand icons');
+    expect(prompt).toContain('image 3 at the bottom left corner, image 4 at the bottom right corner');
+    const iconsOnly = remixPrompt(brand, 'a table', 'Hi', 'en', 'product', undefined, [], { icons: ['bottom-center'] });
+    expect(iconsOnly).toContain('Image 2 is a small brand icon'); expect(iconsOnly).not.toContain('logo.');
+  });
+  it('a dark logo on a dark season scene is kept readable without recoloring it', () => {
+    const prompt = remixPrompt(brand, 'a night table', 'Hi', 'en', 'product', 'ramadan', [], { logo: 'top-right' });
+    expect(prompt).toContain(MARK_CONTRAST_RULE); expect(MARK_CONTRAST_RULE).toContain('never recolor');
+    const oneshot = oneshotPromptForMarks({ name: 'hush', description: 'x', colors: ['#111111', '#222222', '#333333'] }, 'a cafe', [{ id: 'logo', kind: 'logo', x: 830, y: 40, width: 200, height: 80 }, { id: 'h', kind: 'text', x: 90, y: 90, width: 600, height: 120, text: 'Hi' }], 'en');
+    expect(oneshot).toContain(MARK_CONTRAST_RULE);
+  });
+  it('the logo and both icons go to Muse Image in order; a refusal falls back to the logo, then the product alone', async () => {
+    const icon = { image: logo, position: 'bottom-left' };
+    let fetcher = vi.fn(painted);
+    let result = await handleMetaRoute(remixPost({ logo, logoPosition: 'top-left', icons: [icon, { ...icon, position: 'bottom-right' }] }), 'ad-remix', { fetcher });
+    expect(result.status).toBe(200); expect(sent(fetcher, 0).images).toHaveLength(4);
+    expect(sent(fetcher, 0).prompt).toContain('top left corner');
+    const refuse = () => Response.json({ error: { message: 'too many images' } }, { status: 400, statusText: 'Bad Request' });
+    fetcher = vi.fn().mockResolvedValueOnce(refuse()).mockResolvedValueOnce(refuse()).mockImplementationOnce(painted);
+    result = await handleMetaRoute(remixPost({ logo, icons: [icon] }), 'ad-remix', { fetcher });
+    expect(result.status).toBe(200);
+    expect(sent(fetcher, 1).images).toHaveLength(2); expect(sent(fetcher, 1).prompt).not.toContain('brand icon');
+    expect(sent(fetcher, 2).images).toHaveLength(1);
+    expect(remixRequestSchemaForMarks.safeParse({}).success).toBe(false);
+  });
+  it('the reviewer checks the logo in its place and that it is readable; icons are expected too', () => {
+    const layout = remixReviewLayout('Hi', { logo: 'top-left', icons: ['bottom-right'] }, 'en');
+    expect(zoneOf(layout.find(item => item.kind === 'logo')!, 1080, 1350)).toBe('top-left');
+    expect(zoneOf(layout.find(item => item.kind === 'icon')!, 1080, 1350)).toBe('bottom-right');
+    const line = freeMarksLine(layout);
+    expect(line).toContain('near the top left corner'); expect(line).toContain('blends into its background'); expect(line).toContain('near the bottom right corner');
+    expect(freeMarksLine(remixReviewLayout('Hi', {}, 'en'))).toBe('Logo: logoKept is true when no logo was expected.');
+    expect(zoneOf(remixReviewLayout('Hi', { logo: true }, 'ar').find(item => item.kind === 'logo')!, 1080, 1350)).toBe('top-left');
+  });
+});
+import { remixRequestSchema as remixRequestSchemaForMarks } from '../../src/lib/ai/remix';

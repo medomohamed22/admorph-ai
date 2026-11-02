@@ -131,7 +131,7 @@ export function BrandExtraction({ onAccept }: { onAccept: (suggestion: BrandSugg
       <ul>{[t.extractPartName, t.extractPartColors, t.extractPartTone, t.extractPartFont].map((part, index) => <li key={part} style={{ '--i': index } as CSSProperties}><span className="shimmer" />{part}</li>)}</ul>
     </div>}
 
-    {!key && <p className="brand-extract-note">{t.errors.missing_key}</p>}
+    {!key && provider.siteKey === 'missing' && <p className="brand-extract-note">{t.errors.missing_key}</p>}
     <label className="check-label brand-extract-consent"><input type="checkbox" checked={consent} disabled={!image || busy} onChange={event => setConsent(event.target.checked)} />{t.shareImage}</label>
     <div className="brand-extract-actions">
       <button type="button" className={`button primary brand-extract-go${busy ? ' is-busy' : ''}`} disabled={!model || !key || !image || !consent || busy} onClick={() => void run()}>

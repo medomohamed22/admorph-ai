@@ -232,3 +232,17 @@ With the owner's key and consent, every feature was run once on <https://admorph
     - Single paints took 14–27 s on Meta's side.
   - Three variants of the white-sneaker ad: 46 s, scores 100, 90 and 100. The sneaker stayed white in all three, and no repair was needed.
   - The total demo time did not drop. It is mostly painting time, which varies on Meta's side, plus any repairs. The gains are in reliability, ideas time and parallel copies.
+
+## 2026-11-02 — Copies keep logo and icon places; reviewer-reported page fixes
+
+**Copies (seasons and variants):**
+- A one-shot ad now saves where its logo sat (one of nine zones of the canvas) and up to two of its icons with their zones.
+- Copies paint the logo and icons back in the same zones, sent as extra images after the product. If Meta refuses the extra images, the copy falls back to the logo alone, then to the product alone.
+- The reviewer checks that the logo is in its zone and readable. A logo that blends into a dark or light scene now fails the check and gets a repair.
+- A new contrast rule (for the painter, in copies and in one-shot ads): keep a mark readable with a lighter or darker spot or a small backing panel, and never recolor the mark itself.
+
+**Page fixes from a reviewer's run:**
+- Themes and variants say "Loading your saved ads…" until the gallery is read, and retry a failed read; the newest ad starts picked.
+- The site-key check retries with a growing wait, so a slow start or a firewall answer no longer reads as "AI is not set up". That banner shows only after a real "no key" answer or repeated failures.
+- Disabled Generate and "Suggest 3 ideas" buttons now say why (connecting, reading the brand kit, brand missing, no ad or season picked).
+- A saved Arabic choice is applied before the page shows, so a reload no longer shows English first and then flips to Arabic. The choice is mirrored to a two-letter localStorage value for this.

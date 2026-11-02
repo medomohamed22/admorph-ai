@@ -147,3 +147,6 @@ main{animation:pageFade .25s ease}
 .segmented button:active{transform:scale(.96)}
 .oneshot-stepper li{transition:background-color .25s,border-color .25s}
 .media-reveal{animation:oneshotReveal .75s ease-out}
+
+/* Hidden only while a saved Arabic choice is applied on reload (see LOCALE_BOOT in layout.tsx). */
+html[data-locale-pending] body{visibility:hidden}

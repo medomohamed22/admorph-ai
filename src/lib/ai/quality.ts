@@ -50,3 +50,6 @@ export const MOCKUP_TEXT_RULES = [
 export function qualityRules(withText: boolean, mockupLayout = false): string {
   return [...FRAME_RULES, ...STYLE_RULES, ...PRODUCT_RULES, ...(withText ? (mockupLayout ? MOCKUP_TEXT_RULES : TEXT_QUALITY_RULES) : [])].join(' ');
 }
+
+/** Keeps a mark readable without touching its design (a dark logo on a dark Ramadan night, for example). */
+export const MARK_CONTRAST_RULE = 'It must stay clearly readable: when the area behind it is close to its own colors (a dark logo on a dark scene, a light logo on a light one), keep that spot of the scene lighter or darker, or set the mark on a small soft rounded backing in a contrasting tone (a light frosted panel behind a dark mark, a dark one behind a light mark); never recolor, outline or redraw the mark itself.';

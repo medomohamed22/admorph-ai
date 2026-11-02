@@ -18,6 +18,9 @@ export type Catalogs = Partial<Record<ProviderId, Catalog>>;
 const initialConfigs = (): Configs => Object.fromEntries(['meta', 'gemini', 'openrouter', 'custom']
   .map(id => [id, { apiKey: '', baseUrl: '', consent: false }])) as Configs;
 
+/** Tries of the site key check before the page says AI is not set up (about 12 seconds in all). */
+const SITE_CHECK_TRIES = 5;
+
 function useSessionState() {
   const workspace = useWorkspace();
   const {setStorageError} = workspace;
@@ -35,14 +38,32 @@ function useSessionState() {
   // and sends a placeholder the server replaces; there is no key field for visitors.
   const [siteKey, setSiteKey] = useState<'checking' | 'ready' | 'missing'>('checking');
   useEffect(() => {
-    let alive = true;
-    fetch('/api/site-config', { cache: 'no-store' }).then(response => response.json()).then((body: { siteKey?: unknown }) => {
-      if (!alive) return;
-      const ready = body.siteKey === true;
-      setSiteKey(ready ? 'ready' : 'missing');
-      if (ready) setConfigs(previous => ({ ...previous, meta: { ...previous.meta, apiKey: SITE_KEY_PLACEHOLDER, consent: true } }));
-    }).catch(() => { if (alive) setSiteKey('missing'); });
-    return () => { alive = false; };
+    // A slow cold start, a dropped connection or the per-device firewall must not read as "AI is not set up":
+    // the check is retried with a growing wait, only a real "no key" answer means missing, and a failed
+    // check is tried again when the visitor comes back to the tab or the connection returns.
+    let alive = true, timer: ReturnType<typeof setTimeout> | undefined, attempt = 0, settled = false;
+    const check = async () => {
+      if (!alive || settled) return;
+      try {
+        const response = await fetch('/api/site-config', { cache: 'no-store' });
+        if (!response.ok) throw new Error(String(response.status));
+        const body = await response.json() as { siteKey?: unknown };
+        if (!alive) return;
+        settled = true;
+        const ready = body.siteKey === true;
+        setSiteKey(ready ? 'ready' : 'missing');
+        if (ready) setConfigs(previous => ({ ...previous, meta: { ...previous.meta, apiKey: SITE_KEY_PLACEHOLDER, consent: true } }));
+      } catch {
+        if (!alive) return;
+        attempt += 1;
+        if (attempt >= SITE_CHECK_TRIES) { setSiteKey('missing'); return; }
+        timer = setTimeout(() => void check(), 800 * 2 ** (attempt - 1));
+      }
+    };
+    const recheck = () => { if (!settled && attempt >= SITE_CHECK_TRIES) { attempt = 0; void check(); } };
+    void check();
+    window.addEventListener('focus', recheck); window.addEventListener('online', recheck);
+    return () => { alive = false; if (timer) clearTimeout(timer); window.removeEventListener('focus', recheck); window.removeEventListener('online', recheck); };
   }, []);
   const activeAccount=binding.key===configs.meta.apiKey?binding.account:'';
   useEffect(()=>{let alive=true;const key=configs.meta.apiKey;accountContext(key).then(account=>{if(alive)setBinding({key,account:key?account:''});});return()=>{alive=false;};},[configs.meta.apiKey,keyEpoch]);

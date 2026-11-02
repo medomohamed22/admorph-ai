@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { metaBase, inputImage } from './meta-contracts';
 import { brandInputSchema, type BrandInput } from '../db/schema';
-import { qualityRules } from './quality';
+import { qualityRules, MARK_CONTRAST_RULE } from './quality';
 
 /** One-shot canvas coordinates: always 1080 wide; the height follows the size picked before generating. */
 export const ONESHOT_WIDTH = 1080;
@@ -136,7 +136,7 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
   for (const element of layout) {
     const zone = placeOf(element, frameHeight);
     if (element.kind === 'product') lines.push(`The product stays ${zone} at its mockup size and shape.`);
-    else if (element.kind === 'logo') lines.push(`The logo stays ${zone}, copied exactly as drawn in the mockup: same shape, letters and colors, never redrawn or restyled.`);
+    else if (element.kind === 'logo') lines.push(`The logo stays ${zone}, copied exactly as drawn in the mockup: same shape, letters and colors, never redrawn or restyled. ${MARK_CONTRAST_RULE}`);
     else if (element.kind === 'icon') lines.push(`The icon stays ${zone}, copied exactly as drawn in the mockup.`);
     else if (element.kind === 'phone') lines.push(`The phone number "${element.text ?? ''}" stays ${zone}; every digit must be exactly as written.`);
     else if (element.badge) lines.push(`The text "${element.text ?? ''}" sits on a solid ${BADGE_SHAPE[element.badge]} ${zone}, in the badge colors of the mockup, rendered exactly as written.`);
