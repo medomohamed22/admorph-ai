@@ -8,6 +8,7 @@ import { IconArrow, IconLayers, IconSparkles } from './ui/icons';
 import { META_MODELS, META_MODEL_ORDER } from '@/lib/ai/models';
 import { DemoStart } from './demo-tour';
 import { RoadmapSection } from './roadmap';
+import { aspectOf } from '@/lib/editor/sizes';
 import { parseShowcase } from '@/lib/showcase/manifest';
 import { loadSavedAds } from '@/lib/db/repository';
 import type { SavedAd } from '@/lib/db/schema';
@@ -64,7 +65,7 @@ export function HeroFlow({ before, after, brand, caption, labels }: { before: st
 function SavedAdTile({ ad, label }: { ad: SavedAd; label: string }) {
   const url = useObjectUrl(ad.blob);
   return <figure className="home-ad" data-testid="home-saved-ad">
-    {url && <img src={url} alt={ad.headline || ad.brand.name} loading="lazy" />}
+    {url && <img src={url} alt={ad.headline || ad.brand.name} loading="lazy" style={{ aspectRatio: aspectOf(ad.format) }} />}
     <figcaption><span>{ad.brand.name}</span><small>{label}</small></figcaption>
   </figure>;
 }

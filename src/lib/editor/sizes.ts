@@ -22,3 +22,9 @@ export function formatLabel(format: SizeFormat | undefined | null): string {
   const size = SIZE_DIMENSIONS[format ?? '1080x1350'] ?? SIZE_DIMENSIONS['1080x1350'];
   return `${size.width} × ${size.height} · ${size.label}`;
 }
+
+/** CSS aspect-ratio of a saved ad, so a gallery tile shows the whole ad instead of cropping a square one to 4:5. */
+export function aspectOf(format: SizeFormat | undefined | null): string {
+  const { width, height } = dimensionsFor(format);
+  return `${width} / ${height}`;
+}

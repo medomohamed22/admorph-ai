@@ -23,7 +23,8 @@ import { writeZip } from '@/lib/export/zip';
 import { useObjectUrl } from './logo';
 import { WaitingText } from './waiting';
 import { GeneratingCanvas } from './generating-canvas';
-import { saveAd, loadRecentScenes, rememberRecentScene } from '@/lib/db/repository';
+import { saveAd, deleteSavedAd, loadRecentScenes, rememberRecentScene } from '@/lib/db/repository';
+import type { SavedAd } from '@/lib/db/schema';
 import { loadDraft, saveDraft, clearDraft, draftHasWork } from '@/lib/oneshot/draft';
 import { PLAN_DIALECTS, DIALECT_EXAMPLE, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
 import { IconArrow, IconCheck } from './ui/icons';
@@ -43,7 +44,7 @@ import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
 
-type Attempt = { blob: Blob; certificate: VerifyResult | null; score: number | null; /** The gallery record this attempt was saved as. */ adId?: string };
+type Attempt = { blob: Blob; certificate: VerifyResult | null; score: number | null; /** The gallery record this attempt was saved as. */ adId?: string; saved?: SavedAd };
 
 type Concept = { angle: string; title: string; headline: string; caption: string; visualDirection: string; artBrief?: ArtBrief };
 
@@ -478,10 +479,11 @@ export default function OneshotStudio() {
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
     const adId = crypto.randomUUID();
-    void saveAd({ id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) }).catch(() => {});
+    const saved: SavedAd = { id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}) };
+    void saveAd(saved).catch(() => {});
     if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
-    if (!verifyModel) return { blob: result, certificate: null, score: null, adId };
+    if (!verifyModel) return { blob: result, certificate: null, score: null, adId, saved };
     setBusy('verify');
     const fitted = await fitProductImage(result);
     const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language, format };
@@ -491,9 +493,15 @@ export default function OneshotStudio() {
     const verified = verifyResultSchema.parse(await verifyResponse.json());
     const attemptScore = oneshotScore(verified, hasLogo);
     if (!fixNotes) finishStep('critic', t.agentScore.replace('{score}', String(attemptScore)), verified);
-    return { blob: result, certificate: verified, score: attemptScore, adId };
+    return { blob: result, certificate: verified, score: attemptScore, adId, saved };
   }
 
+  /** The gallery keeps only the attempt on show: a repaired ad is not saved twice, and switching attempts swaps it. */
+  function keepInGallery(shown: Attempt, all: Attempt[]) {
+    if (all.length < 2) return;
+    if (shown.saved) void saveAd(shown.saved).catch(() => {});
+    for (const other of all) if (other !== shown && other.adId && other.adId !== shown.adId) void deleteSavedAd(other.adId).catch(() => {});
+  }
   function showAttempt(attempt: Attempt) {
     setResultBlob(attempt.blob); setResultAdId(attempt.adId ?? null);
     setCertificate(attempt.certificate); setScore(attempt.score);
@@ -540,7 +548,7 @@ export default function OneshotStudio() {
           const second = await paintAndReview(encodedMockup, layout, sanitizedBrand, notes, encodedProduct);
           setAttempts([first, second]);
           const better = (second.score ?? -1) > (first.score ?? -1) ? second : first;
-          showAttempt(better);
+          showAttempt(better); keepInGallery(better, [first, second]);
           setRepair({ status: 'done', startedAt: started, endedAt: Date.now(), firstScore: first.score ?? undefined, secondScore: second.score ?? undefined, result: t.agentRepairResult.replace('{first}', String(first.score)).replace('{second}', String(second.score ?? '—')), detail: { request: { fixNotes: notes }, response: second.certificate } });
         } catch (cause) {
           setRepair({ status: 'failed', startedAt: started, endedAt: Date.now(), firstScore: first.score ?? undefined, error: metaErrorMessage(cause, errorText), detail: { request: { fixNotes: notes } } });
@@ -929,7 +937,7 @@ export default function OneshotStudio() {
       {attempts.length === 2 && !generating && <div className="attempt-compare" data-testid="oneshot-attempts">
         <h3>{t.attemptsTitle}</h3>
         <p>{t.attemptsNote}</p>
-        <div className="attempt-grid">{attempts.map((attempt, index) => <AttemptCard key={index} attempt={attempt} label={index === 0 ? t.attemptFirst : t.attemptRepaired} scoreLabel={t.score} active={attempt.blob === resultBlob} useLabel={t.attemptUse} activeLabel={t.attemptShown} onUse={() => showAttempt(attempt)} />)}</div>
+        <div className="attempt-grid">{attempts.map((attempt, index) => <AttemptCard key={index} attempt={attempt} label={index === 0 ? t.attemptFirst : t.attemptRepaired} scoreLabel={t.score} active={attempt.blob === resultBlob} useLabel={t.attemptUse} activeLabel={t.attemptShown} onUse={() => { showAttempt(attempt); keepInGallery(attempt, attempts); }} />)}</div>
       </div>}
       {resultBlob && resultUrl && <a className="button secondary" href={resultUrl} download={imageFileName('admorph-oneshot', resultBlob)}>{t.download}</a>}
       <button type="button" className="button secondary" disabled={!resultBlob || exporting} onClick={() => void exportEvidence()}>{exporting ? t.exportBusy : t.exportEvidence}</button>
