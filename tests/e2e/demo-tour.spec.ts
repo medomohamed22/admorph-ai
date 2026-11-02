@@ -73,6 +73,7 @@ test('the guided demo plays the whole site by itself: ad, Ramadan copy, shelf ca
 test('step-by-step mode waits for Next, and Exit stops the run', async ({ page }) => {
   test.setTimeout(120_000);
   const calls = await mockMeta(page);
+  const photos: string[] = []; page.on('request', request => { const path = new URL(request.url()).pathname; if (path.startsWith('/demo/')) photos.push(path); });
   await page.goto('/');
   await page.getByTestId('demo-start').click();
   await page.getByTestId('demo-start-step').click();
@@ -87,7 +88,15 @@ test('step-by-step mode waits for Next, and Exit stops the run', async ({ page }
   await bar.getByTestId('demo-next').click();
   await expect(bar).toHaveAttribute('data-step', 'brand');
   await expect(bar.getByTestId('demo-next')).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByLabel('Brand name')).toHaveValue('Mono Audio');
+  // The same brand, logo, place, copy language and square size as the demo video.
+  await expect(page.getByLabel('Brand name')).toHaveValue('hope.');
+  await expect(page.getByLabel('Brand description')).toHaveValue('An insulated steel water bottle that keeps drinks ice-cold for 24 hours.');
+  // The dialect, place and size controls sit on later steps (hidden for now), so they are read hidden.
+  await expect(page.getByRole('radio', { name: 'English', exact: true, includeHidden: true })).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByLabel('Where should the ad take place? (optional)')).toHaveValue('a sunny wooden desk by a window');
+  await expect(page.getByRole('radio', { name: '1:1 Square', exact: true, includeHidden: true })).toHaveAttribute('aria-checked', 'true');
+  expect(photos).toContain('/demo/hope-bottle.jpg');
+  expect(photos).toContain('/demo/hope-logo.png');
   // The run survives a reload, then Exit ends it for good.
   await page.reload();
   await expect(bar).toHaveAttribute('data-step', 'brand');

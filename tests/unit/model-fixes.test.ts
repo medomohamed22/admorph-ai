@@ -114,3 +114,20 @@ describe('the painter and the reviewer know where each element goes', () => {
     expect(verifyRequestSchema.shape.format).toBeDefined();
   });
 });
+
+import { needsRepair } from '../../src/lib/agent/pipeline';
+
+describe('an ad that cannot be published is repaired even with a good score', () => {
+  it('repairs an unreadable or overlapping headline at 85, not a clean 85', () => {
+    const base = review({ texts: [{ id: 'headline', expected: 'Hi', found: 'Hi', match: true }] });
+    expect(needsRepair({ ...base, textReadable: false }, 85)).toBe(true);
+    expect(needsRepair({ ...base, textClearOfProduct: false }, 85)).toBe(true);
+    expect(needsRepair(base, 85)).toBe(false);
+    expect(needsRepair(base, 70)).toBe(true);
+    expect(needsRepair(null, 10)).toBe(false);
+  });
+  it('the painter keeps the area behind each word clear', () => {
+    const prompt = buildOneshotPrompt({ name: 'hope.', description: 'x', colors: ['#111111', '#222222', '#333333'] }, 'a desk', [{ id: 'headline', kind: 'text', x: 70, y: 1000, width: 500, height: 200, text: 'Cold' }], 'en');
+    expect(prompt).toContain('keep that area of the scene free of objects, patterns and colors close to the text\'s own color');
+  });
+});

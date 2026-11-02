@@ -384,11 +384,11 @@
     "steps": {
       "product": {
         "title": "Phone photo → clean cutout",
-        "body": "A real phone photo of headphones goes in. Muse Spark finds the product and SAM 3.1 cuts it out of the background."
+        "body": "The same phone photo of the hope. water bottle as in the demo video goes in. Muse Spark finds the product and SAM 3.1 cuts it out of the background."
       },
       "brand": {
         "title": "Brand kit and size",
-        "body": "The Mono Audio brand is applied: name, description and colors. The ad size is set to 4:5 before anything is painted."
+        "body": "The hope. brand is applied as in the video: name, description, colors and logo, a place (a sunny wooden desk by a window), English copy and the square 1:1 size."
       },
       "ideas": {
         "title": "Three ad ideas",

@@ -32,13 +32,13 @@ import { AgentPipeline, type RepairRecord } from './agent-pipeline';
 import { CertificateCard, TrustPanel } from './certificate-card';
 import { CanvasTools, MAX_ELEMENTS } from './canvas-tools';
 import { removeLogoBackground } from '@/lib/oneshot/logo-background';
-import { emptyRecords, redactForDetails, repairNotes, REPAIR_THRESHOLD, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
+import { emptyRecords, redactForDetails, repairNotes, needsRepair, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import { useDemoDriver } from './demo-tour';
 import { cropToProduct } from '@/lib/shelf/crop';
 import { pickLooks } from '@/lib/ai/looks';
 import { productReference } from '@/lib/oneshot/product-reference';
-import { DEMO_PRODUCT_URL, demoBrand } from '@/lib/demo/tour';
+import { DEMO_PRODUCT_URL, DEMO_LOGO_URL, DEMO_FORMAT, demoBrand, demoPlace } from '@/lib/demo/tour';
 import type { BrandInput } from '@/lib/db/schema';
 
 const DEFAULT_TEXT_COLOR = '#16100C';
@@ -531,7 +531,7 @@ export default function OneshotStudio() {
       if (navigator.vibrate) navigator.vibrate(30);
       // One repair loop: a weak certificate sends the critic's notes back to
       // the painter for exactly one more attempt; both versions stay visible.
-      const notes = first.certificate && first.score !== null && first.score < REPAIR_THRESHOLD ? repairNotes(first.certificate, hasLogo) : [];
+      const notes = first.certificate && needsRepair(first.certificate, first.score) ? repairNotes(first.certificate, hasLogo) : [];
       if (notes.length > 0) {
         step = 'critic';
         const started = Date.now();
@@ -701,7 +701,7 @@ export default function OneshotStudio() {
       if (phase === 0) { if (!restored) return 'wait'; startOver(); return 'next'; }
       if (phase === 1) {
         const photo = await (await fetch(DEMO_PRODUCT_URL)).blob();
-        const blob = await uploadProduct(new File([photo], 'phone-photo.webp', { type: photo.type || 'image/webp' }));
+        const blob = await uploadProduct(new File([photo], 'phone-photo.jpg', { type: photo.type || 'image/jpeg' }));
         if (!blob) fail('upload');
         await isolateBackground(blob!);
         return 'next';
@@ -711,7 +711,14 @@ export default function OneshotStudio() {
       fail('cutout');
     }
     if (id === 'brand') {
-      if (phase === 0) { goTo(1); setSelectedBrandId(''); setBrand(demoBrand(workspace.locale)); changeFormat('1080x1350'); return 'next'; }
+      if (phase === 0) {
+        goTo(1); setSelectedBrandId(''); setBrand(demoBrand(workspace.locale));
+        // The same logo, place, copy language and square size as the demo video.
+        const logo = await (await fetch(DEMO_LOGO_URL)).blob();
+        await uploadLogo(new File([logo], 'hope-logo.png', { type: logo.type || 'image/png' }));
+        setPlace(demoPlace(workspace.locale)); setDialect(workspace.locale === 'ar' ? 'ar_eg' : 'en');
+        changeFormat(DEMO_FORMAT); return 'next';
+      }
       return brandValid ? 'done' : 'wait';
     }
     if (id === 'ideas') {

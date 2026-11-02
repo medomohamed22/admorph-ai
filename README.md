@@ -68,12 +68,12 @@ The planner first recognizes the product in the photo, then sets each of the thr
 
 ## Guided demo
 
-"Watch the full demo" on the home page walks the whole site with live Meta requests: a bundled phone photo of headphones becomes a finished ad (SAM 3.1 cut, Mono Audio brand, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its first two products.
+"Watch the full demo" on the home page walks the whole site with live Meta requests: the same phone photo of the hope. bottle as in the demo video becomes a finished ad (SAM 3.1 cut, the hope. brand with its logo, the video's place and the square 1:1 size, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its first two products.
 
 - **Auto** plays every step by itself, each kept on screen long enough to read (good for recording). **Step** waits for Next before each step (good for judges). The mode can be switched mid-run, Auto can be paused, and Exit stops it.
 - A sticky bar under the header names the step, the Meta models it uses and the seconds it is taking. A failed step stops with Retry and Skip; nothing is faked or replayed.
 - The run lives in `sessionStorage` (step, timings and the new ad's id, no images), so it survives a page change or reload. Steps are defined in `src/lib/demo/tour.ts`; each page drives its own steps through `useDemoDriver`.
-- One run makes about 20–30 Meta requests and takes 4–7 minutes. Replace `public/demo/demo-product.webp` or `public/demo/shelf-sample.jpg` to demo other products.
+- One run makes about 20–30 Meta requests and takes 4–7 minutes. Replace `public/demo/hope-bottle.jpg` (and `hope-logo.png`) or `public/demo/shelf-sample.jpg` to demo other products.
 
 ## Trust and evidence
 

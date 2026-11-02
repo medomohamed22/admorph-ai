@@ -18,7 +18,7 @@ import { ProviderError } from '@/lib/ai/errors';
 import { encodeProduct, fitProductImage, validateGeneratedImage } from '@/lib/campaign/client';
 import { cutoutImage } from '@/lib/cutout/provider';
 import { oneshotScore, verifyResultSchema, type VerifyResult } from '@/lib/ai/oneshot';
-import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
+import { repairNotes, needsRepair, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
 import { PLAN_DIALECTS, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
 import { cleanDetections, shelfDetectionSchema, shelfPlanSchema, type ShelfBox } from '@/lib/shelf/schema';
 import { scanVideo, sharpestFrame, type ScannedFrame } from '@/lib/shelf/frames';
@@ -265,7 +265,7 @@ export default function ShelfStudio() {
       return { blob, certificate, score: oneshotScore(certificate, false) };
     };
     let best = await attempt();
-    if (best.certificate && best.score !== undefined && best.score < REPAIR_THRESHOLD) {
+    if (best.certificate && needsRepair(best.certificate, best.score)) {
       const notes = repairNotes(best.certificate, false);
       if (notes.length) { const second = await attempt(notes); if ((second.score ?? -1) > (best.score ?? -1)) best = second; }
     }
