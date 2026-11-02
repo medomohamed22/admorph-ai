@@ -467,7 +467,9 @@ export default function OneshotStudio() {
   /** One painting pass plus its review. `fixNotes` turns it into the repair retry. */
   async function paintAndReview(mockup: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }, layout: ReturnType<typeof toServerLayout>, sanitizedBrand: BrandInput, fixNotes?: string[], product?: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }): Promise<Attempt> {
     if (!imageModel) throw new ProviderError('invalid_model', 400);
-    const language = workspace.locale === 'ar' ? 'ar' : 'en';
+    // The ad's words are in the copy dialect's language, not the interface language: an Egyptian ad made in the
+    // English interface must still be painted and reviewed as Arabic (right to left, joined letters).
+    const language = dialectLanguage(dialect);
     const body = { providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitizedBrand, scene: scene.trim(), language, layout, format, ...(fixNotes ? { fixNotes } : {}), ...(product ? { product } : {}) };
     if (!fixNotes) startStep('paint', body);
     setBusy('generate');
