@@ -25,7 +25,7 @@ import { scanVideo, sharpestFrame, type ScannedFrame } from '@/lib/shelf/frames'
 import { cropToProduct } from '@/lib/shelf/crop';
 import { productReference } from '@/lib/oneshot/product-reference';
 import { shelfLayout, drawShelfMockup } from '@/lib/shelf/mockup';
-import { withRateLimit } from '@/lib/shelf/queue';
+import { withRateLimit, runPool, paintLanes } from '@/lib/shelf/queue';
 import { saveAd } from '@/lib/db/repository';
 import { writeZip } from '@/lib/export/zip';
 import type { BrandInput } from '@/lib/db/schema';
@@ -288,7 +288,8 @@ export default function ShelfStudio() {
         planned[item.id] = { state: 'waiting', headline: entry?.headline ?? item.name, cta: entry?.cta ?? t.ctaFallback, caption: entry?.caption ?? '', scene: entry?.scene ?? t.sceneFallback };
       }
       setAds(planned);
-      for (const item of chosen) await runAd(item, planned[item.id]);
+      // With the site's key the products are painted side by side; each keeps its own review and repair.
+      await runPool(chosen, paintLanes(provider.siteKey), item => runAd(item, planned[item.id]));
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
     finally { setWaitSeconds(0); setStage('done'); }
   }

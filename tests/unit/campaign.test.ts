@@ -16,6 +16,10 @@ async function metaPlan(body:ReturnType<typeof input>,options:import('../../src/
 function input() { const draft = newCampaign(); return planRequestSchema.parse({ providerId: 'meta', apiKey: testKey, modelId: 'chosen-model', consent: true, imageConsent: true,
   brand: draft.brandSnapshot, brief: 'Promote the sample product honestly.', goal: 'awareness', creativeLanguage: 'en', format: '1080x1350', product: { mimeType: 'image/png', data: png } }); }
 function response(plan = samplePlan(newCampaign())) { return { choices:[{finish_reason:'stop',message:{content:JSON.stringify(plan)}}],candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(plan) }] } }] }; }
+// What Muse Spark now writes for the planner route: named offer/benefit/lifestyle ideas, each with a required art brief.
+const brief = (setting: string) => ({ setting, props: ['a linen cloth'], lighting: 'soft window light', camera: 'eye level, 50mm', composition: 'product right, calm wall left for the headline', palette: ['#F5EEDF'], typeStyle: 'bold sans', avoid: ['clutter'] });
+function plannerOutput(plan = samplePlan(newCampaign())) { const [a, b, c] = plan.concepts; const idea = (concept: typeof a, setting: string) => ({ title: concept.title.slice(0, 60), headline: concept.headline.slice(0, 90), caption: concept.caption, artBrief: brief(setting) }); return { offer: idea(a, 'a sunny kitchen counter'), benefit: idea(b, 'a desk by a window'), lifestyle: idea(c, 'a park bench') }; }
+function plannerResponse(output: unknown = plannerOutput()) { return { choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(output) } }] }; }
 function request(body: unknown, origin = 'https://app.test') { return new Request('https://app.test/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(body) }); }
 describe('campaign planner', () => {
   it('accepts the full advertised image size and rejects stale or incomplete approvals', () => {
@@ -41,12 +45,12 @@ describe('campaign planner', () => {
     expect(url).toBe('https://api.meta.ai/v1/chat/completions');
     expect(url).not.toContain(input().apiKey); expect(init.headers).toMatchObject({ Authorization: `Bearer ${input().apiKey}` });
     const payload = JSON.parse(init.body as string); expect(payload.messages[1].content[1].image_url.url).toBe(`data:image/png;base64,${png}`);
-    expect(payload.response_format.json_schema.schema.properties.concepts.minItems).toBe(3); expect(init.redirect).toBe('error');
+    expect(payload.response_format.json_schema.schema.properties.concepts.minItems).toBe(1); expect(payload.response_format.json_schema.schema.properties.concepts.maxItems).toBe(3); expect(init.redirect).toBe('error');
     expect(JSON.stringify(buildPlanningPayload(input()))).not.toContain(input().apiKey);
   });
   it('sends a typed place and the looks to the planner, and natural places when no place is typed', async () => {
     const promptOf = async (extra: Record<string, unknown>) => {
-      const fetcher = vi.fn(async () => Response.json(response()));
+      const fetcher = vi.fn(async () => Response.json(plannerResponse()));
       const result = await handlePlanRequest(request({ ...input(), ...extra }), { fetcher });
       expect(result.status).toBe(200);
       return String(JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).messages[1].content[0].text);
@@ -63,7 +67,7 @@ describe('campaign planner', () => {
   it('accepts an empty brief and tells the model to derive ideas from the photo and brand', async () => {
     const body = input(); body.brief = '';
     expect(planRequestSchema.safeParse(body).success).toBe(true);
-    const fetcher = vi.fn(async () => Response.json(response()));
+    const fetcher = vi.fn(async () => Response.json(plannerResponse()));
     const result = await handlePlanRequest(request(body), { fetcher });
     expect(result.status).toBe(200); expect(fetcher).toHaveBeenCalledTimes(1);
     const [, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
@@ -83,8 +87,8 @@ describe('campaign planner', () => {
     } expect(fetcher).not.toHaveBeenCalled();
   });
   it('returns a non-cacheable validated response and redacts known credentials from generated fields', async () => {
-    const plan = samplePlan(newCampaign()); plan.concepts[0].caption += input().apiKey;
-    const result = await handlePlanRequest(request(input()), { fetcher: async () => Response.json(response(plan)) });
+    const output = plannerOutput(); output.offer.caption = `${output.offer.caption.slice(0, 300)} ${input().apiKey}`;
+    const result = await handlePlanRequest(request(input()), { fetcher: async () => Response.json(plannerResponse(output)) });
     expect(result.status).toBe(200); expect(result.headers.get('cache-control')).toContain('no-store'); expect(await result.text()).not.toContain(input().apiKey);
   });
   it('handles timeout and cancellation without a repeated request', async () => {
