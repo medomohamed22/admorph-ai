@@ -72,3 +72,18 @@ test('a saved Arabic choice is applied before the page shows, so a reload never 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 });
+
+test('the tab title follows the language and no text asks visitors for their own key', async ({ page }) => {
+  await page.goto('/oneshot');
+  await expect(page).toHaveTitle('One-shot ad studio · AdMorph AI');
+  await page.getByRole('button', { name: 'Switch to Arabic', exact: true }).click();
+  await expect(page).toHaveTitle('استوديو الإعلان الواحد · AdMorph AI');
+  // A page change inside the app keeps the Arabic title.
+  await page.getByRole('link', { name: 'الإعدادات', exact: true }).first().click();
+  await expect(page).toHaveTitle('الإعدادات · AdMorph AI');
+  await page.getByRole('button', { name: 'التبديل إلى الإنجليزية', exact: true }).click();
+  await expect(page).toHaveTitle('Settings · AdMorph AI');
+  await expect(page.getByText(/with your key|Needs your key/)).toHaveCount(0);
+  await page.goto('/shelf');
+  await expect(page.getByText(/It still uses your key/)).toHaveCount(0);
+});

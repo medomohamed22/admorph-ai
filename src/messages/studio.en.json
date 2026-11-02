@@ -17,9 +17,9 @@
     "sam": "Cuts the product out of its photo, guided by a box from Muse Spark or a tap from you.",
     "test": "Test",
     "testing": "Testing",
-    "testNote": "A test sends one small request with your key and may be billed. It never blocks a feature.",
+    "testNote": "A test sends one small request to the model and counts toward the site's request limit. It never blocks a feature.",
     "ready": "Ready",
-    "needsKey": "Needs your key",
+    "needsKey": "Not set up",
     "passed": "Test passed",
     "failed": "Test failed",
     "keyTitle": "Your Meta key",
@@ -249,7 +249,7 @@
     "stageCut": "Cut",
     "stageCampaign": "Campaign",
     "needKey": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
-    "rateWait": "Pausing {s} s to stay inside your key’s per-minute limit…",
+    "rateWait": "Pausing {s} s to stay inside the per-minute request limit…",
     "photoInput": "Shelf photo",
     "videoInput": "Shelf video",
     "photoTitle": "Photo of the shelf",
@@ -282,7 +282,7 @@
     "shopAbout": "What you sell, in a few words",
     "shopColor": "Main colour",
     "needBrand": "Pick a saved brand or write your shop name and what you sell.",
-    "cost": "{ads} ads · about {n} requests with your key (a weak ad gets one repair).",
+    "cost": "{ads} ads · about {n} requests (a weak ad gets one repair).",
     "make": "Make the campaign ({n} ads)",
     "startOver": "Start over",
     "campaign": "Campaign",
@@ -305,7 +305,7 @@
     "ctaFallback": "Order now",
     "sceneFallback": "A bright real-life setting with props that fit the product",
     "sampleTitle": "No shelf nearby?",
-    "sampleHint": "Try a sample shelf with three products and price tags. It still uses your key.",
+    "sampleHint": "Try a sample shelf with three products and price tags. It runs the real models.",
     "sampleCta": "Try the sample shelf"
   },
   "remix": {
@@ -469,5 +469,17 @@
         "note": "Let Claude, ChatGPT and other agents use AdMorph."
       }
     }
+  },
+  "pageTitles": {
+    "default": "AdMorph AI — From a phone photo to a ready ad",
+    "suffix": " · AdMorph AI",
+    "/oneshot": "One-shot ad studio",
+    "/shelf": "Shelf to campaign",
+    "/gallery": "My gallery",
+    "/themes": "Seasonal themes",
+    "/variants": "Ad variants",
+    "/brands": "Brand kits",
+    "/settings": "Settings",
+    "/hackathon": "Hackathon build log"
   }
 }

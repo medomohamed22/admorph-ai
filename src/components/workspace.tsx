@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { messages } from '@/lib/i18n';
 import { getDatabase } from '@/lib/db/dexie';
 import { loadWorkspace, saveBrand, removeBrand } from '@/lib/db/repository';
@@ -108,6 +109,26 @@ export function useWorkspace() {
   return workspace;
 }
 export function useMessages() { return messages[useWorkspace().locale]; }
+/**
+ * The tab title in the visitor's language. The page titles themselves are fixed
+ * English metadata (one per route); this sets the title of the chosen language
+ * and sets it again whenever a page change rewrites the title.
+ */
+export function LocalizedTitle() {
+  const { locale } = useWorkspace(), titles = useMessages().pageTitles, path = usePathname();
+  useEffect(() => {
+    const known = path === '/' ? titles.default : (titles as Record<string, string>)[path] ? (titles as Record<string, string>)[path] + titles.suffix : null;
+    if (!known) return;
+    const apply = () => { if (document.title !== known) document.title = known; };
+    apply();
+    const node = document.querySelector('title');
+    if (!node) return;
+    const watch = new MutationObserver(apply);
+    watch.observe(node, { childList: true, characterData: true, subtree: true });
+    return () => watch.disconnect();
+  }, [locale, path, titles]);
+  return null;
+}
 export function WorkspaceChrome() {
   const { phase, storageError } = useWorkspace(); const m = useMessages();
   const [offline,setOffline]=useState(false);

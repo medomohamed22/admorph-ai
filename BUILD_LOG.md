@@ -246,3 +246,9 @@ With the owner's key and consent, every feature was run once on <https://admorph
 - The site-key check retries with a growing wait, so a slow start or a firewall answer no longer reads as "AI is not set up". That banner shows only after a real "no key" answer or repeated failures.
 - Disabled Generate and "Suggest 3 ideas" buttons now say why (connecting, reading the brand kit, brand missing, no ad or season picked).
 - A saved Arabic choice is applied before the page shows, so a reload no longer shows English first and then flips to Arabic. The choice is mirrored to a two-letter localStorage value for this.
+
+## 2026-11-02 — Judge-facing accuracy pass
+
+- The `/hackathon` page and `HACKATHON.md` said live Meta verification was pending and that image generation had not been shown with a real key. They now describe what runs today, the planned "Coming soon" items, and say plainly that the fidelity score is Muse Spark's own judgment.
+- "Your key" wording is gone from Settings and the shelf page: visitors use the site's key and never enter one.
+- The tab title follows the interface language on every page (Arabic titles were English).
