@@ -22,6 +22,11 @@ export const IconCheck = (p: IconProps) => <Svg {...p}><path d="m5 12.5 4.5 4.5L
 export const IconArrow = (p: IconProps) => <Svg {...p}><path d="M5 12h14M13 6l6 6-6 6" /></Svg>;
 export const IconEye = (p: IconProps) => <Svg {...p}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></Svg>;
 export const IconEyeOff = (p: IconProps) => <Svg {...p}><path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></Svg>;
+export const IconSend = (p: IconProps) => <Svg {...p}><path d="M21 3 10 14" /><path d="M21 3 14.5 21l-4.5-7-7-4.5Z" /></Svg>;
+export const IconChat = (p: IconProps) => <Svg {...p}><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12Z" /><path d="M9 10.5h6M9 13.5h4" /></Svg>;
+export const IconVideo = (p: IconProps) => <Svg {...p}><rect x="3" y="6" width="13" height="12" rx="2.5" /><path d="m16 10 5-3v10l-5-3" /></Svg>;
+export const IconChart = (p: IconProps) => <Svg {...p}><path d="M4 20V4" /><path d="M4 20h16" /><path d="m7 15 4-4 3 3 5-6" /></Svg>;
+export const IconPlug = (p: IconProps) => <Svg {...p}><path d="M9 3v5M15 3v5" /><path d="M6 8h12v3a6 6 0 0 1-12 0Z" /><path d="M12 17v4" /></Svg>;
 export const IconKey = (p: IconProps) => <Svg {...p}><circle cx="8" cy="15" r="4" /><path d="m10.8 12.2 9.2-9.2M17 6l3 3M14.5 8.5l2 2" /></Svg>;
 
 /** Gradient app mark used in the header and footer. */
