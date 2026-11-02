@@ -24,6 +24,13 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', title: 'AdMorph AI — From a phone photo to an Instagram ad in a minute', description },
 };
 export const viewport: Viewport = { themeColor: '#0b0a10' };
+/**
+ * A visitor who picked Arabic gets it on reload without the page first showing
+ * English and then flipping by itself: the saved choice (a two-letter mirror of
+ * the IndexedDB setting) sets the direction before paint, and the page stays
+ * hidden only until the workspace has applied it (at most 1.5 seconds).
+ */
+const LOCALE_BOOT = "try{if(localStorage.getItem('admorph-locale')==='ar'){var d=document.documentElement;d.lang='ar';d.dir='rtl';d.setAttribute('data-locale-pending','');setTimeout(function(){d.removeAttribute('data-locale-pending')},1500)}}catch(e){}";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" dir="ltr" data-scroll-behavior="smooth"><body><Workspace><ProviderSession><SkipLink/><Header/><WorkspaceChrome/><DemoTour><main id="main">{children}</main></DemoTour><Footer/></ProviderSession></Workspace><Analytics/></body></html>;
+  return <html lang="en" dir="ltr" data-scroll-behavior="smooth" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: LOCALE_BOOT }} /></head><body><Workspace><ProviderSession><SkipLink/><Header/><WorkspaceChrome/><DemoTour><main id="main">{children}</main></DemoTour><Footer/></ProviderSession></Workspace><Analytics/></body></html>;
 }

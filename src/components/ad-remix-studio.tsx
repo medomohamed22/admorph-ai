@@ -8,8 +8,8 @@ import { useProviderSession } from './provider-session';
 import { metaFetch } from '@/lib/ai/meta-fetch';
 import { requireMetaSuccess, metaErrorMessage } from '@/lib/ai/meta-client-error';
 import { encodeProduct, fitProductImage, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
-import { oneshotScore, verifyResultSchema, type OneshotElement, type VerifyResult } from '@/lib/ai/oneshot';
-import { REMIX_THEMES, MIN_SEASON_CUES, SEASON_FALLBACK_HEADLINE, seasonFallbackScene, NEUTRAL_VARIANT_SCENES, FALLBACK_CODES, type RemixThemeId } from '@/lib/ai/remix';
+import { oneshotScore, verifyResultSchema, type VerifyResult } from '@/lib/ai/oneshot';
+import { REMIX_THEMES, MIN_SEASON_CUES, SEASON_FALLBACK_HEADLINE, seasonFallbackScene, NEUTRAL_VARIANT_SCENES, FALLBACK_CODES, MAX_COPY_ICONS, remixReviewLayout, type RemixThemeId, type RemixMarks } from '@/lib/ai/remix';
 import { ProviderError } from '@/lib/ai/errors';
 import { VARIANT_AXES, artBriefToScene, settingOf, type VariantAxis } from '@/lib/ai/art-brief';
 import { loadSavedAds, saveAd, deleteSavedAd, loadRecentScenes } from '@/lib/db/repository';
@@ -84,6 +84,8 @@ const inFilter = (ad: SavedAd, filter: SourceFilter) => filter === 'all' || (fil
 export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' }) {
   const m = useMessages(), t = m.remix, workspace = useWorkspace(), provider = useProviderSession();
   const [ads, setAds] = useState<SavedAd[]>([]);
+  // Until the gallery has been read, the page says it is loading, never "no saved ads".
+  const [adsLoaded, setAdsLoaded] = useState(false);
   const [selected, setSelected] = useState<SavedAd | null>(null);
   const [count, setCount] = useState(2);
   const [themes, setThemes] = useState<RemixThemeId[]>(['ramadan']);
@@ -113,37 +115,41 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const preselect = useSearchParams().get('ad');
   useEffect(() => {
     let alive = true;
-    loadSavedAds().then(items => { if (!alive) return; setAds(items); const match = preselect ? items.find(item => item.id === preselect) : undefined; if (match) setSelected(match); }).catch(() => {});
-    return () => { alive = false; };
-  }, [preselect]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The local database can still be opening on a first visit; a failed read is retried instead of showing an empty gallery.
+    const load = (attempt: number) => loadSavedAds().then(items => {
+      if (!alive) return;
+      setAds(items); setAdsLoaded(true);
+      const match = preselect ? items.find(item => item.id === preselect) : undefined;
+      // A gallery link preselects its ad; otherwise the newest ad starts picked so Generate is ready at once.
+      setSelected(previous => match ?? (previous && items.some(item => item.id === previous.id) ? previous : items[0] ?? null));
+    }).catch(() => { if (!alive) return; if (attempt < 4) timer = setTimeout(() => void load(attempt + 1), 400 * (attempt + 1)); else setAdsLoaded(true); });
+    void load(0);
+    return () => { alive = false; if (timer) clearTimeout(timer); };
+  }, [preselect, workspace.phase]);
 
   async function refreshGallery() {
     try { setAds(await loadSavedAds()); } catch { /* gallery is best-effort */ }
-  }
-
-  function remixLayout(headline: string, withLogo: boolean): OneshotElement[] {
-    return [
-      { id: 'product', kind: 'product', x: 340, y: 400, width: 400, height: 550 },
-      ...(withLogo ? [{ id: 'logo', kind: 'logo' as const, x: 830, y: 40, width: 200, height: 80 }] : []),
-      { id: 'headline', kind: 'text', x: 90, y: 90, width: 900, height: 120, text: headline },
-    ];
   }
 
   /** One remix and its review. A seasonal copy that shows too few season
    *  cues is painted once more and the better of the two is kept. */
   async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
-    // The source ad's logo goes along so the copy keeps the brand mark.
+    // The source ad's logo and icons go along, in the places they had, so the copy keeps the brand marks.
     const logo = source.logo ? await encodeProduct(await fitProductImage(source.logo)).catch(() => null) : null;
     const withLogo = !!logo;
+    const icons = (await Promise.all((source.icons ?? []).slice(0, MAX_COPY_ICONS).map(async icon => { const encoded = await encodeProduct(await fitProductImage(icon.blob)).catch(() => null); return encoded ? { image: encoded, position: icon.position } : null; }))).filter(icon => icon !== null);
+    const marks: RemixMarks = { ...(logo ? { logo: source.logoPosition ?? true } : {}), ...(icons.length ? { icons: icons.map(icon => icon.position) } : {}) };
+    const reviewLayout = (headline: string) => remixReviewLayout(headline, marks, language);
     const paint = async (headline: string, scene: string, fixNotes?: string[]) => {
-      const remixResponse = await withOneRetry(() => withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}), ...(logo ? { logo } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait));
+      const remixResponse = await withOneRetry(() => withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}), ...(logo ? { logo, ...(source.logoPosition ? { logoPosition: source.logoPosition } : {}) } : {}), ...(icons.length ? { icons } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait));
       const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
       let score: number | null = null, certificate: VerifyResult | null = null;
       const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
       if (verifyModel) {
         const fittedResult = await fitProductImage(blob);
-        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline, withLogo), language, freeLayout: true, ...(theme ? { season: theme } : {}), ...(fromProduct ? { product: await encodeProduct(image) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
+        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: reviewLayout(headline), language, freeLayout: true, ...(theme ? { season: theme } : {}), ...(fromProduct ? { product: await encodeProduct(image) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
         certificate = verifyResultSchema.parse(await verifyResponse.json());
         score = oneshotScore(certificate, withLogo) - (theme && (certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES ? 20 : 0);
       }
@@ -172,7 +178,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
     }
     const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}), ...(theme ? { theme } : {}) };
     setResults(previous => [...previous, result]);
-    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: withLogo, ...(source.logo && withLogo ? { logo: source.logo } : {}), createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
+    try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: withLogo, ...(source.logo && withLogo ? { logo: source.logo, ...(source.logoPosition ? { logoPosition: source.logoPosition } : {}) } : {}), ...(source.icons?.length ? { icons: source.icons.slice(0, MAX_COPY_ICONS) } : {}), createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
 
   const isFallbackable = (cause: unknown) => cause instanceof ProviderError && (FALLBACK_CODES as readonly string[]).includes(cause.code);
@@ -252,6 +258,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   }
 
   const canGenerate = !!selected && !!plannerModel && !!imageModel && !!key && !busy && (mode === 'variants' || themes.length > 0);
+  const generateBlocker = !key ? (provider.siteKey === 'missing' ? '' : t.waitAi) : !adsLoaded ? '' : ads.length && !selected ? t.pickToGenerate : mode === 'themes' && themes.length === 0 ? t.pickSeason : '';
   const busyLabel = busy === 'plan' ? t.planning : busy === 'generate' ? t.generating : '';
   const expected = mode === 'variants' ? count : themes.length;
 
@@ -290,12 +297,14 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   return <>
     <div className="page-head reveal-up"><div><h1>{mode === 'variants' ? t.titleVariants : t.titleThemes}</h1>
     <p>{mode === 'variants' ? t.descriptionVariants : t.descriptionThemes}</p></div></div>
-    {!key && <p className="campaign-notice"><Link href="/settings">{t.needKey}</Link></p>}
+    {!key && provider.siteKey === 'missing' && <p className="campaign-notice"><Link href="/settings">{t.needKey}</Link></p>}
     <div className="remix-layout" data-mode={mode}>
       <div className="remix-side">
         <section className="remix-panel" aria-labelledby="remix-pick-title">
           <header className="remix-panel-head"><span className="remix-step">1</span><h2 id="remix-pick-title">{t.stepPick}</h2>{ads.length > 0 && <small>{t.savedCount.replace('{n}', String(ads.length))}</small>}</header>
-          {ads.length === 0
+          {!adsLoaded
+            ? <p className="remix-empty" role="status" data-testid="remix-loading">{t.loadingAds}</p>
+            : ads.length === 0
             ? <p className="remix-empty">{t.emptyGallery} <Link href="/oneshot">{t.emptyGalleryHint}</Link></p>
             : <>
               {selected
@@ -321,6 +330,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
             })}
           </div>}
           <button type="button" className="button primary remix-go" disabled={!canGenerate} onClick={() => void generate()}>{busy ? <WaitingText label={busyLabel} /> : mode === 'variants' ? t.generateVariants : t.generateThemes}</button>
+          {!busy && generateBlocker && <p className="section-note" role="status" data-testid="remix-blocker">{generateBlocker}</p>}
           {waitSeconds > 0 && <p className="request-status" role="status" data-testid="remix-rate-wait">{m.shelf.rateWait.replace('{s}', String(waitSeconds))}</p>}
         </section>
       </div>

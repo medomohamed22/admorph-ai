@@ -13,7 +13,7 @@ import { ProviderError } from '@/lib/ai/errors';
 import { extractedSchema, productBoxSchema } from '@/lib/ai/meta-contracts';
 import { cutoutImage, SAM_PRODUCT_PROMPT } from '@/lib/cutout/provider';
 import { encodeProduct, fitProductImage, validateGeneratedImage, requestPlan } from '@/lib/campaign/client';
-import { initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, reflowLayout, frameHeightOf, ONESHOT_FORMATS, type OneshotFormat, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
+import { ONESHOT_WIDTH, initialOneshotLayout, toServerLayout, oneshotScore, verifyResultSchema, clampOneshotElement, scaleOneshotElement, reflowLayout, frameHeightOf, ONESHOT_FORMATS, type OneshotFormat, type OneshotCanvasElement, type VerifyResult } from '@/lib/ai/oneshot';
 import { resolveBrandFontFamily, brandFontStylesheetUrl, fontsForScript } from '@/lib/brand/fonts';
 import { artBriefToScene, settingOf, type ArtBrief } from '@/lib/ai/art-brief';
 import { inspectOneshotLayout, INSPECT_RULE_VERSION, type InspectCode } from '@/lib/oneshot/rules';
@@ -33,6 +33,8 @@ import { AgentPipeline, type RepairRecord } from './agent-pipeline';
 import { CertificateCard, TrustPanel } from './certificate-card';
 import { CanvasTools, MAX_ELEMENTS } from './canvas-tools';
 import { removeLogoBackground } from '@/lib/oneshot/logo-background';
+import { zoneOf } from '@/lib/editor/logo-placement';
+import { MAX_COPY_ICONS } from '@/lib/ai/remix';
 import { emptyRecords, redactForDetails, repairNotes, needsRepair, type AgentRecords, type AgentStepId, type StepRecord } from '@/lib/agent/pipeline';
 import type { Brand } from '@/lib/db/schema';
 import { useDemoDriver } from './demo-tour';
@@ -171,6 +173,7 @@ export default function OneshotStudio() {
   const onReady = (id: string) => setLoaded(previous => previous.has(id) ? previous : new Set([...previous, id]));
   const canvasReady = elements.filter(item => item.blob).every(item => loaded.has(item.id));
   const brandValid = brand.name.trim().length > 0 && brand.description.trim().length > 0;
+  const ideasBlocker = !key ? (provider.siteKey === 'missing' ? '' : t.waitAi) : busy === 'extract' ? t.waitBrand : !brandValid ? m.oneshot.needBrand : '';
   const hasLogo = elements.some(item => item.kind === 'logo');
   const selectedElement = elements.find(item => item.id === selected);
 
@@ -466,6 +469,13 @@ export default function OneshotStudio() {
     setElements(previous => [...previous, element]); setSelected(element.id);
   }
 
+  /** The logo and icons as placed on the canvas, saved with the ad so seasonal copies and variants keep them in the same spots. */
+  function savedMarks(): Pick<SavedAd, 'logo' | 'logoPosition' | 'icons'> {
+    const logoElement = elements.find(item => item.kind === 'logo');
+    const icons = elements.filter(item => item.kind === 'icon' && item.blob).slice(0, MAX_COPY_ICONS).map(item => ({ blob: item.blob as Blob, position: zoneOf(item, ONESHOT_WIDTH, frameHeight) }));
+    return { ...(logoBlob && logoElement ? { logo: logoBlob, logoPosition: zoneOf(logoElement, ONESHOT_WIDTH, frameHeight) } : {}), ...(icons.length ? { icons } : {}) };
+  }
+
   /** One painting pass plus its review. `fixNotes` turns it into the repair retry. */
   async function paintAndReview(mockup: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }, layout: ReturnType<typeof toServerLayout>, sanitizedBrand: BrandInput, fixNotes?: string[], product?: { mimeType: 'image/png' | 'image/jpeg' | 'image/webp'; data: string }): Promise<Attempt> {
     if (!imageModel) throw new ProviderError('invalid_model', 400);
@@ -483,7 +493,7 @@ export default function OneshotStudio() {
     // and themes pages can pick them up without re-uploading. A gallery
     // failure must never break the ad itself.
     const adId = crypto.randomUUID();
-    const saved: SavedAd = { id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}), ...(logoBlob && elements.some(item => item.kind === 'logo') ? { logo: logoBlob } : {}) };
+    const saved: SavedAd = { id: adId, blob: result, source: 'oneshot', brand: sanitizedBrand, headline: layout.find(element => element.kind === 'text')?.text ?? '', hasLogo: elements.some(item => item.kind === 'logo'), createdAt: new Date().toISOString(), scene: scene.trim(), format, ...(cutoutBlob ? { cutout: cutoutBlob } : {}), ...savedMarks() };
     void saveAd(saved).catch(() => {});
     if (!fixNotes) void rememberRecentScene(concepts[selectedConcept ?? -1]?.artBrief?.setting ?? settingOf(scene)).catch(() => {});
     const verifyModel = visionModel ?? provider.taskModel('critic');
@@ -846,6 +856,8 @@ export default function OneshotStudio() {
       <label className="place-field">{t.placeLabel}<input value={place} maxLength={120} placeholder={t.placePlaceholder} onChange={event => setPlace(event.target.value)} /><small>{t.placeNote}</small></label>
       <label>{t.briefOptional}<textarea value={brief} maxLength={2000} onChange={event => setBrief(event.target.value)} /></label>
       <button type="button" className="button secondary" disabled={!plannerModel || !key || !brandValid || busy !== ''} onClick={() => void suggestIdeas()}>{busy === 'ideas' ? <WaitingText label={t.getIdeas} /> : t.getIdeas}</button>
+      {/* A disabled button always says why, so nobody waits on a dead control (the place field stays optional). */}
+      {busy !== 'ideas' && ideasBlocker && <p className="section-note" role="status" data-testid="ideas-blocker">{ideasBlocker}</p>}
       {busy === 'ideas' && <div className="idea-grid" aria-hidden="true">{[0, 1, 2].map(index => <div key={index} className="idea-card idea-skeleton" />)}</div>}
       {concepts.length > 0 && <div>
         <h3>{t.pickIdea}</h3>
@@ -927,7 +939,7 @@ export default function OneshotStudio() {
 
     <section {...panel(4)}>
       <h2 id="wizard-title-4">{t.result}</h2>
-      {!imageModel || !key ? <p>{t.missingKey}</p> : null}
+      {!imageModel || (!key && provider.siteKey === 'missing') ? <p>{t.missingKey}</p> : null}
       <div className="generate-layout">
       <AgentPipeline records={records} repair={repair} onRetry={{ locate: () => void isolateBackground(), cutout: () => void isolateBackground(), brand: () => void extractBrand(), ideas: () => void suggestIdeas(), paint: () => void generate(), critic: () => void generate(), repair: () => void generate() }} />
       <div className="generate-result">

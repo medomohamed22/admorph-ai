@@ -387,7 +387,7 @@ export default function ShelfStudio() {
       </ol>
     </header>
 
-    {!key && <p className="shelf-note">{t.needKey} <Link href="/settings">{m.nav.settings}</Link></p>}
+    {!key && provider.siteKey === 'missing' && <p className="shelf-note">{t.needKey} <Link href="/settings">{m.nav.settings}</Link></p>}
     {waitSeconds > 0 && <p className="shelf-note shelf-wait" role="status" data-testid="shelf-wait">{t.rateWait.replace('{s}', String(waitSeconds))}</p>}
     {error && <p className="shelf-error" role="alert">{error}</p>}
 

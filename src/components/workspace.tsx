@@ -43,7 +43,10 @@ function useWorkspaceState() {
   useEffect(() => {
     const theme = themeColors(colors as BrandInput['colors']);
     const root = document.documentElement;
-    root.lang = locale; root.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    // While the stored workspace loads, the language set before paint (LOCALE_BOOT in layout.tsx) stays as it is.
+    if (phase !== 'loading' || locale !== 'en') { root.lang = locale; root.dir = locale === 'ar' ? 'rtl' : 'ltr'; }
+    // Once the stored language is applied, show the page and remember the choice for the next first paint.
+    if (phase !== 'loading') { root.removeAttribute('data-locale-pending'); try { localStorage.setItem('admorph-locale', locale); } catch { /* private mode */ } }
     root.style.setProperty('--coral', theme.primary);
     root.style.setProperty('--primary-fg', theme.foreground);
     root.style.setProperty('--readable-accent', theme.readableAccent);
@@ -52,7 +55,7 @@ function useWorkspaceState() {
     root.style.setProperty('--brand-accent', theme.accent);
     root.style.setProperty('--brand-outline', theme.outline);
     root.style.setProperty('--brand-line', theme.accentLine);
-  }, [locale, colors]);
+  }, [locale, colors, phase]);
 
   async function writeSetting(key: string, value: unknown) {
     if (phase !== 'ready') { setStorageError(true); return false; }
@@ -61,6 +64,7 @@ function useWorkspaceState() {
   }
   function setLocale(value: Locale) {
     updateLocale(value);
+    try { localStorage.setItem('admorph-locale', value); } catch { /* private mode */ }
     if (phase === 'loading') { earlyLocale.current = value; return; }
     void writeSetting('locale', value);
   }

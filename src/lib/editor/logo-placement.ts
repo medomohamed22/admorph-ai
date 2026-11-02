@@ -9,3 +9,14 @@ export function logoBox(settings:z.infer<typeof logoPlacementSchema>,aspect=1,wi
  w=Math.max(24,w);h=Math.max(24,h);
  const [row,col]=value.position.split('-');return {x:col==='left'?mx:col==='right'?width-mx-w:(width-w)/2,y:row==='top'?my:row==='bottom'?height-my-h:(height-h)/2,width:w,height:h,opacity:value.opacity,visible:value.enabled};
 }
+export type LogoPosition=(typeof logoPositions)[number];
+/** The 3x3 zone an element's center falls in, so a copy can put the logo or an icon back in the same part of the frame. */
+export function zoneOf(box:{x:number;y:number;width:number;height:number},width:number,height:number):LogoPosition{
+ const cx=(box.x+box.width/2)/width,cy=(box.y+box.height/2)/height,row=cy<1/3?'top':cy>2/3?'bottom':'middle',col=cx<1/3?'left':cx>2/3?'right':'center';
+ return `${row}-${col}` as LogoPosition;
+}
+/** Plain words for a zone, for prompts: "top right corner", "bottom center", "center". */
+export function zoneWords(position:LogoPosition):string{
+ if(position==='middle-center')return 'center';const [row,col]=position.split('-');
+ return row!=='middle'&&col!=='center'?`${row} ${col} corner`:row==='middle'?`middle of the ${col} edge`:`${row} center`;
+}

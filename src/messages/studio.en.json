@@ -192,7 +192,9 @@
     "enhanceNeedsSetup": "AI is not set up on this site yet: the owner adds META_API_KEY in Vercel.",
     "placeLabel": "Where should the ad take place? (optional)",
     "placePlaceholder": "e.g. a beach at sunset, a café terrace, a cozy bedroom",
-    "placeNote": "Leave it empty and Muse Spark recognizes the product and picks places where it is naturally used, a different one for each idea."
+    "placeNote": "Leave it empty and Muse Spark recognizes the product and picks places where it is naturally used, a different one for each idea.",
+    "waitAi": "Connecting to the AI… the button turns on in a moment.",
+    "waitBrand": "Reading your brand kit… the ideas button turns on when it is done."
   },
   "home": {
     "eyebrow": "Built on three Meta models",
@@ -327,7 +329,11 @@
     "slotQueued": "Waiting its turn",
     "reviewNotes": "Review notes",
     "prev": "Previous ad",
-    "next": "Next ad"
+    "next": "Next ad",
+    "waitAi": "Connecting to the AI… the button turns on in a moment.",
+    "loadingAds": "Loading your saved ads…",
+    "pickToGenerate": "Pick an ad above to make copies of it.",
+    "pickSeason": "Pick at least one season."
   },
   "meta": {
     "extractLead": "One photo of your logo, package or shop sign. Muse Spark reads the name, colors, tone and lettering, and you edit everything before saving.",
