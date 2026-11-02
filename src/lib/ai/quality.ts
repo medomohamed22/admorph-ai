@@ -31,7 +31,22 @@ export const TEXT_QUALITY_RULES = [
   'A price tag or a button is a solid rounded shape sized to its own words with even padding, in the brand palette and matching the scene\'s style, never a plain black blob or a circle that the words spill out of.',
 ];
 
+/**
+ * Text rules when the user's mockup fixes where every word goes (one-shot and
+ * shelf). The free rules above told the painter to set the headline "in a
+ * calm part of the scene", at most two bold lines away from the edges; live,
+ * that moved a bottom-left headline to the top. Here the words never move or
+ * change style: the scene is shaped around them instead.
+ */
+export const MOCKUP_TEXT_RULES = [
+  'Every text, price tag and button stays exactly at its mockup position and size. Never move, enlarge, shrink, reflow or rewrap them; instead make the part of the scene directly behind each word calm and even (a plain wall, sky, soft-focus area or empty surface) so it reads clearly.',
+  'Copy each text\'s font style, weight, color, size and line breaks from the mockup. Do not restyle, bolden, recolor or re-letter any word.',
+  'Every word must stay readable at phone size; if contrast is weak, add only a soft natural shadow behind the letters, never a band or box.',
+  'The product keeps its mockup position and size, so no letter, price tag or button touches or overlaps it; never enlarge the product or move it toward the words.',
+  'A price tag or a button is a solid rounded shape sized to its own words with even padding, in the colors the mockup gives it.',
+];
+
 /** The rules as prompt sentences; `withText` adds the text rules for ads that carry words. */
-export function qualityRules(withText: boolean): string {
-  return [...FRAME_RULES, ...STYLE_RULES, ...PRODUCT_RULES, ...(withText ? TEXT_QUALITY_RULES : [])].join(' ');
+export function qualityRules(withText: boolean, mockupLayout = false): string {
+  return [...FRAME_RULES, ...STYLE_RULES, ...PRODUCT_RULES, ...(withText ? (mockupLayout ? MOCKUP_TEXT_RULES : TEXT_QUALITY_RULES) : [])].join(' ');
 }

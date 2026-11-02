@@ -88,3 +88,29 @@ describe('one retry for a passing failure', () => {
     expect(JSON_OUTPUT_TOKENS).toBe(8192);
   });
 });
+
+import { placeOf, expectedPositions, buildOneshotPrompt, verifyRequestSchema } from '../../src/lib/ai/oneshot';
+
+describe('the painter and the reviewer know where each element goes', () => {
+  const layout: OneshotElement[] = [
+    { id: 'product', kind: 'product', x: 600, y: 300, width: 400, height: 980 },
+    { id: 'headline', kind: 'text', x: 70, y: 1000, width: 500, height: 200, text: 'Cold for 24 hours' },
+    { id: 'logo', kind: 'logo', x: 820, y: 70, width: 200, height: 90 },
+  ];
+  it('names each position in words and in exact shares of the frame, for every size', () => {
+    expect(placeOf(layout[1])).toBe('bottom left (left 6-53%, top 74-89% of the frame)');
+    expect(placeOf({ x: 0, y: 1500, width: 1080, height: 300 }, 1920)).toBe('bottom (left 0-100%, top 78-94% of the frame)');
+  });
+  it('the painter keeps the logo as drawn and gets exact positions', () => {
+    const prompt = buildOneshotPrompt({ name: 'hope.', description: 'x', colors: ['#111111', '#222222', '#333333'] }, 'a desk', layout, 'en');
+    expect(prompt).toContain('The text "Cold for 24 hours" stays bottom left (left 6-53%, top 74-89% of the frame)');
+    expect(prompt).toContain('copied exactly as drawn in the mockup: same shape, letters and colors, never redrawn or restyled');
+  });
+  it('the reviewer gets every expected position, measured on the ad\'s own size', () => {
+    const positions = expectedPositions(layout, '1080x1350');
+    expect(positions).toContain('headline (text "Cold for 24 hours"): bottom left (left 6-53%, top 74-89% of the frame)');
+    expect(positions).toContain('product (product): right');
+    expect(expectedPositions([{ id: 'h', kind: 'text', x: 0, y: 900, width: 1080, height: 100, text: 'x' }], '1080x1080')).toContain('top 83-93%');
+    expect(verifyRequestSchema.shape.format).toBeDefined();
+  });
+});

@@ -981,16 +981,6 @@
     "empty": "Your editable design will appear here. Approval does not send an AI request.",
     "stale": "Saved design retained. Review changed campaign inputs and reapprove its concept before further generation."
   },
-  "publicMode": {
-    "title": "Your keys. Your choice.",
-    "help": "The public demo uses local artwork and templates. This app has no shared owner-funded generation key. Every AI request uses your own entered or unlocked key and explicit consent.",
-    "storage": "Project files stay in this browser. Plaintext keys stay in memory; encrypted storage is optional and requires your passphrase to unlock after reload.",
-    "lock": "Lock session keys",
-    "locked": "Session keys are locked. Local editing, repairs and exports remain available.",
-    "unlocked": "A provider key is available in this session. Lock session keys before leaving a shared computer.",
-    "cancelLimit": "Locking clears all providers’ in-memory keys and request consent and cancels pending UI requests. It cannot reverse a request the provider already received or charged.",
-    "noRemote": "Locking preserves projects, selected model roles and encrypted credentials. To remove an encrypted copy, use Forget stored key in its provider settings."
-  },
   "meta": {
     "only": "Meta is the only active AI provider. Local samples stay on this device.",
     "legacy": "Inactive provider choices and encrypted credentials were preserved. Choose Meta models to enable new AI work.",
