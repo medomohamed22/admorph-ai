@@ -158,12 +158,65 @@ export function isBackgroundMask(alpha: Uint8ClampedArray, width: number, height
  * background around the product. When every mask is that background, the
  * largest one is inverted inside the box, so its hole becomes the product.
  */
+/**
+ * A mask that is a frame: it covers most of the outline of its own
+ * bounds and leaves a large hole fully enclosed in the middle (a product's
+ * backdrop panel with the product cut out of it). Returns the hole as the
+ * product's mask, or null. Strict on purpose: an ordinary product covers far
+ * less of its own outline, and a gap that opens onto the edge (under a pair
+ * of headphones) is not enclosed.
+ */
+export function frameHole(alpha: Uint8ClampedArray, width: number, height: number): Uint8ClampedArray | null {
+  let left = width, top = height, right = -1, bottom = -1;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (alpha[y * width + x] > 127) { if (x < left) left = x; if (x > right) right = x; if (y < top) top = y; if (y > bottom) bottom = y; }
+  if (right < 0) return null;
+  // Inset a little: a SAM edge is ragged.
+  const inset = Math.max(2, Math.round(0.03 * Math.min(right - left, bottom - top)));
+  const box = { left: left + inset, top: top + inset, right: right + 1 - inset, bottom: bottom + 1 - inset };
+  if (box.right - box.left < 8 || box.bottom - box.top < 8) return null;
+  // A real panel's edge is ragged and can stop short of the shelf, so half of the outline is enough here;
+  // the large enclosed hole below is what really separates a backdrop from a product.
+  if (perimeterCoverage(alpha, width, height, box) <= 0.5) return null;
+  const boxWidth = box.right - box.left, boxHeight = box.bottom - box.top, area = boxWidth * boxHeight;
+  const open = new Uint8Array(area); const stack: number[] = []; let uncovered = 0;
+  for (let y = 0; y < boxHeight; y++) for (let x = 0; x < boxWidth; x++) {
+    if (alpha[(box.top + y) * width + box.left + x] > 127) continue;
+    uncovered++;
+    if (x === 0 || y === 0 || x === boxWidth - 1 || y === boxHeight - 1) { open[y * boxWidth + x] = 1; stack.push(y * boxWidth + x); }
+  }
+  while (stack.length) {
+    const cell = stack.pop()!, x = cell % boxWidth, y = (cell - x) / boxWidth;
+    for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
+      if (nx < 0 || ny < 0 || nx >= boxWidth || ny >= boxHeight) continue;
+      const next = ny * boxWidth + nx;
+      if (open[next] || alpha[(box.top + ny) * width + box.left + nx] > 127) continue;
+      open[next] = 1; stack.push(next);
+    }
+  }
+  let reachable = 0; for (let i = 0; i < area; i++) reachable += open[i];
+  const enclosed = uncovered - reachable;
+  if (enclosed < 0.15 * area || enclosed < reachable) return null;
+  const hole = new Uint8ClampedArray(alpha.length);
+  for (let y = 0; y < boxHeight; y++) for (let x = 0; x < boxWidth; x++) {
+    const i = (box.top + y) * width + box.left + x;
+    if (alpha[i] <= 127 && !open[y * boxWidth + x]) hole[i] = 255;
+  }
+  return hole;
+}
+
 export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, height: number, box: { left: number; top: number; right: number; bottom: number }, report?: { inverted?: boolean }): Uint8ClampedArray | null {
   if (!alphas.length) return null;
   const filled = (alpha: Uint8ClampedArray) => { let count = 0; for (let i = 0; i < alpha.length; i++) if (alpha[i] > 127) count++; return count; };
   const ranked = alphas.map(alpha => ({ alpha, background: isBackgroundMask(alpha, width, height, box), fill: filled(alpha) })).sort((a, b) => b.fill - a.fill);
   const product = ranked.find(item => !item.background);
-  if (product) return product.alpha;
+  if (product) {
+    // The detector's box can be larger than a product's own backdrop panel (a framed product photo on a shelf):
+    // its outline then misses the panel, and the panel would pass as the product. A mask shaped like a frame
+    // around its own bounds, with a large enclosed hole, is that backdrop: the hole is the product.
+    const frame = frameHole(product.alpha, width, height);
+    if (frame) { if (report) report.inverted = true; return frame; }
+    return product.alpha;
+  }
   const inverted = new Uint8ClampedArray(ranked[0].alpha.length);
   let kept = 0;
   for (let y = box.top; y < box.bottom; y++) for (let x = box.left; x < box.right; x++) { const i = y * width + x; if (ranked[0].alpha[i] <= 127) { inverted[i] = 255; kept++; } }

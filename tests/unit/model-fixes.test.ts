@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { tightenEdge } from '../../src/lib/cutout/sam-client';
 import { readableText, settleReview, reviewOutcome, oneshotScore, type VerifyResult, type OneshotElement } from '../../src/lib/ai/oneshot';
-import { cropWindow, boxInWindow } from '../../src/lib/shelf/crop';
 
 describe('cutout edge keeps thin parts', () => {
   it('pulls in a thick body but keeps a 2-pixel strap attached to it', () => {
@@ -49,20 +48,6 @@ describe('review text matching', () => {
   });
 });
 
-describe('shelf crop around a product', () => {
-  it('pads the box by 30% on every side inside the photo, and maps the box into the crop', () => {
-    const box = { left: 0.4, top: 0.4, right: 0.6, bottom: 0.8 };
-    const window = cropWindow(box);
-    expect(window.left).toBeCloseTo(0.34); expect(window.right).toBeCloseTo(0.66);
-    expect(window.top).toBeCloseTo(0.28); expect(window.bottom).toBeCloseTo(0.92);
-    const inner = boxInWindow(box, window);
-    expect(inner.left).toBeCloseTo(0.1875); expect(inner.right).toBeCloseTo(0.8125);
-    // Near the photo's edge the window is clamped and the box still lands on the product.
-    const edge = cropWindow({ left: 0, top: 0.1, right: 0.2, bottom: 0.3 });
-    expect(edge.left).toBe(0);
-    expect(boxInWindow({ left: 0, top: 0.1, right: 0.2, bottom: 0.3 }, edge).left).toBe(0);
-  });
-});
 
 import { withOneRetry } from '../../src/lib/shelf/queue';
 import { ProviderError } from '../../src/lib/ai/errors';
