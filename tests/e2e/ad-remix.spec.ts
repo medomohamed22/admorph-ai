@@ -195,6 +195,8 @@ test('seasonal copies redesign from the saved cutout, name the season, and repai
   // The first copy showed no Ramadan cues, so it was painted once more.
   expect(remixes).toHaveLength(2);
   expect(remixes[0]).toMatchObject({ source: 'product', theme: 'ramadan' });
+  // The transparent cutout is sent on a light background (as a JPEG), never with transparency that reads as black.
+  expect((remixes[0] as { image?: { mimeType: string } }).image?.mimeType).toBe('image/jpeg');
   // The repaint carries the reviewer's note about the missing cues, and a season asks the planner for a single idea.
   expect(remixes[0].fixNotes).toBeUndefined();
   expect(remixes[1].fixNotes?.join(' ')).toContain('ramadan cues');

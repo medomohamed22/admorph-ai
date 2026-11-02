@@ -182,3 +182,46 @@ With the owner's key and consent, every feature was run once on <https://admorph
 
 **Still open:** the repeated "Why trust this ad?" seen on the owner's phone was not reproducible here, so its fix is unconfirmed on a phone.
 
+
+## 2026-11-02 — Speed and reliability pass (PRs #112 and #113)
+
+**Owner report:** the "three ideas" step counted many seconds and sometimes ended with "the response reached its output limit" or another error, so ideas needed several tries. Seasons, variants and the shelf were sometimes slow or produced a wrong ad.
+
+**Measured on production before the fix:**
+- 20 live idea requests: 3 failed.
+  - one cut off (`plan_truncated`)
+  - one timeout at 55 s
+  - one `invalid_response`
+- Successful runs took 14–45 s (median 27 s).
+- In 3 of 17 the optional art brief was skipped for a 1000-character paragraph.
+- The guided demo: 8/8 steps in 175 s.
+
+**Causes:**
+- The planner schema allowed far more text than the studio uses, so a wordy answer hit the 4096-token cap.
+- The art brief was optional.
+- One bad field failed the whole answer.
+- A season asked for three ideas and used one.
+- Copies and shelf ads were painted one at a time.
+- Variants had no repair.
+- Seasonal and variant copies sent the cutout with a transparent background, which the painter reads as black: a white sneaker came back black in two of three variants.
+- An oversized painted PNG was re-encoded at the slowest level (3.3 s).
+
+**Fixes:**
+- A lean planner answer with a required art brief, sized to fit the cap.
+- Safe trimming before validation, and one retry for a cut-off or malformed answer, with logging of the failing fields.
+- One idea per season.
+- One repair with the reviewer's notes for variants and seasons.
+- Parallel painting with the site key: three lanes.
+- The cutout sent on a light background, like the one-shot close-up.
+- A fast lossless PNG level.
+- Clearer messages.
+
+**After, on production, the same 20 idea requests:**
+- 20/20 succeeded.
+- 8.9–28.2 s (median 20.5 s, mean 18.6 s, was 28.9 s).
+- Every answer had its art brief.
+
+**Demo and variants:**
+- The guided demo: 8/8 steps in 185 s, which included a repair on the one-shot ad and on the Ramadan copy. The two shelf ads were painted side by side.
+- Three variants: 66 s including two repairs.
+- The black-sneaker finding came from that variants run and is fixed in PR #113.
