@@ -30,9 +30,11 @@ export const remixRequestSchema = metaBase.extend({
   theme: z.enum(themeIds).optional(),
   /** The reviewer's notes on a failed first copy; present only on the one repair. */
   fixNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(8).optional(),
+  /** The brand logo of the source ad, sent as a second image so the copy keeps it. */
+  logo: inputImage.optional(),
 }).strict();
 
-export function buildRemixPrompt(brand: { name: string; colors: [string, string, string] }, scene: string, headline: string, language: 'en' | 'ar', source: 'ad' | 'product' = 'ad', themeId?: RemixThemeId, fixNotes: string[] = []): string {
+export function buildRemixPrompt(brand: { name: string; colors: [string, string, string] }, scene: string, headline: string, language: 'en' | 'ar', source: 'ad' | 'product' = 'ad', themeId?: RemixThemeId, fixNotes: string[] = [], withLogo = false): string {
   const theme = themeId ? REMIX_THEMES.find(item => item.id === themeId) : undefined;
   const lines = source === 'product'
     ? ['This image is a product photo. Design a brand-new photorealistic advertisement at 4:5 around this exact product.',
@@ -46,6 +48,8 @@ export function buildRemixPrompt(brand: { name: string; colors: [string, string,
     lines.push(`At least three of these must be clearly visible around the product: ${theme.cues.join('; ')}.`);
   }
   lines.push(`Brand colors: ${brand.colors.join(', ')}. The brand's name is context only: never write it as text.`);
+  // The source ad's logo rides along as the second image, so a seasonal copy or variant keeps the brand mark.
+  if (withLogo) lines.push(`The second image is the brand's logo. Place it small and clearly visible in a top corner (top ${language === 'ar' ? 'left' : 'right'}), on a calm area, copied exactly as drawn: same shape, letters and colors, never redrawn, restyled or recolored. The logo's own letters are allowed.`);
   lines.push(`The only words allowed in the image are "${headline}" (rendered exactly as written, in one clear headline) plus text already printed on the product itself. Write no other word, slogan, tag text or watermark.`);
   if (language === 'ar') lines.push('Arabic text reads right to left with correctly joined letters.');
   lines.push('No objects cropped by the frame edges.');

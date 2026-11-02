@@ -327,3 +327,38 @@ test('the per-device firewall limit (a 403 Deny from Vercel) also pauses and car
   await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
   await expect(page.getByText('answer came back incomplete')).toHaveCount(0);
 });
+
+test('a seasonal copy of an ad with a logo keeps the logo: it is painted, checked and saved with it', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/settings');
+  await expect(page.getByTestId('site-ai-status')).toHaveAttribute('data-state', 'ready');
+  await page.evaluate(async () => {
+    const draw = async (color: string, w: number, h: number) => { const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; const context = canvas.getContext('2d')!; context.fillStyle = color; context.fillRect(0, 0, w, h); return await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value!), 'image/png')); };
+    const blob = await draw('#335577', 40, 50), cutout = await draw('#aa3355', 30, 40), logo = await draw('#22aa66', 60, 20);
+    await new Promise<void>((resolve, reject) => {
+      const open = indexedDB.open('admorph-local-v1');
+      open.onsuccess = () => { const db = open.result, tx = db.transaction(['savedAds'], 'readwrite');
+        tx.objectStore('savedAds').put({ id: crypto.randomUUID(), blob, cutout, logo, source: 'oneshot', brand: { name: 'Logo Brand', description: 'x', colors: ['#111111', '#222222', '#333333'] }, headline: 'Hi', hasLogo: true, createdAt: new Date().toISOString() });
+        tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(new Error('seed failed')); };
+      open.onerror = () => reject(new Error('open failed'));
+    });
+  });
+  await page.reload();
+  const remixes: { logo?: { mimeType: string } }[] = [], reviews: { layout: { kind: string }[] }[] = [];
+  await page.route('**/api/ai/plan', route => route.fulfill({ json: { concepts: concepts.slice(0, 1) } }));
+  await page.route('**/api/ai/ad-remix', route => { remixes.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', route => { reviews.push(route.request().postDataJSON()); return route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [], extraText: [], seasonCues: ['lanterns', 'crescent', 'dates'] } }); });
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByTestId('gallery-card').first().getByRole('link', { name: 'Make it seasonal', exact: true }).click();
+  await page.getByRole('button', { name: 'Generate themed copies', exact: true }).click();
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(1, { timeout: 60000 });
+  expect(remixes[0].logo?.mimeType).toBeTruthy();
+  expect(reviews[0].layout.some(element => element.kind === 'logo')).toBe(true);
+  // The saved copy carries the logo too, so a copy of the copy keeps it.
+  const logos = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onsuccess = () => { const request = open.result.transaction('savedAds').objectStore('savedAds').getAll(); request.onsuccess = () => { open.result.close(); resolve((request.result as { logo?: Blob }[]).filter(ad => ad.logo).length); }; request.onerror = () => reject(new Error('read')); };
+    open.onerror = () => reject(new Error('open'));
+  }));
+  expect(logos).toBe(2);
+});

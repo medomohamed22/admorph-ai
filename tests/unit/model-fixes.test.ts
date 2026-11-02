@@ -178,3 +178,50 @@ describe('a product held in a hand', () => {
     expect(productBoxSchema.safeParse({ left: 0.2, top: 0.1, right: 0.6, bottom: 0.9 }).success).toBe(true);
   });
 });
+
+import { opensGenerically, HEADLINE_HOOK_RULE } from '../../src/lib/ai/copy-rules';
+
+describe('no stock headline openers', () => {
+  it('spots the openers that made the six ads read alike, and nothing else', () => {
+    for (const headline of ['Meet Your New Cold Companion', 'Meet HUSH for Quiet Focus', 'Discover calm', 'تعرفوا على شمعة نور', 'اكتشف طعم الصباح', '“Introducing STRIDE”'])
+      expect(opensGenerically(headline)).toBe(true);
+    for (const headline of ['Cold Until the Last Sip', 'Meetings, but quiet', 'طازة كل يوم لحد بابك', 'جربي لمسة لبشرة ناعمة', '40 Hours of Quiet'])
+      expect(opensGenerically(headline)).toBe(false);
+  });
+  it('the ideas and shelf planners carry the rule', () => {
+    const runtime = readFile('src/lib/ai/meta-runtime.ts', 'utf8');
+    expect(runtime.match(/\$\{HEADLINE_HOOK_RULE\}/g)).toHaveLength(2);
+    expect(HEADLINE_HOOK_RULE).toContain('"Meet"');
+    expect(HEADLINE_HOOK_RULE).toContain('"تعرفوا على"');
+    expect(HEADLINE_HOOK_RULE).toContain('no two headlines start the same way');
+  });
+});
+
+import { buildRemixPrompt as remixPrompt } from '../../src/lib/ai/remix';
+
+describe('seasonal copies and variants keep the logo', () => {
+  const brand = { name: 'hope.', colors: ['#111111', '#222222', '#333333'] as [string, string, string] };
+  it('the painter is told the second image is the logo and to keep it as drawn', () => {
+    const prompt = remixPrompt(brand, 'a table', 'Ramadan Kareem', 'en', 'product', 'ramadan', [], true);
+    expect(prompt).toContain("The second image is the brand's logo");
+    expect(prompt).toContain('top right');
+    expect(remixPrompt(brand, 'a table', 'رمضان كريم', 'ar', 'product', 'ramadan', [], true)).toContain('top left');
+    expect(remixPrompt(brand, 'a table', 'Hi', 'en', 'product')).not.toContain("The second image is the brand's logo");
+  });
+  const remixPost = (body: Record<string, unknown>) => new Request('https://app.test/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' }, body: JSON.stringify({ providerId: 'meta', apiKey: 'k-' + crypto.randomUUID(), modelId: 'm', consent: true, imageConsent: true, image: { mimeType: 'image/png', data: png64 }, brand: { name: 'hope.', description: 'x', colors: ['#111111', '#222222', '#333333'] }, scene: 'a table', headline: 'Hi', language: 'en', source: 'product', ...body }) });
+  const painted = async () => { const sharp = (await import('sharp')).default; return Response.json({ data: [{ b64_json: (await sharp({ create: { width: 64, height: 80, channels: 3, background: '#888888' } }).png().toBuffer()).toString('base64') }] }); };
+  it('the logo goes to Muse Image as the second image', async () => {
+    const fetcher = vi.fn(painted);
+    const result = await handleMetaRoute(remixPost({ logo: { mimeType: 'image/png', data: png64 } }), 'ad-remix', { fetcher });
+    expect(result.status).toBe(200);
+    const payload = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(payload.images).toHaveLength(2);
+    expect(payload.prompt).toContain("The second image is the brand's logo");
+  });
+  it('if Meta refuses a second image, the copy is painted from the product alone as before', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ error: { message: 'one image' } }, { status: 400, statusText: 'Bad Request' })).mockImplementationOnce(painted);
+    const result = await handleMetaRoute(remixPost({ logo: { mimeType: 'image/png', data: png64 } }), 'ad-remix', { fetcher });
+    const second = fetcher.mock.calls[1] ? JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string) : null;
+    expect(result.status).toBe(200); expect(second?.images).toHaveLength(1); expect(second?.prompt).not.toContain("The second image is the brand's logo");
+  });
+});
