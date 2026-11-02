@@ -25,7 +25,7 @@ import { scanVideo, sharpestFrame, type ScannedFrame } from '@/lib/shelf/frames'
 import { cropToProduct, cropAround } from '@/lib/shelf/crop';
 import { productReference } from '@/lib/oneshot/product-reference';
 import { shelfLayout, drawShelfMockup } from '@/lib/shelf/mockup';
-import { withRateLimit, runPool, paintLanes } from '@/lib/shelf/queue';
+import { withRateLimit, runPool, paintLanes, withOneRetry } from '@/lib/shelf/queue';
 import { saveAd } from '@/lib/db/repository';
 import { writeZip } from '@/lib/export/zip';
 import type { BrandInput } from '@/lib/db/schema';
@@ -249,11 +249,11 @@ export default function ShelfStudio() {
     const sanitized: BrandInput = { ...brand, colors: brand.colors.map(color => isHex(color) ? color : '#16100C') as [string, string, string] };
     const attempt = async (fixNotes?: string[]) => {
       setAds(previous => ({ ...previous, [item.id]: { ...previous[item.id], state: fixNotes ? 'repairing' : 'painting' } }));
-      const blob = await withRateLimit(async () => {
+      const blob = await withOneRetry(() => withRateLimit(async () => {
         const response = await metaFetch('image_edit', '/api/ai/oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: painter.modelId, apiKey: key, consent: true, imageConsent: true, mockup, brand: sanitized, scene: ad.scene, language, layout, ...(fixNotes ? { fixNotes } : {}), ...(product ? { product } : {}) }), signal: AbortSignal.timeout(65000) });
         await requireMetaSuccess(response);
         const image = await response.blob(); await validateGeneratedImage(image); return image;
-      }, onWait);
+      }, onWait));
       if (!spark) return { blob, certificate: null, score: undefined };
       setAds(previous => ({ ...previous, [item.id]: { ...previous[item.id], state: 'reviewing' } }));
       const fitted = await encodeProduct(await fitProductImage(blob));

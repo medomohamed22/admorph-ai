@@ -62,3 +62,29 @@ describe('shelf crop around a product', () => {
     expect(boxInWindow({ left: 0, top: 0.1, right: 0.2, bottom: 0.3 }, edge).left).toBe(0);
   });
 });
+
+import { withOneRetry } from '../../src/lib/shelf/queue';
+import { ProviderError } from '../../src/lib/ai/errors';
+import { JSON_OUTPUT_TOKENS } from '../../src/lib/ai/meta-transport';
+
+describe('one retry for a passing failure', () => {
+  const noWait = () => Promise.resolve();
+  it('paints again once after an upstream or network failure', async () => {
+    let calls = 0;
+    await expect(withOneRetry(async () => { calls++; if (calls === 1) throw new ProviderError('upstream', 502); return 'ad'; }, noWait)).resolves.toBe('ad');
+    expect(calls).toBe(2);
+    calls = 0;
+    await expect(withOneRetry(async () => { calls++; throw new ProviderError('network', 502); }, noWait)).rejects.toMatchObject({ code: 'network' });
+    expect(calls).toBe(2);
+  });
+  it('does not retry a timeout, a refusal or a quota error', async () => {
+    for (const code of ['timeout', 'plan_blocked', 'quota', 'rate_limit'] as const) {
+      let calls = 0;
+      await expect(withOneRetry(async () => { calls++; throw new ProviderError(code, 400); }, noWait)).rejects.toMatchObject({ code });
+      expect(calls).toBe(1);
+    }
+  });
+  it('the JSON cap leaves room for hidden reasoning on top of the longest visible answer', () => {
+    expect(JSON_OUTPUT_TOKENS).toBe(8192);
+  });
+});

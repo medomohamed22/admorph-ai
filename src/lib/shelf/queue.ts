@@ -36,3 +36,18 @@ export async function runPool<T>(items: readonly T[], limit: number, worker: (it
 export function paintLanes(siteKey: 'checking' | 'ready' | 'missing'): number {
   return siteKey === 'ready' ? 3 : 1;
 }
+
+/**
+ * One more try for a painting that failed on the way (Meta's side answered
+ * "upstream" or the connection dropped), so one copy of a set is not lost to a
+ * passing error. Any other failure, including a timeout, is thrown at once.
+ */
+export async function withOneRetry<T>(call: () => Promise<T>, sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))): Promise<T> {
+  try { return await call(); }
+  catch (cause) {
+    const transient = cause instanceof TypeError || (cause instanceof ProviderError && (cause.code === 'upstream' || cause.code === 'network'));
+    if (!transient) throw cause;
+    await sleep(2000);
+    return call();
+  }
+}
