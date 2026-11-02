@@ -5,7 +5,6 @@ import { z } from 'zod';
 import { useProviderSession } from './provider-session';
 import { useMessages, useWorkspace } from './workspace';
 import { StorageControls } from './storage-controls';
-import { SessionPrivacy } from './session-privacy';
 import { ProjectBackup } from './project-backup';
 import { taskSchema, supportOutcome } from '@/lib/ai/task-support';
 import { errorCode, type ErrorCode, ProviderError } from '@/lib/ai/errors';
@@ -110,7 +109,6 @@ export function MetaSettings() {
 
       <div className="stack section-gap">
         <h2 className="section-title">{x.dataTitle}</h2>
-        <SessionPrivacy />
         <ProjectBackup />
         <StorageControls />
       </div>

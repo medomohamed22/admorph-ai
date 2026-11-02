@@ -58,7 +58,15 @@ export const verifyRequestSchema = metaBase.extend({
   language: z.enum(['en', 'ar']),
   /** A seasonal remix asks the critic to name the season cues it can see. */
   season: z.enum(['ramadan', 'eid', 'black-friday', 'summer']).optional(),
+  /** The size the ad was made at, so expected positions are measured on the right frame; absent means 4:5. */
+  format: z.enum(ONESHOT_FORMATS).optional(),
 }).strict();
+
+/** Each element's expected position for the reviewer, which never sees the mockup itself. */
+export function expectedPositions(layout: OneshotElement[], format?: OneshotFormat): string {
+  const frameHeight = frameHeightOf(format);
+  return layout.map(element => `${element.id} (${element.kind}${element.text ? ` "${element.text}"` : ''}): ${placeOf(element, frameHeight)}`).join('; ');
+}
 
 export const verifyResultSchema = z.object({
   productKept: z.boolean(),
@@ -97,6 +105,12 @@ export function zoneOf(element: Pick<OneshotElement, 'x' | 'y' | 'width' | 'heig
 
 const BADGE_SHAPE = { price: 'rounded price tag', discount: 'round discount sticker', cta: 'rounded call-to-action button' } as const;
 
+/** Where an element sits, in words and in exact shares of the frame, e.g. "bottom left (left 6-52%, top 74-89% of the frame)". */
+export function placeOf(element: Pick<OneshotElement, 'x' | 'y' | 'width' | 'height'>, frameHeight = ONESHOT_HEIGHT): string {
+  const pct = (value: number, total: number) => Math.max(0, Math.min(100, Math.round((value / total) * 100)));
+  return `${zoneOf(element, frameHeight)} (left ${pct(element.x, ONESHOT_WIDTH)}-${pct(element.x + element.width, ONESHOT_WIDTH)}%, top ${pct(element.y, frameHeight)}-${pct(element.y + element.height, frameHeight)}% of the frame)`;
+}
+
 /**
  * The one-shot prompt: turn the user's mockup into a finished photorealistic
  * ad while keeping every element where the user put it. The mockup image is
@@ -116,10 +130,10 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     'Keep every element exactly where it is in the mockup. Do not move, resize, add, or remove any element.',
   ];
   for (const element of layout) {
-    const zone = zoneOf(element, frameHeight);
+    const zone = placeOf(element, frameHeight);
     if (element.kind === 'product') lines.push(`The product stays ${zone} at its mockup size and shape.`);
-    else if (element.kind === 'logo') lines.push(`The logo stays ${zone}.`);
-    else if (element.kind === 'icon') lines.push(`The icon stays ${zone}.`);
+    else if (element.kind === 'logo') lines.push(`The logo stays ${zone}, copied exactly as drawn in the mockup: same shape, letters and colors, never redrawn or restyled.`);
+    else if (element.kind === 'icon') lines.push(`The icon stays ${zone}, copied exactly as drawn in the mockup.`);
     else if (element.kind === 'phone') lines.push(`The phone number "${element.text ?? ''}" stays ${zone}; every digit must be exactly as written.`);
     else if (element.badge) lines.push(`The text "${element.text ?? ''}" sits on a solid ${BADGE_SHAPE[element.badge]} ${zone}, in the badge colors of the mockup, rendered exactly as written.`);
     else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled.`);
@@ -134,16 +148,11 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     : 'Write no words at all, except text already printed on the product itself.');
   if (language === 'ar') lines.push('Arabic text reads right to left with correctly joined letters.');
   lines.push('No extra logos, no watermark, no objects cropped by the frame edges.');
-  lines.push(qualityRules(allowed.length > 0));
+  lines.push(qualityRules(allowed.length > 0, true));
   if (fixNotes.length) lines.push(`A previous attempt failed review. Fix exactly these problems: ${fixNotes.map((note, index) => `(${index + 1}) ${note}`).join(' ')}`);
   return lines.join(' ');
 }
 
-/**
- * Fidelity score for the certificate: product 40, layout 20, logo 15 (only
- * when a logo was expected), texts share 25 (full marks when there are none
- * to check). Pure so the UI and the tests agree.
- */
 /**
  * The words as a reader sees them: Arabic diacritics and the tatweel removed,
  * alef and ya forms unified, Arabic-Indic digits as Latin digits, and
@@ -179,6 +188,11 @@ export function reviewOutcome(result: VerifyResult, season?: string) {
   };
 }
 
+/**
+ * Fidelity score for the certificate: product 40, layout 20, logo 15 (only
+ * when a logo was expected), texts share 25 (full marks when there are none
+ * to check). Pure so the UI and the tests agree.
+ */
 export function oneshotScore(result: VerifyResult, logoExpected: boolean): number {
   const textTotal = result.texts.length === 0 ? 25 : 25 * (result.texts.filter(item => item.match).length / result.texts.length);
   const earned = (result.productKept ? 40 : 0) + (result.layoutKept ? 20 : 0) + (logoExpected && result.logoKept ? 15 : 0) + textTotal;

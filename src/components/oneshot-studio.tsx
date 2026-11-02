@@ -484,7 +484,7 @@ export default function OneshotStudio() {
     if (!verifyModel) return { blob: result, certificate: null, score: null, adId };
     setBusy('verify');
     const fitted = await fitProductImage(result);
-    const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language };
+    const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language, format };
     if (!fixNotes) startStep('critic', verifyBody);
     const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(verifyBody), signal: AbortSignal.timeout(65000) });
     await requireMetaSuccess(verifyResponse);

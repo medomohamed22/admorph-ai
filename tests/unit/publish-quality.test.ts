@@ -38,15 +38,24 @@ describe('publish-ready rules', () => {
   const brand = { name: 'Sora', description: 'tea', colors: ['#52633C', '#DCE5BB', '#F2D1BC'] as [string, string, string] };
   it('every ad prompt carries the readability and clearance rules', () => {
     const layout: OneshotElement[] = [{ id: 'p', kind: 'product', x: 300, y: 300, width: 400, height: 500 }, { id: 'h', kind: 'text', x: 80, y: 80, width: 900, height: 120, text: 'Hi' }];
-    for (const prompt of [buildOneshotPrompt(brand, 'a cafe', layout, 'en'), buildRemixPrompt(brand, 'a cafe', 'Hi', 'en', 'product', 'ramadan')]) {
-      expect(prompt).toContain('never over a mirror, window, plant');
+    const oneshot = buildOneshotPrompt(brand, 'a cafe', layout, 'en'), remix = buildRemixPrompt(brand, 'a cafe', 'Hi', 'en', 'product', 'ramadan');
+    for (const prompt of [oneshot, remix]) {
       expect(prompt).toContain('Never leave any flat gray, white or black area, band');
       expect(prompt).toContain('brand-new retail unit');
       expect(prompt).not.toContain('solid or softly blurred panel');
-      expect(prompt).toContain('Never let any text, price tag or button touch, overlap or hide the product');
       expect(prompt).toContain('sized to its own words');
     }
-    expect(buildOneshotPrompt(brand, 'a cafe', [layout[0]], 'en')).not.toContain('Never let any text');
+    // A free layout (remix): the painter places the headline in a calm part of the scene.
+    expect(remix).toContain('never over a mirror, window, plant');
+    expect(remix).toContain('Never let any text, price tag or button touch, overlap or hide the product');
+    // The user's mockup (one-shot, shelf): words never move or change style; the scene is shaped around them.
+    expect(oneshot).not.toContain('never over a mirror, window, plant');
+    expect(oneshot).not.toContain('at most two balanced lines');
+    expect(oneshot).toContain('stays exactly at its mockup position and size. Never move, enlarge, shrink, reflow or rewrap them');
+    expect(oneshot).toContain("Copy each text's font style, weight, color, size and line breaks from the mockup");
+    expect(oneshot).toContain('no letter, price tag or button touches or overlaps it');
+    expect(oneshot).toContain('The text "Hi" stays top (left 7-91%, top 6-15% of the frame)');
+    expect(buildOneshotPrompt(brand, 'a cafe', [layout[0]], 'en')).not.toContain('Every text, price tag and button stays');
   });
   it('the critic scores and repairs unreadable or product-covering text', () => {
     const base = verifyResultSchema.parse({ productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] });
