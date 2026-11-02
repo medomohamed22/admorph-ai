@@ -43,7 +43,8 @@ function useWorkspaceState() {
   useEffect(() => {
     const theme = themeColors(colors as BrandInput['colors']);
     const root = document.documentElement;
-    root.lang = locale; root.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    // While the stored workspace loads, the language set before paint (LOCALE_BOOT in layout.tsx) stays as it is.
+    if (phase !== 'loading' || locale !== 'en') { root.lang = locale; root.dir = locale === 'ar' ? 'rtl' : 'ltr'; }
     // Once the stored language is applied, show the page and remember the choice for the next first paint.
     if (phase !== 'loading') { root.removeAttribute('data-locale-pending'); try { localStorage.setItem('admorph-locale', locale); } catch { /* private mode */ } }
     root.style.setProperty('--coral', theme.primary);
