@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 import { Header } from '@/components/header';
 import { ProviderSession } from '@/components/provider-session';
 import { DemoTour } from '@/components/demo-tour';
@@ -24,5 +25,5 @@ export const metadata: Metadata = {
 };
 export const viewport: Viewport = { themeColor: '#0b0a10' };
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en" dir="ltr" data-scroll-behavior="smooth"><body><Workspace><ProviderSession><SkipLink/><Header/><WorkspaceChrome/><DemoTour><main id="main">{children}</main></DemoTour><Footer/></ProviderSession></Workspace></body></html>;
+  return <html lang="en" dir="ltr" data-scroll-behavior="smooth"><body><Workspace><ProviderSession><SkipLink/><Header/><WorkspaceChrome/><DemoTour><main id="main">{children}</main></DemoTour><Footer/></ProviderSession></Workspace><Analytics/></body></html>;
 }
