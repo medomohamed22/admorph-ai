@@ -225,3 +225,10 @@ With the owner's key and consent, every feature was run once on <https://admorph
 - The guided demo: 8/8 steps in 185 s, which included a repair on the one-shot ad and on the Ramadan copy. The two shelf ads were painted side by side.
 - Three variants: 66 s including two repairs.
 - The black-sneaker finding came from that variants run and is fixed in PR #113.
+- **Final run on production after #113:**
+  - Guided demo: 8/8 steps in 212 s.
+    - Ideas took 11.2 s.
+    - Two shelf ads were painted side by side, plus one repair.
+    - Single paints took 14–27 s on Meta's side.
+  - Three variants of the white-sneaker ad: 46 s, scores 100, 90 and 100. The sneaker stayed white in all three, and no repair was needed.
+  - The total demo time did not drop. It is mostly painting time, which varies on Meta's side, plus any repairs. The gains are in reliability, ideas time and parallel copies.
