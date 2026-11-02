@@ -20,7 +20,7 @@ import { GeneratingCanvas } from './generating-canvas';
 import { useDemoDriver } from './demo-tour';
 import { pickLooks } from '@/lib/ai/looks';
 import { withRateLimit, runPool, paintLanes, withOneRetry } from '@/lib/shelf/queue';
-import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
+import { repairNotes, needsRepair } from '@/lib/agent/pipeline';
 import { productReference } from '@/lib/oneshot/product-reference';
 
 type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis; theme?: RemixThemeId };
@@ -162,7 +162,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       const season = theme ? REMIX_THEMES.find(item => item.id === theme) : undefined;
       const fewCues = !!season && (best.certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES;
       const notes = [...repairNotes(best.certificate, false), ...(fewCues && season ? [`Show at least three of these ${season.id} cues clearly around the product: ${season.cues.join('; ')}.`] : [])];
-      if ((fewCues || (best.score ?? 100) < REPAIR_THRESHOLD) && notes.length) {
+      if ((fewCues || needsRepair(best.certificate, best.score)) && notes.length) {
         const again = await paint(headline, scene, notes);
         if ((again.score ?? -1) > (best.score ?? -1)) best = again;
       }

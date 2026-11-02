@@ -136,7 +136,7 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
     else if (element.kind === 'icon') lines.push(`The icon stays ${zone}, copied exactly as drawn in the mockup.`);
     else if (element.kind === 'phone') lines.push(`The phone number "${element.text ?? ''}" stays ${zone}; every digit must be exactly as written.`);
     else if (element.badge) lines.push(`The text "${element.text ?? ''}" sits on a solid ${BADGE_SHAPE[element.badge]} ${zone}, in the badge colors of the mockup, rendered exactly as written.`);
-    else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled.`);
+    else lines.push(`The text "${element.text ?? ''}" stays ${zone}, rendered exactly as written, never reworded or respelled; keep that area of the scene free of objects, patterns and colors close to the text's own color, so it reads clearly.`);
   }
   if (withProductReference) lines.push(PRODUCT_REFERENCE_RULE);
   lines.push(`Scene: ${scene}.`);

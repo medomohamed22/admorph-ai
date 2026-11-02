@@ -44,6 +44,16 @@ export function stepSeconds(record: StepRecord): number | null {
 export const REPAIR_THRESHOLD = 80;
 
 /**
+ * Repair when the score is under the threshold, or when the ad cannot be
+ * published as it is: a word that cannot be read or that touches the product
+ * costs only 15 points, so an unreadable headline could still score 85.
+ */
+export function needsRepair(certificate: VerifyResult | null | undefined, score: number | null | undefined): boolean {
+  if (!certificate || score === null || score === undefined) return false;
+  return score < REPAIR_THRESHOLD || certificate.textReadable === false || certificate.textClearOfProduct === false;
+}
+
+/**
  * Turn a failed certificate into short, concrete instructions for the second
  * painting attempt. Only failed checks produce a note; a passing certificate
  * produces none, so the loop never runs on a good ad.

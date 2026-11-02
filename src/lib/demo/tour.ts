@@ -22,8 +22,17 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   { id: 'shelf-campaign', page: 'shelf', models: ['spark', 'image'], timeoutMs: 420_000 },
 ];
 
-/** A phone photo bundled with the site, so the tour needs no upload. */
-export const DEMO_PRODUCT_URL = '/demo/demo-product.webp';
+/**
+ * The tour makes the same ad as the demo video: the same phone photo of the
+ * hope. bottle, its logo, brand, description, place and square size, so a
+ * judge who runs it gets a result close to the one in the video.
+ */
+export const DEMO_PRODUCT_URL = '/demo/hope-bottle.jpg';
+export const DEMO_LOGO_URL = '/demo/hope-logo.png';
+export const DEMO_FORMAT = '1080x1080' as const;
+export function demoPlace(locale: 'en' | 'ar'): string {
+  return locale === 'ar' ? 'مكتب خشبي مشمس بجوار نافذة' : 'a sunny wooden desk by a window';
+}
 export const DEMO_SHELF_URL = '/demo/shelf-sample.jpg';
 /** The shelf part paints this many products, to keep the tour short and its cost small. */
 export const DEMO_SHELF_PRODUCTS = 2;
@@ -36,9 +45,9 @@ export const DEMO_REQUESTS_ESTIMATE = '20–30';
 
 export function demoBrand(locale: 'en' | 'ar'): BrandInput {
   return {
-    name: 'Mono Audio',
-    description: locale === 'ar' ? 'سماعات لاسلكية مريحة لساعات استماع طويلة وهادئة.' : 'Wireless over-ear headphones made for long, quiet listening.',
-    colors: ['#16100C', '#F5EEDF', '#C8A27A'],
+    name: 'hope.',
+    description: locale === 'ar' ? 'زجاجة مياه ستيل معزولة تحافظ على برودة مشروبك 24 ساعة.' : 'An insulated steel water bottle that keeps drinks ice-cold for 24 hours.',
+    colors: ['#2A1A12', '#FFF4EA', '#D9622B'],
   };
 }
 
