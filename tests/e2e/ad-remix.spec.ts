@@ -186,6 +186,8 @@ test('seasonal copies redesign from the saved cutout, name the season, and repai
   await page.route('**/api/ai/verify-oneshot', route => {
     verifies += 1;
     expect(route.request().postDataJSON().season).toBe('ramadan');
+    // A seasonal copy is composed freely: the reviewer does not check fixed positions.
+    expect(route.request().postDataJSON().freeLayout).toBe(true);
     return route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [], extraText: [], seasonCues: verifies === 1 ? [] : ['lanterns', 'crescent', 'dates'] } });
   });
   await page.getByRole('link', { name: 'My gallery', exact: true }).click();

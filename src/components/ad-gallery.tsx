@@ -1,5 +1,6 @@
 'use client';
 import { imageFileName } from '@/lib/image-name';
+import { aspectOf } from '@/lib/editor/sizes';
 import { useEffect, useState } from 'react';
 import { useMessages } from './workspace';
 import { useObjectUrl } from './logo';
@@ -12,7 +13,7 @@ function GalleryCard({ ad, armed, onDelete }: { ad: SavedAd; armed: boolean; onD
   const t = useMessages().gallery;
   const url = useObjectUrl(ad.blob);
   return <article className="gallery-card" data-testid="gallery-card">
-    <div className="gallery-card-media">{url && <img src={url} alt={ad.headline || ad.brand.name} loading="lazy" />}</div>
+    <div className="gallery-card-media" style={{ aspectRatio: aspectOf(ad.format) }}>{url && <img src={url} alt={ad.headline || ad.brand.name} loading="lazy" />}</div>
     <div className="gallery-card-body">
       <strong>{ad.brand.name}</strong>
       {ad.headline && <span>{ad.headline}</span>}

@@ -60,6 +60,8 @@ export const verifyRequestSchema = metaBase.extend({
   season: z.enum(['ramadan', 'eid', 'black-friday', 'summer']).optional(),
   /** The size the ad was made at, so expected positions are measured on the right frame; absent means 4:5. */
   format: z.enum(ONESHOT_FORMATS).optional(),
+  /** A seasonal copy or variant: the painter placed the headline itself, so positions are not checked. */
+  freeLayout: z.literal(true).optional(),
 }).strict();
 
 /** Each element's expected position for the reviewer, which never sees the mockup itself. */

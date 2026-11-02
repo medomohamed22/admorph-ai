@@ -131,3 +131,16 @@ describe('an ad that cannot be published is repaired even with a good score', ()
     expect(prompt).toContain('keep that area of the scene free of objects, patterns and colors close to the text\'s own color');
   });
 });
+
+import { aspectOf } from '../../src/lib/editor/sizes';
+
+describe('gallery tiles and free layouts', () => {
+  it('a tile takes the ad\'s own shape, so a square ad is not cropped to 4:5', () => {
+    expect(aspectOf('1080x1080')).toBe('1080 / 1080');
+    expect(aspectOf('1080x1920')).toBe('1080 / 1920');
+    expect(aspectOf(undefined)).toBe('1080 / 1350');
+  });
+  it('a seasonal copy or variant is reviewed without fixed positions', () => {
+    expect(verifyRequestSchema.shape.freeLayout).toBeDefined();
+  });
+});

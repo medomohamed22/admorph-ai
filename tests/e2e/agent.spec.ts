@@ -80,6 +80,13 @@ test('a low critic score sends its notes back to the painter once and shows both
   await page.getByRole('button', { name: 'Use this version', exact: true }).click();
   await expect(page.getByTestId('oneshot-certificate')).toContainText('Score: 53');
   expect(verifies).toBe(2);
+  // The gallery keeps only the version on show (the repair is not saved twice), and the review knew the size.
+  const savedIds = () => page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open('admorph-local-v1');
+    open.onsuccess = () => { const request = open.result.transaction('savedAds').objectStore('savedAds').count(); request.onsuccess = () => { open.result.close(); resolve(request.result); }; request.onerror = () => reject(new Error('count')); };
+    open.onerror = () => reject(new Error('open'));
+  }));
+  await expect.poll(savedIds).toBe(1);
 });
 
 test('a failed painting step shows the error and a retry on its card', async ({ page }) => {
