@@ -158,3 +158,20 @@ test('an invented brand name is caught: the certificate lists it and the painter
   await expect(card.getByTestId('cert-extra')).toContainText('Aero Stride');
   await expect(card).toContainText('Score: 70');
 });
+
+test('an Egyptian ad made in the English interface is painted and reviewed as Arabic', async ({ page }) => {
+  test.setTimeout(120_000);
+  await prepare(page);
+  const paints: { language?: string }[] = [], reviews: { language?: string }[] = [];
+  await page.route('**/api/ai/oneshot', route => { paints.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', route => { reviews.push(route.request().postDataJSON()); return route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] } }); });
+  await wizardStep(page, 'Idea');
+  await page.getByRole('radio', { name: 'Egyptian', exact: true }).click();
+  await wizardStep(page, 'Generate');
+  const generate = page.getByRole('button', { name: 'Generate finished ad', exact: true });
+  await expect(generate).toBeEnabled({ timeout: 30000 });
+  await generate.click();
+  await expect.poll(() => reviews.length, { timeout: 30000 }).toBe(1);
+  expect(paints[0].language).toBe('ar');
+  expect(reviews[0].language).toBe('ar');
+});
