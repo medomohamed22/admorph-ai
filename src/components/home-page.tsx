@@ -7,6 +7,7 @@ import { ButtonLink } from './ui';
 import { IconArrow, IconLayers, IconSparkles } from './ui/icons';
 import { META_MODELS, META_MODEL_ORDER } from '@/lib/ai/models';
 import { DemoStart } from './demo-tour';
+import { RoadmapSection } from './roadmap';
 import { parseShowcase } from '@/lib/showcase/manifest';
 import { loadSavedAds } from '@/lib/db/repository';
 import type { SavedAd } from '@/lib/db/schema';
@@ -135,5 +136,7 @@ export default function HomePage() {
         <ButtonLink variant="primary" href="/oneshot">{t.cta}</ButtonLink>
       </div>}
     </section>
+
+    <RoadmapSection />
   </div>;
 }

@@ -415,5 +415,53 @@
         "body": "Muse Spark plans a campaign and Muse Image paints an ad for each product, with its price and an order button placed clear of the product."
       }
     }
+  },
+  "roadmap": {
+    "title": "Coming next",
+    "lead": "AdMorph keeps growing after the hackathon. These five are being built next.",
+    "badge": "Coming soon",
+    "items": {
+      "publish": {
+        "title": "Publish and schedule on Instagram and Facebook",
+        "body": "Connect your Page once, then post any ad with one tap or pick a time. The caption and hashtags Muse Spark wrote come along."
+      },
+      "whatsapp": {
+        "title": "Make ads on WhatsApp",
+        "body": "Send a product photo to the AdMorph number and get the finished ad back in the chat. Reply \"make it Ramadan\" or send a shelf photo for a whole campaign."
+      },
+      "video": {
+        "title": "Reels and Stories video ads",
+        "body": "Turn the same cutout and idea into a 6 to 9 second 9:16 video with gentle camera motion and words that appear on time."
+      },
+      "insights": {
+        "title": "Learn what works",
+        "body": "After posting, see reach, engagement and clicks for each ad from Meta, and let new ideas lean toward what works for your customers."
+      },
+      "agents": {
+        "title": "Use AdMorph from any AI agent",
+        "body": "Connect Claude, ChatGPT or another agent through MCP to make ads, seasonal copies and shelf campaigns with AdMorph's tools."
+      }
+    },
+    "connectionsTitle": "Connections",
+    "connectionsLead": "Link your accounts to publish ads and learn from their results. These connections are coming soon; nothing is connected yet.",
+    "connect": "Connect",
+    "connections": {
+      "publish": {
+        "name": "Instagram and Facebook Page",
+        "note": "Publish and schedule ads directly."
+      },
+      "whatsapp": {
+        "name": "WhatsApp Business",
+        "note": "Make ads by sending a photo in a chat."
+      },
+      "insights": {
+        "name": "Meta ads results",
+        "note": "See which ads perform best."
+      },
+      "agents": {
+        "name": "AI agents (MCP)",
+        "note": "Let Claude, ChatGPT and other agents use AdMorph."
+      }
+    }
   }
 }

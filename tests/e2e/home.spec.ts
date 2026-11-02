@@ -83,3 +83,30 @@ test('the site has its own icon, a link preview card and a title per page', asyn
     await expect(page).toHaveTitle(`${title} · AdMorph AI`);
   }
 });
+
+test('home shows the five features coming next, clearly marked and not clickable, in English and Arabic', async ({ page }) => {
+  await page.goto('/');
+  const roadmap = page.getByTestId('home-roadmap');
+  await expect(roadmap.getByRole('heading', { name: 'Coming next' })).toBeVisible();
+  const items = roadmap.getByTestId('roadmap-item');
+  await expect(items).toHaveCount(5);
+  await expect(items.locator('h3')).toHaveText(['Publish and schedule on Instagram and Facebook', 'Make ads on WhatsApp', 'Reels and Stories video ads', 'Learn what works', 'Use AdMorph from any AI agent']);
+  for (const item of await items.all()) await expect(item).toContainText('Coming soon');
+  // Information only: nothing in the roadmap pretends to work.
+  await expect(roadmap.locator('a, button')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Switch to Arabic' }).click();
+  await expect(roadmap.getByRole('heading', { name: 'قادم قريبًا' })).toBeVisible();
+  for (const item of await items.all()) await expect(item).toContainText('قريبًا');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('settings lists the coming connections with disabled, clearly labelled buttons', async ({ page }) => {
+  await page.goto('/settings');
+  const card = page.getByTestId('connections');
+  await expect(card.getByRole('heading', { name: 'Connections' })).toBeVisible();
+  await expect(card).toContainText('nothing is connected yet');
+  const buttons = card.getByRole('button');
+  await expect(buttons).toHaveCount(4);
+  for (const button of await buttons.all()) { await expect(button).toBeDisabled(); await expect(button).toHaveAccessibleName(/Coming soon/); }
+  await expect(card.getByRole('button', { name: 'Connect Instagram and Facebook Page: Coming soon' })).toBeDisabled();
+});

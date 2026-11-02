@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { ConnectionsCard } from './roadmap';
 import { z } from 'zod';
 import { useProviderSession } from './provider-session';
 import { useMessages, useWorkspace } from './workspace';
@@ -104,6 +105,8 @@ export function MetaSettings() {
             options={[{ value: 'en', label: s.english }, { value: 'ar', label: s.arabic }]} />
         </Card>
       </div>
+
+      <div className="section-gap"><ConnectionsCard /></div>
 
       <div className="stack section-gap">
         <h2 className="section-title">{x.dataTitle}</h2>
