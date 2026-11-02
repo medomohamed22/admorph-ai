@@ -21,6 +21,7 @@ import { useDemoDriver } from './demo-tour';
 import { pickLooks } from '@/lib/ai/looks';
 import { withRateLimit, runPool, paintLanes } from '@/lib/shelf/queue';
 import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
+import { productReference } from '@/lib/oneshot/product-reference';
 
 type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis; theme?: RemixThemeId };
 
@@ -188,7 +189,9 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       // Redesign from the product cutout when the ad kept one, so each copy
       // is a new design rather than a repaint of the finished ad.
       const fromProduct = !!selected.cutout;
-      const remixImage = selected.cutout ? await fitProductImage(selected.cutout) : fittedSource;
+      // The cutout goes as the same close-up the one-shot painter gets: on a plain light background,
+      // because a transparent area reads as black (a white sneaker came back black in two of three variants).
+      const remixImage = selected.cutout ? (await productReference(selected.cutout).catch(() => null)) ?? await fitProductImage(selected.cutout) : fittedSource;
       const encodedSource = await encodeProduct(fittedSource);
       let jobs: { headline: string; scene: string; theme?: RemixThemeId; axis?: VariantAxis }[] = [];
       if (mode === 'variants') {
