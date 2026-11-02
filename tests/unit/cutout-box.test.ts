@@ -148,7 +148,7 @@ describe('headphones: the gap between the cups opens onto the box edge', () => {
   });
 });
 
-import { chooseBoxAlpha as chooseAlpha, clippedSides as clipped } from '../../src/lib/cutout/sam-client';
+import { chooseBoxAlpha as chooseAlpha, clippedSides as clipped, frameHole } from '../../src/lib/cutout/sam-client';
 
 describe('a product on a light panel (live: the shelf sneaker came back inverted)', () => {
   // SAM's only mask is the panel, with the sneaker as a hole; the panel stops just short of the box bottom.
@@ -165,11 +165,22 @@ describe('a product on a light panel (live: the shelf sneaker came back inverted
     // The flipped cut touches the box where the panel ends: this used to trigger the wider retry...
     expect(clipped(cut, W, H, box).length).toBeGreaterThan(0);
   });
-  it('...and a wider box would take the panel for the product, which is why the retry is skipped after a flip', () => {
-    const wider = boxFractionsToPixels(padBoxFractions({ left: box.left / W, top: box.top / H, right: box.right / W, bottom: box.bottom / H }, 0.2), W, H);
-    const report: { inverted?: boolean } = {};
-    const cut = chooseAlpha([panel], W, H, wider, report)!;
-    expect(report.inverted).toBeFalsy();
-    expect(cut[230 * W + 470]).toBe(0);     // inverted: the sneaker is the hole
+  it('a box as large as the panel (or larger) still gives the sneaker: the panel is a frame around its hole', () => {
+    for (const pad of [0.2, 0.4]) {
+      const wider = boxFractionsToPixels(padBoxFractions({ left: box.left / W, top: box.top / H, right: box.right / W, bottom: box.bottom / H }, pad), W, H);
+      const report: { inverted?: boolean } = {};
+      const cut = chooseAlpha([panel], W, H, wider, report)!;
+      expect(report.inverted).toBe(true);
+      expect(cut[230 * W + 470]).toBe(255);   // the sneaker
+      expect(cut[100 * W + 200]).toBe(0);     // not the panel
+    }
+  });
+  it('ordinary products are never taken for a frame', () => {
+    const can = new Uint8ClampedArray(400 * 400); for (let y = 50; y < 350; y++) for (let x = 120; x < 280; x++) can[y * 400 + x] = 255;
+    const phones = new Uint8ClampedArray(400 * 400);
+    for (let y = 40; y < 360; y++) for (let x = 60; x < 340; x++) if (y < 90 || (y > 200 && (x < 140 || x > 260)) || ((x < 90 || x > 310) && y >= 90)) phones[y * 400 + x] = 255;
+    const mug = new Uint8ClampedArray(400 * 400);
+    for (let y = 80; y < 330; y++) for (let x = 60; x < 340; x++) if (x < 260 || !(y > 150 && y < 260 && x > 285 && x < 320)) mug[y * 400 + x] = 255;
+    for (const alpha of [can, phones, mug]) expect(frameHole(alpha, 400, 400)).toBeNull();
   });
 });

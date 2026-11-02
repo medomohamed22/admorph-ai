@@ -22,7 +22,7 @@ import { repairNotes, needsRepair, REPAIR_THRESHOLD } from '@/lib/agent/pipeline
 import { PLAN_DIALECTS, dialectLanguage, type PlanDialect } from '@/lib/campaign/dialects';
 import { cleanDetections, shelfDetectionSchema, shelfPlanSchema, type ShelfBox } from '@/lib/shelf/schema';
 import { scanVideo, sharpestFrame, type ScannedFrame } from '@/lib/shelf/frames';
-import { cropToProduct, cropAround } from '@/lib/shelf/crop';
+import { cropToProduct } from '@/lib/shelf/crop';
 import { productReference } from '@/lib/oneshot/product-reference';
 import { shelfLayout, drawShelfMockup } from '@/lib/shelf/mockup';
 import { withRateLimit, runPool, paintLanes, withOneRetry } from '@/lib/shelf/queue';
@@ -218,9 +218,10 @@ export default function ShelfStudio() {
     if (!sam || !key) return;
     setItems(previous => previous.map(entry => entry.id === item.id ? { ...entry, cut: 'cutting', error: undefined } : entry));
     try {
-      // Cut from a crop around the product taken from the full-resolution photo or frame.
-      const crop = await cropAround(sourceRef.current ?? image, item.box).catch(() => null);
-      const result = await withRateLimit(() => cutoutImage(crop?.blob ?? image, 'meta-sam', { apiKey: key, modelId: sam.modelId, box: crop?.box ?? item.box, signal: AbortSignal.timeout(65000) }), onWait);
+      // Cut from the whole shelf photo, at its largest size. A crop around one product (tried in #116) let a
+      // product's own light backdrop fill the frame, and SAM then cut the backdrop instead of the product
+      // (live: the sample sneaker and can came back inverted), so the whole photo is used as before.
+      const result = await withRateLimit(() => cutoutImage(sourceRef.current ?? image, 'meta-sam', { apiKey: key, modelId: sam.modelId, box: item.box, signal: AbortSignal.timeout(65000) }), onWait);
       const cropped = await cropToProduct(result.cutoutBlob);
       const bitmap = await createImageBitmap(cropped); const aspect = bitmap.width / bitmap.height; bitmap.close();
       const from = boxRect(item.box);
