@@ -144,6 +144,41 @@ export function buildOneshotPrompt(brand: BrandInput, scene: string, layout: One
  * when a logo was expected), texts share 25 (full marks when there are none
  * to check). Pure so the UI and the tests agree.
  */
+/**
+ * The words as a reader sees them: Arabic diacritics and the tatweel removed,
+ * alef and ya forms unified, Arabic-Indic digits as Latin digits, and
+ * punctuation, spacing and case ignored. The reviewer sometimes marks a
+ * correct headline as wrong over one of these, which costs a needless repaint.
+ */
+export function readableText(text: string): string {
+  return text.normalize('NFKC')
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '')
+    .replace(/[\u0622\u0623\u0625\u0671]/g, '\u0627').replace(/\u0649/g, '\u064A')
+    .replace(/[\u0660-\u0669]/g, digit => String(digit.charCodeAt(0) - 0x0660)).replace(/[\u06F0-\u06F9]/g, digit => String(digit.charCodeAt(0) - 0x06F0))
+    .replace(/\u066A/g, '%')
+    .toLowerCase().replace(/[\p{P}\p{S}\p{Z}\s]+/gu, '');
+}
+/**
+ * Settle the reviewer's answer before it is scored: a text whose reading only
+ * differs in diacritics, letter forms, digits or spacing matches, and an
+ * "extra" word that is really one of the expected texts is not extra.
+ */
+export function settleReview(result: VerifyResult, layout: OneshotElement[]): VerifyResult {
+  const expected = layout.filter(element => (element.kind === 'text' || element.kind === 'phone') && element.text).map(element => readableText(element.text!));
+  const texts = result.texts.map(item => !item.match && item.found && readableText(item.found) === readableText(item.expected) ? { ...item, match: true } : item);
+  const extraText = result.extraText?.filter(word => { const key = readableText(word); return key.length > 0 && !expected.some(text => text === key || text.includes(key)); });
+  return { ...result, texts, ...(result.extraText ? { extraText } : {}) };
+}
+/** Which checks failed, without any of the ad's words, for the server log. */
+export function reviewOutcome(result: VerifyResult, season?: string) {
+  return {
+    product: result.productKept, layout: result.layoutKept, logo: result.logoKept,
+    textsWrong: result.texts.filter(item => !item.match).length, texts: result.texts.length, extra: result.extraText?.length ?? 0,
+    readable: result.textReadable ?? null, clear: result.textClearOfProduct ?? null, cleanFrame: result.cleanFrame ?? null,
+    ...(season ? { season, cues: result.seasonCues?.length ?? 0 } : {}),
+  };
+}
+
 export function oneshotScore(result: VerifyResult, logoExpected: boolean): number {
   const textTotal = result.texts.length === 0 ? 25 : 25 * (result.texts.filter(item => item.match).length / result.texts.length);
   const earned = (result.productKept ? 40 : 0) + (result.layoutKept ? 20 : 0) + (logoExpected && result.logoKept ? 15 : 0) + textTotal;
