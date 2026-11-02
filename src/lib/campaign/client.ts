@@ -1,6 +1,7 @@
 import {metaFetch} from '@/lib/ai/meta-fetch';
 import { z } from 'zod';
 import { planSchema, type PlanRequest } from './schema';
+import { firewallLimited } from '../ai/meta-client-error';
 import { errorCodes, ProviderError } from '../ai/errors';
 import { readJsonLimited } from '../ai/transport';
 import { validateLogoDimensions, BrandError } from '../brand/backup';
@@ -75,7 +76,7 @@ export async function requestPlan(input: PlanRequest, signal: AbortSignal) {
       const body = await readJsonLimited(response, 200000).catch(() => null);
       const error = z.object({ error: z.object({ code: z.enum(errorCodes) }) }).safeParse(body);
       // A bare 429 is the hosting firewall's per-device limit.
-      throw new ProviderError(error.success ? error.data.error.code : response.status === 429 ? 'rate_limit' : 'plan_invalid', response.status);
+      throw new ProviderError(error.success && !response.headers.get('x-vercel-mitigated') ? error.data.error.code : firewallLimited(response) ? 'rate_limit' : 'plan_invalid', response.status);
     }
     const body = await readJsonLimited(response, 200000);
     return planSchema.parse(body);

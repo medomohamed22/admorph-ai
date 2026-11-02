@@ -308,7 +308,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
       signal: options.signal,
     });
     const result = await response.json().catch(() => null);
-    if (!response.ok) throw segmentErrorBody(result, response.status);
+    if (!response.ok) throw response.headers.get('x-vercel-mitigated') ? new ProviderError('rate_limit', response.status) : segmentErrorBody(result, response.status);
     const masks = parseSegmentResponse(result);
     radius = masks.length ? edgeRadius(masks) : radius;
     if (box) {
