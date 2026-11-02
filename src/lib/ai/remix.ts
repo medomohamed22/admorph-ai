@@ -28,9 +28,11 @@ export const remixRequestSchema = metaBase.extend({
   language: z.enum(['en', 'ar']),
   source: z.enum(['ad', 'product']).optional(),
   theme: z.enum(themeIds).optional(),
+  /** The reviewer's notes on a failed first copy; present only on the one repair. */
+  fixNotes: z.array(z.string().trim().min(1).max(300)).min(1).max(8).optional(),
 }).strict();
 
-export function buildRemixPrompt(brand: { name: string; colors: [string, string, string] }, scene: string, headline: string, language: 'en' | 'ar', source: 'ad' | 'product' = 'ad', themeId?: RemixThemeId): string {
+export function buildRemixPrompt(brand: { name: string; colors: [string, string, string] }, scene: string, headline: string, language: 'en' | 'ar', source: 'ad' | 'product' = 'ad', themeId?: RemixThemeId, fixNotes: string[] = []): string {
   const theme = themeId ? REMIX_THEMES.find(item => item.id === themeId) : undefined;
   const lines = source === 'product'
     ? ['This image is a product photo. Design a brand-new photorealistic advertisement at 4:5 around this exact product.',
@@ -48,6 +50,7 @@ export function buildRemixPrompt(brand: { name: string; colors: [string, string,
   if (language === 'ar') lines.push('Arabic text reads right to left with correctly joined letters.');
   lines.push('No objects cropped by the frame edges.');
   lines.push(qualityRules(true));
+  if (fixNotes.length) lines.push(`A previous attempt failed review. Fix exactly these problems: ${fixNotes.map((note, index) => `(${index + 1}) ${note}`).join(' ')}`);
   return lines.join(' ');
 }
 

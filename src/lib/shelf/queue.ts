@@ -17,3 +17,22 @@ export async function withRateLimit<T>(call: () => Promise<T>, onWait?: (seconds
     }
   }
 }
+
+/**
+ * Run `worker` over `items` with at most `limit` running at once, in order of
+ * start. Each worker handles its own errors. With the site's Meta key several
+ * paintings run side by side; a visitor's own key allows one request at a
+ * time, so it stays at one lane.
+ */
+export async function runPool<T>(items: readonly T[], limit: number, worker: (item: T, index: number) => Promise<void>): Promise<void> {
+  let next = 0;
+  const lanes = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (next < items.length) { const index = next++; await worker(items[index], index); }
+  });
+  await Promise.all(lanes);
+}
+
+/** How many paintings run at once: three with the site's key, one with a visitor's own key. */
+export function paintLanes(siteKey: 'checking' | 'ready' | 'missing'): number {
+  return siteKey === 'ready' ? 3 : 1;
+}

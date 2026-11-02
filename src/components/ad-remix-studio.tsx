@@ -19,9 +19,10 @@ import { WaitingText } from './waiting';
 import { GeneratingCanvas } from './generating-canvas';
 import { useDemoDriver } from './demo-tour';
 import { pickLooks } from '@/lib/ai/looks';
-import { withRateLimit } from '@/lib/shelf/queue';
+import { withRateLimit, runPool, paintLanes } from '@/lib/shelf/queue';
+import { repairNotes, REPAIR_THRESHOLD } from '@/lib/agent/pipeline';
 
-type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis };
+type RemixResult = { id: string; blob: Blob; headline: string; score: number | null; certificate: VerifyResult | null; axis?: VariantAxis; theme?: RemixThemeId };
 
 /** One thumbnail in the picker strip. The first button selects it (tests and keyboard users rely on that). */
 function SavedAdCard({ ad, selected, onSelect, disabled }: { ad: SavedAd; selected: boolean; onSelect: () => void; disabled: boolean }) {
@@ -89,6 +90,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [failed, setFailed] = useState(0);
+  const [running, setRunning] = useState(0);
   const [notice, setNotice] = useState('');
   const [armingDelete, setArmingDelete] = useState<string | null>(null);
   const [filter, setFilter] = useState<SourceFilter>('all');
@@ -130,8 +132,8 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
    *  cues is painted once more and the better of the two is kept. */
   async function runJob(source: SavedAd, image: Blob, fromProduct: boolean, headline: string, scene: string, theme?: RemixThemeId, axis?: VariantAxis) {
     if (!imageModel) return;
-    const paint = async (headline: string, scene: string) => {
-      const remixResponse = await withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
+    const paint = async (headline: string, scene: string, fixNotes?: string[]) => {
+      const remixResponse = await withRateLimit(async () => { const response = await metaFetch('image_edit', '/api/ai/ad-remix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: imageModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(image), brand: source.brand, scene, headline, language, source: fromProduct ? 'product' : 'ad', ...(theme ? { theme } : {}), ...(fixNotes?.length ? { fixNotes: fixNotes.slice(0, 8) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
       const blob = await remixResponse.blob(); await validateGeneratedImage(blob);
       let score: number | null = null, certificate: VerifyResult | null = null;
       const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
@@ -153,11 +155,18 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       best = await paint(headline, scene);
       setNotice(t.fallbackUsed);
     }
-    if (theme && best.certificate && (best.certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES) {
-      const again = await paint(headline, scene);
-      if ((again.score ?? -1) > (best.score ?? -1)) best = again;
+    // One repair, like the one-shot ad: a copy that fails review (or shows too few season cues)
+    // is painted once more with the reviewer's notes, and the better of the two is kept.
+    if (best.certificate) {
+      const season = theme ? REMIX_THEMES.find(item => item.id === theme) : undefined;
+      const fewCues = !!season && (best.certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES;
+      const notes = [...repairNotes(best.certificate, false), ...(fewCues && season ? [`Show at least three of these ${season.id} cues clearly around the product: ${season.cues.join('; ')}.`] : [])];
+      if ((fewCues || (best.score ?? 100) < REPAIR_THRESHOLD) && notes.length) {
+        const again = await paint(headline, scene, notes);
+        if ((again.score ?? -1) > (best.score ?? -1)) best = again;
+      }
     }
-    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}) };
+    const result: RemixResult = { id: crypto.randomUUID(), blob: best.blob, headline, score: best.score === null ? null : Math.max(0, best.score), certificate: best.certificate, ...(axis ? { axis } : {}), ...(theme ? { theme } : {}) };
     setResults(previous => [...previous, result]);
     try { await saveAd({ id: crypto.randomUUID(), blob: best.blob, source: mode, brand: source.brand, headline, hasLogo: false, createdAt: new Date().toISOString(), scene, format: '1080x1350', ...(source.cutout ? { cutout: source.cutout } : {}) }); } catch { /* gallery is best-effort */ }
   }
@@ -188,7 +197,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
         const avoidScenes = [...(selected.scene ? [settingOf(selected.scene)] : []), ...recent].filter(Boolean).slice(0, 5);
         const axisBrief = `Variants of an existing ad${selected.headline ? ` whose headline was ${JSON.stringify(selected.headline)}` : ''}${selected.scene ? ` and whose scene was ${JSON.stringify(selected.scene.slice(0, 300))}` : ''}. ${VARIANT_AXES.map((axis, index) => `Concept ${index + 1}: ${axis.instruction}.`).join(' ')} Every headline must differ from the original.`;
         try {
-          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, looks: pickLooks(count), goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
+          const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: axisBrief, looks: pickLooks(count), count, goal: 'awareness', creativeLanguage: language, format: '1080x1350', ...(avoidScenes.length ? { avoidScenes } : {}), product: encodedSource }, AbortSignal.timeout(65000)), onWait);
           jobs = plan.concepts.slice(0, count).map((item, index) => ({ headline: item.headline, scene: item.artBrief ? artBriefToScene(item.artBrief) : item.visualDirection, axis: VARIANT_AXES[index]?.id }));
         } catch (cause) {
           if (!isFallbackable(cause)) throw cause;
@@ -197,26 +206,32 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
           setNotice(t.fallbackUsed);
         }
       } else {
-        for (const themeId of themes) {
+        // Each season needs one headline and scene, so the planner writes one idea, and the seasons are planned side by side.
+        const planned: ({ headline: string; scene: string; theme: RemixThemeId } | null)[] = themes.map(() => null);
+        await runPool(themes, paintLanes(provider.siteKey), async (themeId, index) => {
           const theme = REMIX_THEMES.find(item => item.id === themeId)!;
           try {
-            const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction set in a real place where this product is naturally used, dressed for ${theme.id} with these cues around the product.`, looks: pickLooks(1), goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
+            const plan = await withRateLimit(() => requestPlan({ providerId: 'meta', apiKey: key, modelId: plannerModel.modelId, consent: true, imageConsent: true, brand, brief: `Seasonal theme: ${theme.id}. Palette: ${theme.palette}. Visible cues: ${theme.cues.join('; ')}. Write a ${theme.id} headline and a scene direction set in a real place where this product is naturally used, dressed for ${theme.id} with these cues around the product.`, looks: pickLooks(1), count: 1, goal: 'awareness', creativeLanguage: language, format: '1080x1350', product: encodedSource }, AbortSignal.timeout(65000)), onWait);
             const first = plan.concepts[0];
-            if (first) jobs.push({ headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId });
+            if (first) planned[index] = { headline: first.headline, scene: first.artBrief ? artBriefToScene(first.artBrief) : first.visualDirection, theme: themeId };
           } catch (cause) {
             if (!isFallbackable(cause)) throw cause;
             // The planner refused this season for this ad: use the plain seasonal greeting and props.
-            jobs.push({ headline: SEASON_FALLBACK_HEADLINE[themeId][language], scene: seasonFallbackScene(themeId), theme: themeId });
+            planned[index] = { headline: SEASON_FALLBACK_HEADLINE[themeId][language], scene: seasonFallbackScene(themeId), theme: themeId };
             setNotice(t.fallbackUsed);
           }
-        }
+        });
+        jobs = planned.filter((job): job is NonNullable<typeof job> => job !== null);
       }
       setBusy('generate');
       let failures = 0;
-      for (const job of jobs) {
+      // With the site's key the copies are painted side by side; each still gets its own review and repair.
+      await runPool(jobs, paintLanes(provider.siteKey), async job => {
+        setRunning(value => value + 1);
         try { await runJob(selected, remixImage, fromProduct, job.headline, job.scene, job.theme, job.axis); }
         catch (cause) { failures += 1; setError(metaErrorMessage(cause, errorText)); }
-      }
+        finally { setRunning(value => value - 1); }
+      });
       setFailed(failures);
       await refreshGallery();
     } catch (cause) { setError(metaErrorMessage(cause, errorText)); }
@@ -315,9 +330,10 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
               const result = results[index];
               return <ResultCard key={result.id} index={index} result={result} downloadLabel={t.download} scoreLabel={t.score} notesLabel={t.reviewNotes} axisLabel={result.axis ? t[`axis_${result.axis}`] : undefined} />;
             }
-            const active = busy === 'plan' || (busy === 'generate' && index === results.length);
-            const queued = busy === 'generate' && index > results.length;
-            const label = mode === 'themes' ? themeLabel(themes[index]) : undefined;
+            const active = busy === 'plan' || (busy === 'generate' && index < results.length + Math.max(1, running));
+            const queued = busy === 'generate' && !active;
+            const pendingThemes = themes.filter(id => !results.some(result => result.theme === id));
+            const label = mode === 'themes' ? themeLabel(pendingThemes[index - results.length]) : undefined;
             return <div key={`slot-${index}`} data-testid="remix-slot" className={`remix-box remix-slot${active ? ' is-busy' : ''}`}>
               <div className="remix-box-media">
                 {active

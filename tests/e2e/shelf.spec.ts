@@ -75,8 +75,11 @@ test('shelf to campaign: find, cut live, pick, and paint one ad per product', as
   expect((calls.plan[0].products as { id: string; priceText: string }[]).map(item => item.id)).toEqual(['p1', 'p2']);
   expect((calls.plan[0].products as { priceText: string }[])[1].priceText).toBe('40 EGP');
   expect(calls.paint).toHaveLength(2);
-  expect(calls.paint[0].layout.find(item => item.id === 'headline')?.text).toBe('برودة تفرّحك');
-  expect(calls.paint[1].layout.find(item => item.id === 'price')?.text).toBe('40 EGP');
+  // The two ads are painted side by side with the site key, so they may arrive in either order: find each by its headline.
+  const text = (call: (typeof calls.paint)[number], id: string) => call.layout.find(item => item.id === id)?.text;
+  const first = calls.paint.find(call => text(call, 'headline') === 'برودة تفرّحك'), second = calls.paint.find(call => call !== first);
+  expect(first).toBeDefined();
+  expect(second && text(second, 'price')).toBe('40 EGP');
   expect(calls.verify).toBe(2);
 
   const download = page.waitForEvent('download');

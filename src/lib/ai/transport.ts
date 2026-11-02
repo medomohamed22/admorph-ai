@@ -1,7 +1,9 @@
 import { ProviderError, httpError } from './errors';
 
 export type Fetcher = typeof fetch;
-export type TransportOptions = { fetcher?: Fetcher; signal?: AbortSignal; browserDirect?: boolean; timeoutMs?: number };
+export type TransportOptions = { fetcher?: Fetcher; signal?: AbortSignal; browserDirect?: boolean; timeoutMs?: number;
+  /** Ask Muse Spark once more when its JSON answer is cut off or malformed (only steps that opt in). */
+  jsonRetry?: boolean };
 
 export async function readJsonLimited(source: Request | Response, limit = 4 * 1024 * 1024): Promise<unknown> {
   if (!source.body) throw new ProviderError('invalid_response', 502);

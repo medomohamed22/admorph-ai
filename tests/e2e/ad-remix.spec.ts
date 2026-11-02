@@ -131,9 +131,9 @@ test('waiting indicator shows a live seconds counter while generating', async ({
   await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
   const indicator = page.locator('.remix-go [data-testid="waiting-indicator"]');
   await expect(indicator).toBeVisible({ timeout: 60000 });
-  // The box being painted shows the shared "image is forming" canvas, the next one waits its turn.
-  await expect(page.locator('[data-testid="remix-slot"].is-busy .gen-canvas')).toHaveCount(1, { timeout: 60000 });
-  await expect(page.locator('[data-testid="remix-slot"]').last()).toContainText('Waiting its turn');
+  // With the site key both variants are painted side by side: each box shows the "image is forming" canvas, none waits.
+  await expect(page.locator('[data-testid="remix-slot"].is-busy .gen-canvas')).toHaveCount(2, { timeout: 60000 });
+  await expect(page.locator('[data-testid="remix-slot"]', { hasText: 'Waiting its turn' })).toHaveCount(0);
   const first = await indicator.textContent();
   await page.waitForTimeout(1300);
   const second = await indicator.textContent();
@@ -178,9 +178,10 @@ test('seasonal copies redesign from the saved cutout, name the season, and repai
     });
   });
   await page.reload();
-  const remixes: { source?: string; theme?: string }[] = [];
+  const remixes: { source?: string; theme?: string; fixNotes?: string[] }[] = [];
+  const plans: { count?: number }[] = [];
   let verifies = 0;
-  await page.route('**/api/ai/plan', route => route.fulfill({ json: { concepts } }));
+  await page.route('**/api/ai/plan', route => { plans.push(route.request().postDataJSON()); return route.fulfill({ json: { concepts: concepts.slice(0, 1) } }); });
   await page.route('**/api/ai/ad-remix', route => { remixes.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
   await page.route('**/api/ai/verify-oneshot', route => {
     verifies += 1;
@@ -194,6 +195,10 @@ test('seasonal copies redesign from the saved cutout, name the season, and repai
   // The first copy showed no Ramadan cues, so it was painted once more.
   expect(remixes).toHaveLength(2);
   expect(remixes[0]).toMatchObject({ source: 'product', theme: 'ramadan' });
+  // The repaint carries the reviewer's note about the missing cues, and a season asks the planner for a single idea.
+  expect(remixes[0].fixNotes).toBeUndefined();
+  expect(remixes[1].fixNotes?.join(' ')).toContain('ramadan cues');
+  expect(plans[0].count).toBe(1);
   await expect(page.getByText('Certificate score: 100')).toBeVisible();
 });
 
@@ -270,4 +275,31 @@ test('when Meta refuses a seasonal copy, a plain one is made and the user is tol
   expect(remixes).toHaveLength(2);
   expect(remixes[1]).toMatchObject({ headline: 'Ramadan Kareem', theme: 'ramadan' });
   expect(remixes[1].scene).toContain('Ramadan lanterns');
+});
+
+test('a variant whose headline came out wrong is repainted once with the reviewer notes, and the better copy is kept', async ({ page }) => {
+  test.setTimeout(120_000);
+  await seedGallery(page);
+  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
+  await page.getByRole('link', { name: 'Variants', exact: true }).click();
+  const remixes: { headline: string; fixNotes?: string[] }[] = [];
+  const plans: { count?: number }[] = [];
+  await page.route('**/api/ai/plan', route => { plans.push(route.request().postDataJSON()); return route.fulfill({ json: { concepts: concepts.slice(0, 2) } }); });
+  await page.route('**/api/ai/ad-remix', route => { remixes.push(route.request().postDataJSON()); return route.fulfill({ body: pixel, contentType: 'image/png' }); });
+  await page.route('**/api/ai/verify-oneshot', route => {
+    const headline = route.request().postDataJSON().layout.find((element: { id: string }) => element.id === 'headline')?.text ?? '';
+    // The first copy of "Fresh taste daily" misspells it; every other copy is right.
+    const firstFresh = headline === 'Fresh taste daily' && remixes.filter(item => item.headline === headline).length === 1;
+    return route.fulfill({ json: { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [{ id: 'headline', expected: headline, found: firstFresh ? 'Frseh tsate daly' : headline, match: !firstFresh }], extraText: [] } });
+  });
+  await page.locator('[data-testid="remix-source-card"]').first().locator('button').first().click();
+  await page.getByRole('button', { name: 'Generate variants', exact: true }).click();
+  await expect(page.locator('[data-testid="remix-result"]')).toHaveCount(2, { timeout: 60000 });
+  // Two variants asked for two ideas; the misspelled one was painted again with the exact words to fix.
+  expect(plans[0].count).toBe(2);
+  expect(remixes).toHaveLength(3);
+  const repair = remixes.find(item => item.fixNotes);
+  expect(repair?.headline).toBe('Fresh taste daily');
+  expect(repair?.fixNotes?.join(' ')).toContain('Write "Fresh taste daily" exactly as given; the last attempt read "Frseh tsate daly"');
+  await expect(page.getByText('Certificate score: 100')).toHaveCount(2);
 });
