@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { tightenEdge } from '../../src/lib/cutout/sam-client';
 import { readableText, settleReview, reviewOutcome, oneshotScore, type VerifyResult, type OneshotElement } from '../../src/lib/ai/oneshot';
 import { cropWindow, boxInWindow } from '../../src/lib/shelf/crop';
@@ -142,5 +143,53 @@ describe('gallery tiles and free layouts', () => {
   });
   it('a seasonal copy or variant is reviewed without fixed positions', () => {
     expect(verifyRequestSchema.shape.freeLayout).toBeDefined();
+  });
+});
+
+import { metaJson as metaJsonCall } from '../../src/lib/ai/meta-transport';
+import { productBoxSchema } from '../../src/lib/ai/meta-contracts';
+import { handleMetaRoute } from '../../src/lib/ai/meta-runtime';
+import { readFileSync as readFile } from 'node:fs';
+
+const png64 = readFile('public/demo/sora-product.png').toString('base64');
+const okReview = { productKept: true, productNote: '', logoKept: true, logoNote: '', layoutKept: true, layoutNote: '', texts: [] };
+const chat = (content: unknown) => Response.json({ choices: [{ finish_reason: 'stop', message: { content: JSON.stringify(content) } }] });
+const verifyPost = (body: Record<string, unknown>) => new Request('https://app.test/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://app.test' }, body: JSON.stringify({ providerId: 'meta', apiKey: 'k-' + crypto.randomUUID(), modelId: 'm', consent: true, imageConsent: true, image: { mimeType: 'image/png', data: png64 }, layout: [{ id: 'headline', kind: 'text', x: 0, y: 0, width: 500, height: 100, text: 'Hi' }], language: 'en', ...body }) });
+
+describe('the reviewer sees the real product', () => {
+  it('sends the ad and the product close-up together, and says what the second image is', async () => {
+    const fetcher = vi.fn(async () => chat(okReview));
+    const result = await handleMetaRoute(verifyPost({ product: { mimeType: 'image/png', data: png64 } }), 'verify-oneshot', { fetcher });
+    expect(result.status).toBe(200);
+    const payload = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(payload.messages[1].content.filter((part: { type: string }) => part.type === 'image_url')).toHaveLength(2);
+    expect(payload.messages[1].content[0].text).toContain('The second image is a sharp close-up of the real product');
+  });
+  it('if Meta refuses a second image, the ad is reviewed alone as before', async () => {
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json({ error: { message: 'one image only' } }, { status: 400 })).mockResolvedValueOnce(chat(okReview));
+    const result = await handleMetaRoute(verifyPost({ product: { mimeType: 'image/png', data: png64 } }), 'verify-oneshot', { fetcher });
+    expect(result.status).toBe(200); expect(fetcher).toHaveBeenCalledTimes(2);
+    const second = JSON.parse((fetcher.mock.calls[1] as unknown as [string, RequestInit])[1].body as string);
+    expect(second.messages[1].content.filter((part: { type: string }) => part.type === 'image_url')).toHaveLength(1);
+    expect(second.messages[1].content[0].text).not.toContain('second image');
+  });
+  it('a review without a product image is unchanged', async () => {
+    const fetcher = vi.fn(async () => chat(okReview));
+    expect((await handleMetaRoute(verifyPost({}), 'verify-oneshot', { fetcher })).status).toBe(200);
+    const payload = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(payload.messages[1].content.filter((part: { type: string }) => part.type === 'image_url')).toHaveLength(1);
+  });
+  it('several images go to Muse Spark in order', async () => {
+    const fetcher = vi.fn(async () => chat({ x: 'y' }));
+    await metaJsonCall('m', 'k', 'p', z.object({ x: z.string() }), [{ mimeType: 'image/png', data: png64 }, { mimeType: 'image/png', data: png64 }], new AbortController().signal, { fetcher });
+    const payload = JSON.parse((fetcher.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(payload.messages[1].content.map((part: { type: string }) => part.type)).toEqual(['text', 'image_url', 'image_url']);
+  });
+});
+
+describe('a product held in a hand', () => {
+  it('the locator also names the product and says whether a hand holds it', () => {
+    expect(productBoxSchema.safeParse({ left: 0.2, top: 0.1, right: 0.6, bottom: 0.9, name: 'white water bottle', heldByHand: true }).success).toBe(true);
+    expect(productBoxSchema.safeParse({ left: 0.2, top: 0.1, right: 0.6, bottom: 0.9 }).success).toBe(true);
   });
 });

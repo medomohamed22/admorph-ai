@@ -174,11 +174,11 @@ export default function OneshotStudio() {
   const hasLogo = elements.some(item => item.kind === 'logo');
   const selectedElement = elements.find(item => item.id === selected);
 
-  async function runCutout(blob: Blob, geometric?: { box?: { left: number; top: number; right: number; bottom: number }; point?: { x: number; y: number } }): Promise<Blob> {
+  async function runCutout(blob: Blob, geometric?: { box?: { left: number; top: number; right: number; bottom: number }; point?: { x: number; y: number }; prompt?: string }): Promise<Blob> {
     // SAM-only: a failed or unconfigured SAM cutout is a visible error, never
     // a silent local fallback — the fallback used to hide every SAM failure.
     if (!segmentModel || !key) throw new ProviderError(!key ? 'missing_key' : 'sam_unavailable', 400);
-    const result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, signal: AbortSignal.timeout(65000), ...(geometric?.box ? { box: geometric.box } : geometric?.point ? { point: geometric.point } : { prompt: SAM_PRODUCT_PROMPT }) });
+    const result = await cutoutImage(blob, 'meta-sam', { apiKey: key, modelId: segmentModel.modelId, signal: AbortSignal.timeout(65000), ...(geometric?.box ? { box: geometric.box } : geometric?.point ? { point: geometric.point } : { prompt: geometric?.prompt || SAM_PRODUCT_PROMPT }) });
     // SAM returns the whole photo frame with the background cleared. Crop it
     // to the product at full resolution: uncropped, the product shrank to a
     // fraction of its box on the mockup and its label text became unreadable.
@@ -221,7 +221,7 @@ export default function OneshotStudio() {
   }
 
   /** Ask vision where the main product is. Any failure returns null: the text cutout is the fallback, never a blocker. */
-  async function detectProductBox(blob: Blob): Promise<{ left: number; top: number; right: number; bottom: number } | null> {
+  async function detectProductBox(blob: Blob): Promise<{ left: number; top: number; right: number; bottom: number; name?: string; heldByHand?: boolean } | null> {
     if (!visionModel || !key) return null;
     try {
       const fitted = await fitProductImage(blob);
@@ -246,6 +246,8 @@ export default function OneshotStudio() {
     try {
       const box = await detectProductBox(blob);
       startStep('cutout', { modelId: segmentModel?.modelId, prompt: box ? { box } : { text: SAM_PRODUCT_PROMPT } });
+      // A product held in a hand: a box prompt cuts the hand too, so SAM 3.1 cuts the product by its name first.
+      if (box?.heldByHand && box.name) { try { const cut = await runCutout(blob, { prompt: box.name }); finishStep('cutout', t.agentCutText, imageNote(cut)); return; } catch { /* fall back to the box */ } }
       if (box) { try { const cut = await runCutout(blob, { box }); finishStep('cutout', t.agentCutBox, imageNote(cut)); return; } catch { /* fall through to text */ } }
       try { const cut = await runCutout(blob); finishStep('cutout', t.agentCutText, imageNote(cut)); return; }
       catch (cause) {
@@ -488,7 +490,7 @@ export default function OneshotStudio() {
     if (!verifyModel) return { blob: result, certificate: null, score: null, adId, saved };
     setBusy('verify');
     const fitted = await fitProductImage(result);
-    const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language, format };
+    const verifyBody = { providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fitted), layout, language, format, ...(product ? { product } : {}) };
     if (!fixNotes) startStep('critic', verifyBody);
     const verifyResponse = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(verifyBody), signal: AbortSignal.timeout(65000) });
     await requireMetaSuccess(verifyResponse);

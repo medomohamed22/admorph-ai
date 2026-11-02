@@ -147,3 +147,29 @@ describe('headphones: the gap between the cups opens onto the box edge', () => {
     expect(isBackgroundMask(product, width, height, box)).toBe(false);
   });
 });
+
+import { chooseBoxAlpha as chooseAlpha, clippedSides as clipped } from '../../src/lib/cutout/sam-client';
+
+describe('a product on a light panel (live: the shelf sneaker came back inverted)', () => {
+  // SAM's only mask is the panel, with the sneaker as a hole; the panel stops just short of the box bottom.
+  const W = 942, H = 446, panel = new Uint8ClampedArray(W * H);
+  const inShoe = (x: number, y: number) => ((x - 470) / 260) ** 2 + ((y - 230) / 110) ** 2 <= 1;
+  for (let y = 45; y < 373; y++) for (let x = 140; x < 800; x++) if (!inShoe(x, y)) panel[y * W + x] = 255;
+  const box = { left: 147, top: 69, right: 795, bottom: 377 };
+  it('the first cut flips the panel into the sneaker and says so', () => {
+    const report: { inverted?: boolean } = {};
+    const cut = chooseAlpha([panel], W, H, box, report)!;
+    expect(report.inverted).toBe(true);
+    expect(cut[230 * W + 470]).toBe(255);   // the sneaker
+    expect(cut[100 * W + 200]).toBe(0);     // the panel
+    // The flipped cut touches the box where the panel ends: this used to trigger the wider retry...
+    expect(clipped(cut, W, H, box).length).toBeGreaterThan(0);
+  });
+  it('...and a wider box would take the panel for the product, which is why the retry is skipped after a flip', () => {
+    const wider = boxFractionsToPixels(padBoxFractions({ left: box.left / W, top: box.top / H, right: box.right / W, bottom: box.bottom / H }, 0.2), W, H);
+    const report: { inverted?: boolean } = {};
+    const cut = chooseAlpha([panel], W, H, wider, report)!;
+    expect(report.inverted).toBeFalsy();
+    expect(cut[230 * W + 470]).toBe(0);     // inverted: the sneaker is the hole
+  });
+});

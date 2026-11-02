@@ -140,7 +140,7 @@ export default function AdRemixStudio({ mode }: { mode: 'variants' | 'themes' })
       const verifyModel = provider.taskModel('vision') ?? provider.taskModel('critic');
       if (verifyModel) {
         const fittedResult = await fitProductImage(blob);
-        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language, freeLayout: true, ...(theme ? { season: theme } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
+        const verifyResponse = await withRateLimit(async () => { const response = await metaFetch('vision', '/api/ai/verify-oneshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'meta', modelId: verifyModel.modelId, apiKey: key, consent: true, imageConsent: true, image: await encodeProduct(fittedResult), layout: remixLayout(headline), language, freeLayout: true, ...(theme ? { season: theme } : {}), ...(fromProduct ? { product: await encodeProduct(image) } : {}) }), signal: AbortSignal.timeout(65000) }); await requireMetaSuccess(response); return response; }, onWait);
         certificate = verifyResultSchema.parse(await verifyResponse.json());
         score = oneshotScore(certificate, false) - (theme && (certificate.seasonCues?.length ?? 0) < MIN_SEASON_CUES ? 20 : 0);
       }

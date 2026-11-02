@@ -62,6 +62,8 @@ export const verifyRequestSchema = metaBase.extend({
   format: z.enum(ONESHOT_FORMATS).optional(),
   /** A seasonal copy or variant: the painter placed the headline itself, so positions are not checked. */
   freeLayout: z.literal(true).optional(),
+  /** A sharp close-up of the real product, so the reviewer can tell whether the painted product is the same one. */
+  product: inputImage.optional(),
 }).strict();
 
 /** Each element's expected position for the reviewer, which never sees the mockup itself. */

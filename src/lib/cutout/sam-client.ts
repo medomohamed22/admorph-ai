@@ -158,7 +158,7 @@ export function isBackgroundMask(alpha: Uint8ClampedArray, width: number, height
  * background around the product. When every mask is that background, the
  * largest one is inverted inside the box, so its hole becomes the product.
  */
-export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, height: number, box: { left: number; top: number; right: number; bottom: number }): Uint8ClampedArray | null {
+export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, height: number, box: { left: number; top: number; right: number; bottom: number }, report?: { inverted?: boolean }): Uint8ClampedArray | null {
   if (!alphas.length) return null;
   const filled = (alpha: Uint8ClampedArray) => { let count = 0; for (let i = 0; i < alpha.length; i++) if (alpha[i] > 127) count++; return count; };
   const ranked = alphas.map(alpha => ({ alpha, background: isBackgroundMask(alpha, width, height, box), fill: filled(alpha) })).sort((a, b) => b.fill - a.fill);
@@ -168,7 +168,9 @@ export function chooseBoxAlpha(alphas: Uint8ClampedArray[], width: number, heigh
   let kept = 0;
   for (let y = box.top; y < box.bottom; y++) for (let x = box.left; x < box.right; x++) { const i = y * width + x; if (ranked[0].alpha[i] <= 127) { inverted[i] = 255; kept++; } }
   // Never trade a mask for a near-empty one.
-  return kept >= 0.03 * (box.right - box.left) * (box.bottom - box.top) ? inverted : ranked[0].alpha;
+  const use = kept >= 0.03 * (box.right - box.left) * (box.bottom - box.top);
+  if (report) report.inverted = use;
+  return use ? inverted : ranked[0].alpha;
 }
 
 /** Square erosion (keep = every pixel within `radius` is set) or dilation (any is set), as two separable passes. */
@@ -292,6 +294,7 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
   if (!options.box && !options.point && !options.prompt) throw new Error('sam_prompt_missing');
   const size = { width: image.width, height: image.height };
   let radius = 1;
+  let lastInverted = false;
   const ask = async (promptBody: Record<string, unknown>, box?: { left: number; top: number; right: number; bottom: number }) => {
     const response = await fetch('/api/ai/segment', {
       method: 'POST',
@@ -312,7 +315,9 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
     const masks = parseSegmentResponse(result);
     radius = masks.length ? edgeRadius(masks) : radius;
     if (box) {
-      const chosen = chooseBoxAlpha(masks.map(mask => maskToAlpha(mask, image.width, image.height)), image.width, image.height, box);
+      const report: { inverted?: boolean } = {};
+      const chosen = chooseBoxAlpha(masks.map(mask => maskToAlpha(mask, image.width, image.height)), image.width, image.height, box, report);
+      lastInverted = !!report.inverted;
       if (!chosen) throw new ProviderError('sam_no_mask', 502, { source: 'application', message: 'segment response had no masks' });
       return chosen;
     }
@@ -326,7 +331,10 @@ export async function samCutout(blob: Blob, options: SamCutoutOptions): Promise<
     alpha = await ask({ box: pixels, size }, pixels);
     // Still running into the box edge: the box was too tight. One wider try;
     // the first cut stays if the retry fails.
-    if (clippedSides(alpha, image.width, image.height, pixels).length) {
+    // A cut made by flipping the background (a product on a panel that fills the box) touches the box only where
+    // the panel ends, not where the product is cut off: a wider box would then hold the panel's own border, the
+    // panel would no longer read as background, and the cut would come back inverted (live: the shelf sneaker).
+    if (!lastInverted && clippedSides(alpha, image.width, image.height, pixels).length) {
       const wider = boxFractionsToPixels(padBoxFractions(options.box, BOX_PAD_RETRY), image.width, image.height);
       try { alpha = await ask({ box: wider, size }, wider); }
       catch { /* keep the first cut */ }
