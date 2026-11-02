@@ -93,8 +93,8 @@ test('One-shot studio generates from the arranged mockup and shows the fidelity 
     open.onerror = () => reject(new Error('db open failed'));
     open.onsuccess = () => { const read = open.result.transaction(['settings'], 'readonly').objectStore('settings').get('oneshotDraft'); read.onsuccess = () => { open.result.close(); resolve(read.result?.value?.finished === true); }; read.onerror = () => reject(new Error('read failed')); };
   })), { timeout: 10000 }).toBe(true);
-  await page.getByRole('link', { name: 'My gallery', exact: true }).click();
-  await page.getByRole('link', { name: 'Create', exact: true }).click();
+  // A fresh page load (a reload, a new tab, a later visit) is where the draft is read back.
+  await page.goto('/oneshot');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('One-shot ad studio');
   await expect(page.getByTestId('wizard-step-0')).toBeVisible();
   await expect(page.getByText('Your last ad was restored from this device.')).toHaveCount(0);
