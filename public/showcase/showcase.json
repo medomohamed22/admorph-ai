@@ -9,6 +9,13 @@
   },
   "ads": [
     {
+      "src": "/showcase/ad-hope-bottle.webp",
+      "category": "drinkware",
+      "ratio": "1:1",
+      "headline": "Cold sips all workday long",
+      "score": 100
+    },
+    {
       "src": "/showcase/ad-dafa-candle.webp",
       "category": "home",
       "ratio": "1:1",
@@ -20,13 +27,6 @@
       "category": "beauty",
       "ratio": "1:1",
       "headline": "بشرتك ناعمة ومشرقة طول اليوم",
-      "score": 100
-    },
-    {
-      "src": "/showcase/ad-hope-bottle.webp",
-      "category": "drinkware",
-      "ratio": "1:1",
-      "headline": "Cold sips all workday long",
       "score": 100
     }
   ]

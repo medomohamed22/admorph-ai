@@ -24,7 +24,7 @@ test('home shows the value line, the photo-to-post story and the three models', 
   await expect(showcase).toHaveCount(3);
   await expect(showcase.first()).toContainText('Certificate 100/100');
   // Each showcase ad names its real product type, never a placeholder like "Other".
-  await expect(showcase.locator('figcaption span')).toHaveText(['Home · 1:1', 'Beauty · 1:1', 'Drinkware · 1:1']);
+  await expect(showcase.locator('figcaption span')).toHaveText(['Drinkware · 1:1', 'Home · 1:1', 'Beauty · 1:1']);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
 });
