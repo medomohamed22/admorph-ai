@@ -1,13 +1,9 @@
 import 'fake-indexeddb/auto';
 import {readFileSync} from 'node:fs';
 import {metaJson} from '../../src/lib/ai/meta-transport';
-import Dexie from 'dexie';
 import { describe, it, expect, vi,beforeEach } from 'vitest';
-import { AdMorphDB } from '../../src/lib/db/dexie';
 import { newCampaign, planSchema, planRequestSchema, campaignSchema, MAX_PRODUCT_BYTES } from '../../src/lib/campaign/schema';
-import { samplePlan } from '../../src/lib/campaign/sample';
-import { saveCampaign, loadCampaigns } from '../../src/lib/campaign/repository';
-import { buildPlanningPayload, parsePlanningResponse } from '../../src/lib/ai/providers/gemini-planner';
+import { samplePlan } from './fixtures/sample-plan';
 import { handlePlanRequest } from '../../src/lib/ai/planning-server';
 
 const png=readFileSync('public/demo/sora-product.png').toString('base64');
@@ -30,14 +26,6 @@ describe('campaign planner', () => {
   });
   it('validates three distinct concepts in both creative languages', () => { for (const creativeLanguage of ['en', 'ar'] as const) expect(planSchema.parse(samplePlan({ ...newCampaign(), creativeLanguage })).concepts).toHaveLength(3); });
   it('rejects duplicate angles and duplicate copy', () => { const plan = samplePlan(newCampaign()); plan.concepts[1] = { ...plan.concepts[0] }; expect(planSchema.safeParse(plan).success).toBe(false); });
-  it('ignores thinking parts and rejects truncated, blocked, malformed or extra fields', () => {
-    const json = response(); json.candidates[0].content.parts.unshift({ text: 'not JSON' } as never);
-    expect(() => parsePlanningResponse(json)).toThrow('plan_invalid');
-    expect(() => parsePlanningResponse({ promptFeedback: { blockReason: 'SAFETY' } })).toThrow('plan_blocked');
-    expect(() => parsePlanningResponse({ candidates: [{ finishReason: 'MAX_TOKENS' }] })).toThrow('plan_truncated');
-    expect(() => parsePlanningResponse(response({ concepts: [{ ...samplePlan(newCampaign()).concepts[0], approved: true }] } as never))).toThrow('plan_invalid');
-    expect(parsePlanningResponse({ candidates: [{ finishReason: 'STOP', content: { parts: [{ thought: true, text: 'private reasoning' }, ...response().candidates[0].content.parts] } }] }).concepts).toHaveLength(3);
-  });
   it('sends the chosen model, key header, image and JSON schema to a fixed host once', async () => {
     const fetcher = vi.fn(async () => Response.json(response()));
     await metaPlan(input(), { fetcher }); expect(fetcher).toHaveBeenCalledTimes(1);
@@ -46,7 +34,6 @@ describe('campaign planner', () => {
     expect(url).not.toContain(input().apiKey); expect(init.headers).toMatchObject({ Authorization: `Bearer ${input().apiKey}` });
     const payload = JSON.parse(init.body as string); expect(payload.messages[1].content[1].image_url.url).toBe(`data:image/png;base64,${png}`);
     expect(payload.response_format.json_schema.schema.properties.concepts.minItems).toBe(1); expect(payload.response_format.json_schema.schema.properties.concepts.maxItems).toBe(3); expect(init.redirect).toBe('error');
-    expect(JSON.stringify(buildPlanningPayload(input()))).not.toContain(input().apiKey);
   });
   it('sends a typed place and the looks to the planner, and natural places when no place is typed', async () => {
     const promptOf = async (extra: Record<string, unknown>) => {
@@ -96,26 +83,5 @@ describe('campaign planner', () => {
     await expect(metaPlan(input(), { fetcher, timeoutMs:1000 })).rejects.toMatchObject({ code: 'timeout' }); expect(fetcher).toHaveBeenCalledTimes(1);
     const abort = new AbortController(); abort.abort();
     await expect(metaPlan(input(), { signal: abort.signal, fetcher: async () => { throw new Error('aborted'); } })).rejects.toMatchObject({ code: 'cancelled' });
-  });
-});
-describe('campaign storage', () => {
-  it('adds campaigns to a real version-one database without deleting brands, settings, credentials or assets', async () => {
-    const name = `migration-${crypto.randomUUID()}`; const old = new Dexie(name);
-    old.version(1).stores({ settings: 'key', brands: 'id, updatedAt', assets: 'id, kind, createdAt', modelCatalogCache: 'providerId, fetchedAt', encryptedCredentials: 'providerId' });
-    await old.table('settings').put({ key: 'locale', value: 'ar' }); await old.table('brands').put({ id: 'brand', name: 'Existing' });
-    await old.table('assets').put({ id: 'logo', kind: 'logo', blob: new Blob(['logo']) }); await old.table('encryptedCredentials').put({ providerId: 'meta', ciphertext: [1] }); old.close();
-    const db = new AdMorphDB(name);
-    try { await db.open(); expect(db.verno).toBe(8); expect((await db.settings.get('locale'))?.value).toBe('ar'); expect(await db.brands.count()).toBe(1); expect(await db.assets.count()).toBe(1); expect(await db.encryptedCredentials.count()).toBe(1); expect(await db.campaigns.count()).toBe(0); }
-    finally { await db.delete(); }
-  });
-  it('persists campaign edits and approvals, preserves original products and immutable variant inputs, and contains no key field', async () => {
-    const db = new AdMorphDB(`campaign-${crypto.randomUUID()}`);
-    try {
-      const draft = newCampaign(); const asset = { id: crypto.randomUUID(), kind: 'product' as const, blob: new Blob(['product']), createdAt: draft.createdAt };
-      draft.productAssetId = asset.id; draft.source = 'sample'; draft.planRevision = 0; draft.concepts = samplePlan(draft).concepts.map(item => ({ ...item, id: crypto.randomUUID(), approved: true }));
-      await saveCampaign(draft, asset, db); const data = await loadCampaigns(db); expect(data.activeId).toBe(draft.id); expect(data.campaigns[0].concepts[0].approved).toBe(true); expect(data.assets).toHaveLength(1);
-      const next = { ...asset, id: crypto.randomUUID() }; await saveCampaign({ ...draft, productAssetId: next.id }, next, db);
-      expect(await db.assets.get(asset.id)).toBeDefined(); expect(await db.assets.count()).toBe(2); expect(JSON.stringify(await db.campaigns.toArray())).not.toContain('apiKey');
-    } finally { await db.delete(); }
   });
 });

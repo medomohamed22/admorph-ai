@@ -9,10 +9,7 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:catalog:live": "node scripts/verify-public-catalog.mjs",
-    "package:upload": "node scripts/package-upload.mjs",
-    "test:production": "node scripts/production-smoke.mjs"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@meta-sam/parser": "^0.1.0",

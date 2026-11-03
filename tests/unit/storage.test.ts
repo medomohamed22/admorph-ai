@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { AdMorphDB } from '../../src/lib/db/dexie';
 import { loadWorkspace, loadProviderSettings, saveBrand, removeBrand, saveProviderSettings } from '../../src/lib/db/repository';
 import { makeBrandBackup, parseBrandBackup, validateLogo, MAX_LOGO_BYTES, MAX_BACKUP_BYTES } from '../../src/lib/brand/backup';
-import { encryptCredential, decryptCredential } from '../../src/lib/security/credentials';
 import { themeColors } from '../../src/lib/brand/theme';
 import { contrastRatio } from '../../src/lib/editor/checks';
 import type { Brand, BrandInput } from '../../src/lib/db/schema';
@@ -98,26 +97,6 @@ describe('portable brand format', () => {
     await expect(validateLogo(new Blob(['<svg onload="alert(1)"></svg>'], { type: 'image/png' }))).rejects.toMatchObject({ code: 'invalidLogo' });
     await expect(validateLogo(new Blob(['<svg/>'], { type: 'image/svg+xml' }))).rejects.toMatchObject({ code: 'invalidLogo' });
     await expect(validateLogo(new Blob([new Uint8Array(MAX_LOGO_BYTES + 1)], { type: 'image/png' }))).rejects.toMatchObject({ code: 'logoSize' });
-  });
-});
-
-describe('credential encryption', () => {
-  const dummy = 'fixture-key-never-real', passphrase = 'fixture passphrase with enough length';
-  it('encrypts with randomized salt/IV and requires the passphrase after restore', async () => {
-    const first = await encryptCredential('gemini', dummy, passphrase), second = await encryptCredential('gemini', dummy, passphrase);
-    expect(first.ciphertext).not.toEqual(second.ciphertext); expect(first.salt).toHaveLength(16); expect(first.iv).toHaveLength(12);
-    expect(JSON.stringify(first)).not.toContain(dummy); expect(JSON.stringify(first)).not.toContain(passphrase);
-    expect(await decryptCredential(first, passphrase)).toBe(dummy);
-    await expect(decryptCredential(first, 'wrong passphrase')).rejects.toMatchObject({ code: 'unlockFailed' });
-  });
-  it('rejects tampering and binding a key to a different provider or custom endpoint', async () => {
-    const saved = await encryptCredential('custom', dummy, passphrase, 'https://example.com/v1');
-    await expect(decryptCredential({ ...saved, providerId: 'meta' }, passphrase)).rejects.toMatchObject({ code: 'unlockFailed' });
-    await expect(decryptCredential({ ...saved, baseUrl: 'https://other.example/v1' }, passphrase)).rejects.toMatchObject({ code: 'unlockFailed' });
-    await expect(decryptCredential({ ...saved, ciphertext: saved.ciphertext.map((n, i) => i ? n : n ^ 1) }, passphrase)).rejects.toMatchObject({ code: 'unlockFailed' });
-  });
-  it('requires a nontrivial passphrase', async () => {
-    await expect(encryptCredential('meta', dummy, 'short')).rejects.toMatchObject({ code: 'passphrase' });
   });
 });
 

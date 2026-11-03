@@ -5,8 +5,6 @@ import { handleSegmentRequest } from '../../src/lib/ai/segment-server';
 import { handleMetaRoute } from '../../src/lib/ai/meta-runtime';
 import { verifyProof } from '../../src/lib/ai/meta-transport';
 import { parseSegmentResponse, segmentErrorBody } from '../../src/lib/cutout/sam-client';
-import { findCutoutAsset } from '../../src/lib/cutout/provenance';
-import type { Asset } from '../../src/lib/db/schema';
 
 // Same documented example as the SAM unit tests: frame 0, two objects.
 const README_OUTPUT =
@@ -105,27 +103,6 @@ describe('segment response mapping', () => {
     expect([...masks[0].raster]).toEqual([0, 1, 1, 0]);
     expect(parseSegmentResponse({})).toEqual([]);
     expect(parseSegmentResponse(null)).toEqual([]);
-  });
-});
-
-describe('cutout provenance reuse', () => {
-  const asset = (id: string, provider: 'local' | 'meta-sam', derivedFrom: string): Asset => ({
-    id,
-    kind: 'cutout',
-    blob: new Blob(),
-    createdAt: new Date().toISOString(),
-    meta: { derivedFrom, provider },
-  });
-  it('prefers SAM, falls back to local, and ignores other products', () => {
-    const assets = [
-      asset('local-1', 'local', 'product-1'),
-      asset('sam-1', 'meta-sam', 'product-1'),
-      asset('sam-2', 'meta-sam', 'product-2'),
-    ];
-    expect(findCutoutAsset(assets, 'product-1')?.id).toBe('sam-1');
-    expect(findCutoutAsset([assets[0]], 'product-1')?.id).toBe('local-1');
-    expect(findCutoutAsset(assets, 'product-9')).toBeNull();
-    expect(findCutoutAsset([], 'product-1')).toBeNull();
   });
 });
 

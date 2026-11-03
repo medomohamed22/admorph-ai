@@ -8,27 +8,22 @@ Current flows: a five-step one-shot studio; shelf to campaign (a photo or short 
 
 ## Review the evidence
 
-- `docs/demo/AdMorph-demo.mp4`: app footage of that earlier local-only version (silent; see `docs/demo/recording.json` for its date). It is not the final demo video, which is still to be recorded.
-- `docs/demo/recording.json`: actual recording time, chapters, dimensions and no-paid-call boundary.
-- `docs/demo/three-designs.png`: real three-design gallery.
-- `docs/demo/repair-comparison.png`: actual full-resolution before/after canvas comparison.
-- `docs/demo/settings.png`: safe empty-key Settings state.
-- `docs/evidence/`: dated local production/development checks. Historical reports retain their original dates/versions.
-- `docs/archive/DAY9_VALIDATION.md`: release checks and package-verification limits.
-
-The recording deliberately uses local sample templates. Do not describe it as authenticated Meta/Gemini generation. Provider-facing automated tests use synthetic fixtures. Catalog availability does not establish model/account generation access. Confirm the accepted-applicant portal's actual requirements and obtain genuine, explicitly authorised provider evidence before making a live-usage claim.
+- The live site: <https://admorph-ai-app.vercel.app/>. **Watch the full demo** on the home page runs the whole site with real Meta models.
+- `/api/health` on the live site: status, whether the site key is configured (never the key) and the three model ids.
+- `BUILD_LOG.md`: every change with its checks, and the live runs on the production site (30 October to 3 November).
+- `docs/screens/`: screenshots of the current site used in the README.
+- `docs/archive/` and `docs/evidence/`: reports and check results from earlier versions. They keep their original dates and describe features that have since been replaced.
 
 ## Owner fields to complete after publication
 
 | Field | Current state |
 | --- | --- |
-| Public GitHub repository URL | Pending owner upload; do not paste a guessed URL |
-| Public Vercel Production URL | Pending owner deployment |
-| Video hosting/share URL | Upload the supplied MP4 and check judge access |
-| Actual commit SHA / CI run | Record the real uploaded commit and completed Actions run |
-| Public-site check | Run `node scripts/verify-deployment.mjs https://YOUR-REAL-SITE.vercel.app` |
-| Authenticated Meta evidence | Unverified; not shown in the local demo |
-| Organiser submission | Owner reviews the current portal and submits |
+| Public GitHub repository URL | <https://github.com/medomohamed22/admorph-ai> (public, MIT license) |
+| Public Vercel Production URL | <https://admorph-ai-app.vercel.app/> |
+| Video hosting/share URL | Pending: record the demo video, then check that judges can open the link without signing in |
+| Commit SHA | The merge commit on `main` that Vercel deployed to production |
+| Public-site check | Run `node scripts/verify-deployment.mjs https://admorph-ai-app.vercel.app` |
+| Live Meta evidence | The live-run entries in `BUILD_LOG.md` |
 
 Use the original actual commit dates. Milestones 1–3 were recorded on 26 October; later feature iterations were implemented on 27 October. The numbered “days” are feature milestones, not evidence of nine separate days of activity. Planned work through 4 November is not a claim about future completed work.
 

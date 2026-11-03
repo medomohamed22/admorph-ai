@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   outputFileTracingRoot: process.cwd(),
+  // Pages from earlier versions of the app; old links land on the current studio.
+  async redirects() { return [
+    { source: '/auto-ads/:path*', destination: '/oneshot', permanent: false },
+    { source: '/campaigns/:path*', destination: '/oneshot', permanent: false },
+    { source: '/studio/:path*', destination: '/oneshot', permanent: false },
+  ]; },
   async headers() { return [{ source: '/:path*', headers: [
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'X-Frame-Options', value: 'DENY' },
