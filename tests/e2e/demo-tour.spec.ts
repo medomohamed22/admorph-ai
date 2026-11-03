@@ -60,11 +60,11 @@ test('the guided demo plays the whole site by itself: ad, Ramadan copy, shelf ca
   await expect(page).toHaveURL(/\/shelf$/, { timeout: 60_000 });
   await expect(bar).toHaveAttribute('data-state', 'finished', { timeout: 120_000 });
   await expect(bar).toContainText('8 of 8 steps finished');
-  // Two shelf products only, painted with the sample store brand.
-  await expect(page.getByTestId('shelf-ad-image')).toHaveCount(2);
+  // All three shelf products, painted with the sample store brand.
+  await expect(page.getByTestId('shelf-ad-image')).toHaveCount(3);
   expect(calls.remix[0]).toMatchObject({ theme: 'ramadan' });
   expect(calls.detect).toBe(1);
-  expect(calls.paint).toBe(3);
+  expect(calls.paint).toBe(4);
   expect(errors).toEqual([]);
   await bar.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(bar).toHaveCount(0);
