@@ -45,10 +45,6 @@ node scripts/verify-deployment.mjs https://YOUR-REAL-SITE.vercel.app
 
 ## الفيديو والمسابقة
 
-الفيديو `docs/demo/AdMorph-demo.mp4` والصور ملفّات تسليم محلية. ارفع الفيديو إلى خدمة تسمح للجنة بمشاهدته، واختبر الرابط دون تسجيل دخول. راجع `SUBMISSION_GUIDE.md` لحقول الروابط ونص المشروع وحدود الأدلة.
+فيديو العرض النهائي لم يُسجَّل بعد. بعد تسجيله ارفعه إلى خدمة تسمح للجنة بمشاهدته، واختبر الرابط دون تسجيل دخول، وأضف رابطه في `README.md`. راجع `SUBMISSION_GUIDE.md` لحقول التسليم.
 
-الفيديو يعرض القوالب والإصلاح المحلي الحقيقي؛ لا يثبت طلبات Meta أو Gemini بمفتاح فعلي. لا تُقدّمه على أنه دليل توليد مدفوع. أضف إثبات Meta فعليًا فقط بعد تجربة مصرح بها، وراجع متطلبات بوابة المشاركين قبل الإرسال.
-
-التحقق المحلي ليس تأكيدًا لنشر Vercel أو أهلية المشاركة. صفحة الحدث الرسمية: https://cerebralvalley.ai/e/meta-ai-developer-hackathon
-
-مراجع الإعداد: https://vercel.com/docs/frameworks/full-stack/nextjs و https://docs.github.com/en/actions/tutorials/build-and-test-code/nodejs
+الموقع يعمل بنماذج Meta حقيقية بمفتاح الموقع، والتجارب الحية على موقع الإنتاج مسجلة في `BUILD_LOG.md`. صفحة الحدث الرسمية: https://cerebralvalley.ai/e/meta-ai-developer-hackathon
