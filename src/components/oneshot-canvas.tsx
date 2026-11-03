@@ -6,6 +6,18 @@ import { ONESHOT_WIDTH, ONESHOT_HEIGHT, clampOneshotElement, type OneshotCanvasE
 import { fitContain } from '@/lib/editor/fit';
 import { snapBox, type Guide } from '@/lib/oneshot/snap';
 import { useObjectUrl } from './logo';
+import { fitFontSize } from '@/lib/editor/text-fit';
+
+let measureContext: CanvasRenderingContext2D | null = null;
+/** Width of a text at a size, measured like Konva draws it (same font string). */
+function measureWith(family: string, bold: boolean) {
+  return (text: string, fontSize: number) => {
+    measureContext ??= document.createElement('canvas').getContext('2d');
+    if (!measureContext) return 0;
+    measureContext.font = `${bold ? 'bold' : 'normal'} normal ${fontSize}px ${family}`;
+    return measureContext.measureText(text).width;
+  };
+}
 
 const ARABIC = /[\u0600-\u06FF]/;
 
@@ -45,6 +57,17 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
   const [guides, setGuides] = useState<Guide[]>([]);
   useEffect(() => { if (!host.current) return; const observer = new ResizeObserver(entries => { const next = entries[0].contentRect.width; if (next > 0) setWidth(next); }); observer.observe(host.current); return () => observer.disconnect(); }, []);
   const scale = Math.min(1, (width - 20) / ONESHOT_WIDTH, 740 / frameHeight);
+  // Konva measures text once; a web font that arrives later is drawn wider
+  // than it was measured, which pushed centered headlines to one side. A new
+  // key after each font load makes every text measure again.
+  const [fontsVersion, setFontsVersion] = useState(0);
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.fonts) return;
+    const bump = () => setFontsVersion(version => version + 1);
+    document.fonts.addEventListener('loadingdone', bump);
+    void document.fonts.ready.then(bump).catch(() => {});
+    return () => document.fonts.removeEventListener('loadingdone', bump);
+  }, []);
   useEffect(() => {
     const node = selected ? stage.current?.findOne(`#${selected}`) : null;
     transformer.current?.nodes(node?.isVisible() ? [node] : []);
@@ -70,6 +93,9 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
       {elements.map(element => {
         const isText = element.kind === 'text' || element.kind === 'phone';
         const rtl = ARABIC.test(element.text ?? '');
+        const padding = element.badge ? 14 : 8;
+        const family = element.fontFamily ? `${element.fontFamily}, ${rtl ? 'Cairo' : 'Inter'}` : rtl ? 'Cairo' : 'Inter';
+        const fontSize = isText ? fitFontSize(element.text ?? '', element, { preferred: element.fontSize ?? 64, padding, lineHeight: 1.2 }, measureWith(family, Boolean(element.bold))) : 64;
         return <Group key={element.id} id={element.id} x={element.x} y={element.y} width={element.width} height={element.height}
           draggable={!disabled} onClick={() => select(element.id)} onTap={() => select(element.id)}
           onDragMove={event => {
@@ -87,7 +113,7 @@ export default function OneshotCanvas({ elements, selected, select, change, hand
           {element.blob && <Rect x={0} y={0} width={element.width} height={element.height} fill="rgba(0,0,0,0)" />}
           {element.blob ? <Raster blob={element.blob} id={element.id} width={element.width} height={element.height} onReady={onReady}/> : null}
           {isText && element.badge && <Rect x={0} y={0} width={element.width} height={element.height} fill={element.fill ?? '#16100C'} cornerRadius={element.badge === 'cta' ? Math.min(28, element.height / 2) : Math.min(element.width, element.height) / 2} listening={false}/>}
-          {isText && <Text text={element.text ?? ''} width={element.width} height={element.height} padding={element.badge ? 14 : 8} fill={element.color ?? '#16100C'} fontFamily={element.fontFamily ? `${element.fontFamily}, ${rtl ? 'Cairo' : 'Inter'}` : rtl ? 'Cairo' : 'Inter'} fontSize={element.fontSize ?? 64} fontStyle={element.bold ? 'bold' : 'normal'} lineHeight={1.2} align={element.badge ? 'center' : element.align ?? 'center'} verticalAlign="middle" wrap="word" direction={rtl ? 'rtl' : 'ltr'}/>}
+          {isText && <Text key={`text-${fontsVersion}`} text={element.text ?? ''} width={element.width} height={element.height} padding={padding} fill={element.color ?? '#16100C'} fontFamily={family} fontSize={fontSize} fontStyle={element.bold ? 'bold' : 'normal'} lineHeight={1.2} align={element.badge ? 'center' : element.align ?? 'center'} verticalAlign="middle" wrap="word" direction={rtl ? 'rtl' : 'ltr'}/>}
         </Group>;
       })}
       {guides.map(guide => guide.axis === 'x'
