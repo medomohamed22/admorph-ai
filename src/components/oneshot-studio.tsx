@@ -164,8 +164,12 @@ export default function OneshotStudio() {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = brandFontStylesheetUrl(family);
+    // Wait for the stylesheet: loading the font before its @font-face rule
+    // exists resolves at once with nothing, and the canvas kept the fallback.
+    const ready = () => document.fonts.load(`48px "${family}"`).then(() => setFontTick(tick => tick + 1)).catch(() => {});
+    link.addEventListener('load', () => { void ready(); }, { once: true });
     document.head.appendChild(link);
-    document.fonts.load(`48px "${family}"`).then(() => setFontTick(tick => tick + 1)).catch(() => {});
+    void ready();
   }, []);
   useEffect(() => { if (headlineFont) loadFont(headlineFont); }, [headlineFont, loadFont]);
   const [moreFonts, setMoreFonts] = useState(false);
