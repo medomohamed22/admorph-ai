@@ -4,7 +4,7 @@
 
 A small shop owner has one phone photo of a product, or one photo of a whole shelf. AdMorph cuts the product out, reads the brand, writes the copy in their dialect, lets them arrange the ad at the size they need, paints the finished image and then checks that it matches what they arranged. It runs only on Meta models, in English and Arabic (RTL), on phones and desktops.
 
-Built for the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). Live site: <https://admorph-ai-app.vercel.app/> · Demo video: _to be added before submission_.
+Built for the Meta Global AI Developer Hackathon (26 Oct – 4 Nov 2026). Live site: <https://admorph-ai-app.vercel.app/> · Demo video: <https://youtu.be/uqqkS3A2vfA>.
 
 ![AdMorph home page: a phone photo becomes a finished ad through SAM 3.1, Muse Spark and Muse Image](docs/screens/home-desktop.png)
 

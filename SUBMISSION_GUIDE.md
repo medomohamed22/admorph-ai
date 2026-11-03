@@ -20,7 +20,7 @@ Current flows: a five-step one-shot studio; shelf to campaign (a photo or short 
 | --- | --- |
 | Public GitHub repository URL | <https://github.com/medomohamed22/admorph-ai> (public, MIT license) |
 | Public Vercel Production URL | <https://admorph-ai-app.vercel.app/> |
-| Video hosting/share URL | Pending: record the demo video, then check that judges can open the link without signing in |
+| Video hosting/share URL | https://youtu.be/uqqkS3A2vfA (public; opens without signing in) |
 | Commit SHA | The merge commit on `main` that Vercel deployed to production |
 | Public-site check | Run `node scripts/verify-deployment.mjs https://admorph-ai-app.vercel.app` |
 | Live Meta evidence | The live-run entries in `BUILD_LOG.md` |

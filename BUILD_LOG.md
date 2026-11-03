@@ -270,3 +270,7 @@ With the owner's key and consent, every feature was run once on <https://admorph
 **Tests.** Tests of the removed code were removed with it; tests that mixed live and removed code keep their live parts. The planner tests use a fixed sample plan in `tests/unit/fixtures/`.
 
 **Notices.** `THIRD_PARTY_NOTICES.md` now names Meta's SAM License (`@meta-sam/parser`), MPL-2.0 (`@vercel/analytics`) and the LGPL libvips binaries that `sharp` installs, and says where each bundled image came from.
+
+## 2026-11-03 — Demo video published
+
+The 2:59 demo video is public on YouTube: <https://youtu.be/uqqkS3A2vfA>. It opens with the line on what existed before the kickoff and what was built during the hackathon, and shows live runs on the production site. README, HACKATHON.md, SUBMISSION_GUIDE.md and the `/hackathon` page link it. The test counts on the `/hackathon` page now match the current suite (284 unit, 267 browser).
