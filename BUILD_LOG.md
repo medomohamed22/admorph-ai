@@ -274,3 +274,7 @@ With the owner's key and consent, every feature was run once on <https://admorph
 ## 2026-11-03 — Demo video published
 
 The 2:59 demo video is public on YouTube: <https://youtu.be/uqqkS3A2vfA>. It opens with the line on what existed before the kickoff and what was built during the hackathon, and shows live runs on the production site. README, HACKATHON.md, SUBMISSION_GUIDE.md and the `/hackathon` page link it. The test counts on the `/hackathon` page now match the current suite (284 unit, 267 browser).
+
+## 2026-11-03 — Guided demo: shorter ideas, three shelf ads, a darker sneaker photo
+
+Idea headlines are three or four words about the photographed product, in the chosen dialect, with hook styles drawn at random each round and no invented numbers. The mockup headline shrinks to fit its box and is measured again after a web font loads. The guided demo now paints an ad for all three products on the sample shelf. The white sneaker on the sample shelf now sits on a dark background, because on the old light-grey background its cut sometimes took in part of the backdrop. Live run on production after the ideas change: 8 of 8 steps in 190 s, 23 Meta requests, all answered 200, three shelf ads. Two live cuts of the new shelf photo: all three products were cut cleanly both times.
