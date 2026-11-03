@@ -32,7 +32,7 @@ This section is the 28 October record. Everything below it is the historical rec
 ### What is not completed or not verified
 
 - Live Meta calls: verified on the production site (updated 2 November 2026). Muse Spark 1.3, SAM 3.1 and Muse Image 1.0 all run with the site's own key; each change since 27 October was re-tested live, and `BUILD_LOG.md` records the results. The fidelity score is Muse Spark's own judgment of the finished ad, not an independent measure.
-- Demo video: not recorded yet. It must open with: "This project started with an initial baseline uploaded on the afternoon of October 26, before the evening kickoff; all further development shown here was built during the hackathon, October 26 to November 4, 2026."
+- Demo video: https://youtu.be/uqqkS3A2vfA (2:59, public on YouTube). It opens with the line on what existed before the kickoff and what was built during the hackathon.
 - Submission: not submitted yet. Deadline: 4 November 2026, 9:00 PM ET (5 November 2026, 4:00 AM Cairo).
 
 > Current source: Meta-only expansion integrated on 27 October 2026; development since then is recorded in `BUILD_LOG.md` and the GitHub pull-request history. Sections below record the historical baseline and are kept as written. The three Meta models run live on the production site (see the first section above and the `/hackathon` page); remote publication is done through merged pull requests deployed to Vercel.
