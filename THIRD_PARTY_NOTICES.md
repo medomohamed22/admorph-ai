@@ -24,7 +24,7 @@ Development-only tools (ESLint, Playwright, Vitest, axe-core and their dependenc
 
 - **Showcase ads** (`public/showcase/ad-dafa-candle.webp`, `ad-nada-cream.webp`, `ad-hope-bottle.webp`): made on the live site from these free photos under the [Unsplash License](https://unsplash.com/license): [scented candle](https://unsplash.com/photos/1768690569742-9705f4c98f22), [cream jar on a towel](https://unsplash.com/photos/1630398777076-9b262a08c211) and [orange bottle](https://unsplash.com/photos/1617963656226-41ae10af91ac). Any text printed on a product is that product's own label.
 - **Home comparison** (`public/showcase/headphones-photo.webp`, `headphones-ad.webp`): the project owner's own product photo and the ad made from it on the live site.
-- **Guided demo** (`public/demo/hope-bottle.jpg`, `public/demo/hope-logo.png`): the project owner's own bottle photo and logo, the same ones used in the demo video.
+- **Guided demo** (`public/demo/hope-bottle.jpg`, `public/demo/hope-logo.png`): the bottle photo is the same free [orange bottle](https://unsplash.com/photos/1617963656226-41ae10af91ac) photo under the Unsplash License; the hope. logo was made for the project. Both are the ones used in the demo video.
 - **Sample shelf** (`public/demo/shelf-sample.jpg`): assembled from the project owner's own product photos (the TALJ can, the white sneaker and the headphones).
 - **Test fixture** (`public/demo/sora-product.png`): sample artwork made for this project, used by the automated tests.
 
