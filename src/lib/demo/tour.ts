@@ -34,8 +34,8 @@ export function demoPlace(locale: 'en' | 'ar'): string {
   return locale === 'ar' ? 'مكتب خشبي مشمس بجوار نافذة' : 'a sunny wooden desk by a window';
 }
 export const DEMO_SHELF_URL = '/demo/shelf-sample.jpg';
-/** The shelf part paints this many products, to keep the tour short and its cost small. */
-export const DEMO_SHELF_PRODUCTS = 2;
+/** The shelf part paints this many products: all three on the sample shelf (owner request, 3 Nov). */
+export const DEMO_SHELF_PRODUCTS = 3;
 /** In automatic mode each step stays on screen at least this long, so a viewer can read it. */
 export const DEMO_MIN_DWELL_MS = 2500;
 /** Pause between finished steps in automatic mode. */

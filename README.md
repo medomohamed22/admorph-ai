@@ -68,7 +68,7 @@ The planner first recognizes the product in the photo, then sets each of the thr
 
 ## Guided demo
 
-"Watch the full demo" on the home page walks the whole site with live Meta requests: the same phone photo of the hope. bottle as in the demo video becomes a finished ad (SAM 3.1 cut, the hope. brand with its logo, the video's place and the square 1:1 size, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its first two products.
+"Watch the full demo" on the home page walks the whole site with live Meta requests: the same phone photo of the hope. bottle as in the demo video becomes a finished ad (SAM 3.1 cut, the hope. brand with its logo, the video's place and the square 1:1 size, Muse Spark ideas, Muse Image paint, critic review and one repair), that ad gets a Ramadan version on the seasons page, and the bundled shelf photo becomes one ad for each of its three products.
 
 - **Auto** plays every step by itself, each kept on screen long enough to read (good for recording). **Step** waits for Next before each step (good for judges). The mode can be switched mid-run, Auto can be paused, and Exit stops it.
 - A sticky bar under the header names the step, the Meta models it uses and the seconds it is taking. A failed step stops with Retry and Skip; nothing is faked or replayed.
